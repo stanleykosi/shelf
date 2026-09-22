@@ -20,13 +20,18 @@ export class MagicIdentityProvider implements IdentityProvider {
   async verifyToken(token: string, challengeId: string) {
     if (!challengeId) throw new Error("AUTH_CHALLENGE_REQUIRED");
     const magic = await this.magic;
-    magic.token.validate(token);
+    magic.token.validate(token, challengeId);
     const [, claim] = magic.token.decode(token);
     if (claim.aud !== magic.clientId) throw new Error("AUTH_AUDIENCE_MISMATCH");
 
     const metadata = await magic.users.getMetadataByIssuer(claim.iss);
     if (metadata.issuer !== claim.iss) throw new Error("AUTH_ISSUER_MISMATCH");
-    return { issuer: claim.iss, email: metadata.email ?? undefined };
+    return {
+      issuer: claim.iss,
+      email: metadata.email ?? undefined,
+      issuedAt: new Date(claim.iat * 1000).toISOString(),
+      expiresAt: new Date(claim.ext * 1000).toISOString(),
+    };
   }
 
   async getSolanaWallet(issuer: string) {

@@ -30,10 +30,10 @@ function magicBrowser() {
   return instance;
 }
 
-export async function signInWithMagicEmail(email: string) {
-  const token = await magicBrowser().auth.loginWithEmailOTP({ email, showUI: true });
-  if (!token) throw new Error("MAGIC_LOGIN_CANCELLED");
-  return token;
+export async function signInWithMagicEmail(email: string, challengeId: string) {
+  const authentication = await magicBrowser().auth.loginWithEmailOTP({ email, showUI: true });
+  if (!authentication) throw new Error("MAGIC_LOGIN_CANCELLED");
+  return magicBrowser().user.generateIdToken({ attachment: challengeId, lifespan: 300 });
 }
 
 export async function startMagicGoogleLogin(redirectUri: string) {
@@ -47,13 +47,30 @@ export async function startMagicGoogleLogin(redirectUri: string) {
   });
 }
 
-export async function finishMagicGoogleLogin() {
+export async function finishMagicGoogleLogin(challengeId: string) {
   const result = await magicBrowser().oauth2.getRedirectResult();
-  return result.magic.idToken;
+  if (!result.magic.idToken) throw new Error("MAGIC_LOGIN_CANCELLED");
+  return magicBrowser().user.generateIdToken({ attachment: challengeId, lifespan: 300 });
 }
 
-export async function freshMagicToken() {
-  return magicBrowser().user.getIdToken({ lifespan: 300 });
+export async function reauthenticateWithMagicEmail(email: string, challengeId: string) {
+  const magic = magicBrowser();
+  if (await magic.user.isLoggedIn()) await magic.user.logout();
+  const authentication = await magic.auth.loginWithEmailOTP({ email, showUI: true });
+  if (!authentication) throw new Error("MAGIC_REAUTHENTICATION_CANCELLED");
+  return magic.user.generateIdToken({ attachment: challengeId, lifespan: 300 });
+}
+
+export async function reauthenticateWithMagicGoogle(challengeId: string, email?: string) {
+  const magic = magicBrowser();
+  if (await magic.user.isLoggedIn()) await magic.user.logout();
+  const authentication = await magic.oauth2.loginWithPopup({
+    provider: "google",
+    loginHint: email,
+    showMfaModal: true,
+  });
+  if (!authentication.magic.idToken) throw new Error("MAGIC_REAUTHENTICATION_CANCELLED");
+  return magic.user.generateIdToken({ attachment: challengeId, lifespan: 300 });
 }
 
 export async function magicSolanaWalletAddress() {

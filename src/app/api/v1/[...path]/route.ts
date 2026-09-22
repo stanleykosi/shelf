@@ -6,16 +6,20 @@ import {
   companyById,
   corporateActions,
   productById,
+  products,
   sources,
 } from "@/data/catalog";
 import {
   createOrder,
   createShare,
+  consumeMagicDidToken,
+  deleteAccountData,
   equalAllocations,
   ownedOrder,
   quoteLegFromJupiter,
   readShare,
   reviewCatalogReport,
+  revokeInvite,
   searchCatalog,
   searchCompanies,
   shelfView,
@@ -24,6 +28,7 @@ import {
   updateShelf,
   updateWatchlist,
   userForMagicIdentity,
+  validateTransferDestinationAddress,
   watchlistView,
 } from "@/domain/store";
 import type {
@@ -38,7 +43,9 @@ import { productNameForApprovedUrl } from "@/lib/product-url";
 import { isValidGtin } from "@/domain/gtin";
 import type {
   AccountSummary,
+  AuthenticationMethod,
   LoginChallenge,
+  StepUpChallenge,
   WalletSigningChallenge,
   WalletSigningVerification,
   WalletSummary,
@@ -53,13 +60,19 @@ import type { XStocksListing } from "@/providers/xstocks";
 import { MagicIdentityProvider } from "@/providers/magic";
 import { JupiterBuildProvider } from "@/providers/live";
 import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
+import {
+  createSessionToken,
+  readSessionToken,
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
+} from "@/lib/session";
 import { authenticatedUser } from "@/lib/authentication";
 import {
   isSolanaPublicKey,
   verifyWalletSigningTransaction,
   walletSigningMessage,
 } from "@/lib/solana-signing";
+import { SystemProgram } from "@solana/web3.js";
 
 const ai = env.OPENROUTER_API_KEY
   ? new OpenRouterProvider({
@@ -130,6 +143,22 @@ function currentUser(request: NextRequest) {
   return user;
 }
 
+function currentSession(request: NextRequest, userId: string) {
+  if (!env.SESSION_TOKEN_HMAC_KEY) throw new Error("AUTH_REQUIRED");
+  const claims = readSessionToken(
+    request.cookies.get(SESSION_COOKIE_NAME)?.value,
+    env.SESSION_TOKEN_HMAC_KEY,
+  );
+  const session = claims ? state.sessions.get(claims.sessionId) : undefined;
+  if (!session || session.userId !== userId || session.revokedAt) throw new Error("AUTH_REQUIRED");
+  return session;
+}
+
+function authenticationMethod(value: unknown): AuthenticationMethod {
+  if (value !== "email" && value !== "google") throw new Error("AUTH_INVALID");
+  return value;
+}
+
 type AuthSessionResult = {
   sessionToken: string;
   data: {
@@ -139,12 +168,23 @@ type AuthSessionResult = {
   };
 };
 
+type PersistedFailure = { persistedError: string };
+
 function isAuthSessionResult(value: unknown): value is AuthSessionResult {
   return Boolean(
     value &&
     typeof value === "object" &&
     "sessionToken" in value &&
     typeof value.sessionToken === "string",
+  );
+}
+
+function isPersistedFailure(value: unknown): value is PersistedFailure {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "persistedError" in value &&
+    typeof value.persistedError === "string",
   );
 }
 
@@ -218,6 +258,12 @@ const statusByError: Record<string, number> = {
   UNSUPPORTED_PRODUCT_URL: 422,
   INVALID_BARCODE: 422,
   RECIPIENT_INVALID: 422,
+  RECIPIENT_SELF: 422,
+  RECIPIENT_ACCOUNT_UNSAFE: 422,
+  RECIPIENT_VERIFICATION_UNAVAILABLE: 503,
+  LEG_NOT_QUOTEABLE: 409,
+  AI_CONSENT_REQUIRED: 403,
+  AI_GROUNDING_REQUIRED: 422,
   REVIEW_CHANGED: 409,
   RECONCILIATION_REQUIRED: 409,
   SIGNATURE_INVALID: 422,
@@ -344,6 +390,37 @@ function requireFreshAuthorization(request: NextRequest, userId: string, purpose
   state.freshAuthorizations.delete(tokenHash);
 }
 
+async function verifyTransferDestination(user: ReturnType<typeof currentUser>, address: string) {
+  const recipient = validateTransferDestinationAddress(user, address);
+  if (!env.SOLANA_RPC_URL) throw new Error("RECIPIENT_VERIFICATION_UNAVAILABLE");
+  let response: Response;
+  try {
+    response = await fetch(env.SOLANA_RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: randomUUID(),
+        method: "getAccountInfo",
+        params: [recipient.toBase58(), { encoding: "base64", commitment: "finalized" }],
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch {
+    throw new Error("RECIPIENT_VERIFICATION_UNAVAILABLE");
+  }
+  if (!response.ok) throw new Error("RECIPIENT_VERIFICATION_UNAVAILABLE");
+  const payload: unknown = await response.json();
+  if (!isRequestBody(payload) || !isRequestBody(payload.result)) {
+    throw new Error("RECIPIENT_VERIFICATION_UNAVAILABLE");
+  }
+  const account = payload.result.value;
+  if (account === null) return;
+  if (!isRequestBody(account) || account.executable === true || account.owner !== SystemProgram.programId.toBase58()) {
+    throw new Error("RECIPIENT_ACCOUNT_UNSAFE");
+  }
+}
+
 function pathIs(path: string[], ...segments: string[]) {
   return path.length === segments.length && path.every((part, index) => part === segments[index]);
 }
@@ -464,6 +541,7 @@ async function getResponse(request: NextRequest, path: string[]) {
     };
   }
   if (pathIs(path, "me")) {
+    const session = currentSession(request, user.id);
     return {
       id: user.id,
       role: user.role,
@@ -472,6 +550,7 @@ async function getResponse(request: NextRequest, path: string[]) {
       email: user.email,
       walletAddress: user.walletAddress,
       identityProvider: "magic",
+      authMethod: session.authMethod,
       ownerBindingId: user.magicIssuer,
     } satisfies AccountSummary & {
       id: string;
@@ -656,6 +735,7 @@ async function discoveryResponse(
   }
   if (pathIs(path, "discovery", "image")) {
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+    if (body.acknowledgeAiProcessing !== true) throw new Error("AI_CONSENT_REQUIRED");
     const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
     if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
     const image = imageBytesFromDataUrl(body.imageDataUrl);
@@ -677,8 +757,29 @@ async function aiResponse(path: string[], body: Record<string, unknown>, userId:
       hash: `user:${userId}`,
       dailyLimit: MEMBER_AI_REQUESTS_PER_DAY,
     });
+    const approvedFacts = sources.map((source) => ({
+      id: source.id,
+      title: source.title,
+      claim: [
+        ...products
+          .filter((product) => product.sourceIds.includes(source.id))
+          .map((product) => {
+            const company = companyById(product.companyId);
+            return `${product.name} (${product.brand}) has reviewed relationship ${product.relationship} to ${company?.name ?? "unknown"} for ${product.region}.`;
+          }),
+        ...companies
+          .filter((company) =>
+            source.id === "src-xstocks"
+              ? company.instrument?.provider === "xstocks"
+              : source.id === "src-prestocks-api" || source.id === "src-prestocks-disclosures"
+                ? company.instrument?.provider === "prestocks"
+                : false,
+          )
+          .map((company) => `${company.name}: ${company.description}`),
+      ].join(" ") || `${source.publisher} is an approved Shelf source titled ${source.title}.`,
+    }));
     const result = await ai.answer(
-      { question, sourceIds: sources.map((source) => source.id) },
+      { question, approvedFacts },
       REQUIRED_AI_PRIVACY,
     );
     settleAiUsage(reservation, result.usageMicrousd);
@@ -759,18 +860,51 @@ async function postResponse(request: NextRequest, path: string[]) {
     const returnPath = String(body.returnPath ?? "/");
     if (!returnPath.startsWith("/") || returnPath.startsWith("//")) throw new Error("AUTH_INVALID");
     const challengeId = randomUUID();
+    const createdAt = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+    const stepUpUser = pathIs(path, "auth", "step-up-challenge") ? currentUser(request) : undefined;
+    const stepUpSession = stepUpUser ? currentSession(request, stepUpUser.id) : undefined;
+    const purpose = String(body.purpose ?? "login");
+    if (stepUpUser && ![
+      "account_export",
+      "activity_export",
+      "account_deletion",
+      "transfer",
+      "admin_action",
+      "logout_all",
+    ].includes(purpose)) throw new Error("AUTH_INVALID");
+    if (stepUpUser) {
+      if (stepUpSession?.authMethod !== "email" && stepUpSession?.authMethod !== "google") {
+        throw new Error("FRESH_AUTH_REQUIRED");
+      }
+      if (!magicIdentity || !stepUpUser.magicIssuer) throw new Error("AUTH_UNAVAILABLE");
+      // Invalidating the provider session before issuing the challenge makes a new
+      // OTP/MFA ceremony mandatory. A token minted from the formerly unlocked
+      // Magic session can no longer satisfy this step-up.
+      await magicIdentity.revokeSessions(stepUpUser.magicIssuer);
+    }
     state.authChallenges.set(challengeId, {
       consumed: false,
+      createdAt,
       expiresAt,
-      purpose: String(body.purpose ?? "login"),
+      purpose,
+      userId: stepUpUser?.id,
+      authMethod: stepUpSession?.authMethod,
     });
-    return {
+    const result = {
       challengeId,
       expiresAt,
       returnPath,
       oauthRedirectUri: env.MAGIC_GOOGLE_REDIRECT_URI,
     } satisfies LoginChallenge;
+    if (stepUpSession) {
+      return {
+        challengeId,
+        expiresAt,
+        authMethod: stepUpSession.authMethod,
+      } satisfies StepUpChallenge;
+    }
+    return result;
   }
   if (pathIs(path, "auth", "session")) {
     const challenge = state.authChallenges.get(String(body.challengeId));
@@ -781,13 +915,30 @@ async function postResponse(request: NextRequest, path: string[]) {
     if (!magicIdentity || !env.SESSION_TOKEN_HMAC_KEY) throw new Error("AUTH_UNAVAILABLE");
     const didToken = String(body.didToken);
     const identity = await magicIdentity.verifyToken(didToken, String(body.challengeId));
+    if (new Date(identity.issuedAt) < new Date(challenge.createdAt)) throw new Error("AUTH_INVALID");
     const browserWalletAddress = String(body.walletAddress ?? "");
     if (!isSolanaPublicKey(browserWalletAddress)) throw new Error("SOLANA_WALLET_INVALID");
     const adminWallet = await magicIdentity.getSolanaWallet(identity.issuer);
     if (adminWallet.address !== browserWalletAddress) {
       throw new Error("WALLET_BINDING_MISMATCH");
     }
+    consumeMagicDidToken(didToken, String(body.challengeId), identity);
+    const existingUser = [...state.users.values()].find(
+      (candidate) => candidate.magicIssuer === identity.issuer,
+    );
+    if (existingUser?.walletAddress && existingUser.walletAddress !== adminWallet.address) {
+      existingUser.eligible = false;
+      challenge.consumed = true;
+      state.audits.push({
+        action: "wallet:binding_mismatch",
+        actorId: existingUser.id,
+        at: new Date().toISOString(),
+        reason: "Magic returned a different authoritative Solana wallet",
+      });
+      return { persistedError: "WALLET_BINDING_MISMATCH" } satisfies PersistedFailure;
+    }
     const walletVerifiedAt = new Date().toISOString();
+    const authMethod = authenticationMethod(body.method);
     const user = userForMagicIdentity({
       ...identity,
       walletAddress: adminWallet.address,
@@ -798,15 +949,23 @@ async function postResponse(request: NextRequest, path: string[]) {
       return invite.status === "active" && invite.email === identity.email?.toLowerCase();
     });
     challenge.consumed = true;
+    const sessionId = randomUUID();
+    const sessionToken = createSessionToken(
+      {
+        sessionId,
+        userId: user.id,
+        issuer: identity.issuer,
+        sessionVersion: user.sessionVersion,
+      },
+      env.SESSION_TOKEN_HMAC_KEY,
+    );
+    state.sessions.set(sessionId, {
+      userId: user.id,
+      authMethod,
+      expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
+    });
     return {
-      sessionToken: createSessionToken(
-        {
-          userId: user.id,
-          issuer: identity.issuer,
-          sessionVersion: user.sessionVersion,
-        },
-        env.SESSION_TOKEN_HMAC_KEY,
-      ),
+      sessionToken,
       data: {
         userId: user.id,
         wallet: adminWallet.address,
@@ -832,6 +991,7 @@ async function postResponse(request: NextRequest, path: string[]) {
     const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
     state.authChallenges.set(challengeId, {
       consumed: false,
+      createdAt: new Date().toISOString(),
       expiresAt,
       purpose: `wallet_signing:${user.id}`,
       walletAddress: proposedWalletAddress,
@@ -903,6 +1063,10 @@ async function postResponse(request: NextRequest, path: string[]) {
     if (challenge.consumed) throw new Error("AUTH_REPLAYED");
     const purpose = String(body.purpose);
     if (challenge.purpose !== purpose) throw new Error("AUTH_INVALID");
+    if (challenge.userId !== user.id) throw new Error("AUTH_INVALID");
+    if (challenge.authMethod !== currentSession(request, user.id).authMethod) {
+      throw new Error("AUTH_INVALID");
+    }
 
     if (!magicIdentity) throw new Error("AUTH_UNAVAILABLE");
     const identity = await magicIdentity.verifyToken(
@@ -910,11 +1074,15 @@ async function postResponse(request: NextRequest, path: string[]) {
       String(body.challengeId),
     );
     if (identity.issuer !== user.magicIssuer) throw new Error("AUTH_INVALID");
+    if (new Date(identity.issuedAt) < new Date(challenge.createdAt)) {
+      throw new Error("FRESH_AUTH_REQUIRED");
+    }
     const evidence = await magicIdentity.freshAuthEvidence(String(body.didToken));
     if (Date.now() - new Date(evidence.verifiedAt).getTime() > 5 * 60_000) {
       throw new Error("FRESH_AUTH_REQUIRED");
     }
 
+    consumeMagicDidToken(String(body.didToken), String(body.challengeId), identity);
     challenge.consumed = true;
     const stepUpToken = randomUUID();
     const tokenHash = createHash("sha256").update(stepUpToken).digest("hex");
@@ -992,7 +1160,10 @@ async function postResponse(request: NextRequest, path: string[]) {
     );
   }
   if (pathIs(path, "orders")) {
-    if (body.type === "transfer") requireFreshAuthorization(request, user.id, "transfer");
+    if (body.type === "transfer") {
+      requireFreshAuthorization(request, user.id, "transfer");
+      await verifyTransferDestination(user, String(body.recipientAddress ?? ""));
+    }
     return createOrder(user, body);
   }
   if (path.length === 5 && path[0] === "orders" && path[2] === "legs" && path[4] === "quote") {
@@ -1015,28 +1186,11 @@ async function postResponse(request: NextRequest, path: string[]) {
     if (!body.acknowledgeChainPermanence || !body.acknowledgeWalletIndependence) {
       throw new Error("ACKNOWLEDGEMENT_REQUIRED");
     }
-    user.shelfProductIds = [];
-    user.watchCompanyIds = [];
-    user.shelfName = "Deleted shelf";
-    user.eligible = false;
-    user.invited = false;
-    for (const share of state.shares.values()) {
-      if (share.userId === user.id) share.revoked = true;
-    }
-    for (const [id, draft] of state.allocationDrafts) {
-      if (draft.userId === user.id) state.allocationDrafts.delete(id);
-    }
-    state.consents = state.consents.filter((consent) => consent.userId !== user.id);
-    state.audits.push({
-      action: "account_deleted",
-      actorId: user.id,
-      retained: ["financial_records", "audit_events"],
-      at: new Date().toISOString(),
-    });
+    deleteAccountData(user);
     return {
       status: "completed",
-      deleted: ["shelf", "watchlist", "shares", "allocation_drafts", "consents", "eligibility"],
-      retained: ["financial_records", "audit_events"],
+      deleted: ["identity", "email", "wallet_binding", "sessions", "holdings", "shelf", "watchlist", "shares", "allocation_drafts", "consents", "eligibility"],
+      retained: ["financial_records_without_account_identity", "anonymized_audit_event"],
       walletDeleted: false,
     };
   }
@@ -1074,14 +1228,7 @@ async function postResponse(request: NextRequest, path: string[]) {
   }
   if (pathIs(path, "admin", "invites", "revoke")) {
     requireOwner(request);
-    const inviteId = String(body.inviteId);
-    const invite = state.invites.find((candidate) => candidate.id === inviteId);
-    if (!invite) throw new Error("NOT_FOUND");
-    invite.status = "revoked";
-    for (const member of state.users.values()) {
-      if (member.email?.toLowerCase() === invite.email) member.invited = false;
-    }
-    return { status: invite.status, inviteId };
+    return revokeInvite(String(body.inviteId));
   }
   if (
     path.length === 5 &&
@@ -1115,7 +1262,9 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
     if (path[0] === "markets" && path[1] === "history" && path[2]) {
       return success(await marketHistory(path[2]));
     }
-    return await runWithRuntimeState(false, async () => {
+    const consumesAuthorization =
+      pathIs(path, "account", "export") || pathIs(path, "exports", "activity");
+    return await runWithRuntimeState(consumesAuthorization, async () => {
       return success(await getResponse(request, path));
     });
   } catch (error) {
@@ -1129,12 +1278,18 @@ export async function POST(request: NextRequest, context: RouteContext<"/api/v1/
       assertMutationRequest(request);
       const { path } = await context.params;
       const result = await postResponse(request, path);
+      if (isPersistedFailure(result)) return failure(new Error(result.persistedError));
       if (isAuthSessionResult(result)) {
         const response = success(result.data, 201);
         setSessionCookie(response, result.sessionToken, SESSION_MAX_AGE_SECONDS);
         return response;
       }
       if (pathIs(path, "auth", "logout-all")) {
+        const response = success(result, 201);
+        setSessionCookie(response, "", 0);
+        return response;
+      }
+      if (pathIs(path, "account", "deletion")) {
         const response = success(result, 201);
         setSessionCookie(response, "", 0);
         return response;
@@ -1176,6 +1331,14 @@ export async function DELETE(request: NextRequest, context: RouteContext<"/api/v
       assertMutationRequest(request);
       const { path } = await context.params;
       if (pathIs(path, "auth", "session")) {
+        const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+        const claims = env.SESSION_TOKEN_HMAC_KEY
+          ? readSessionToken(sessionToken, env.SESSION_TOKEN_HMAC_KEY)
+          : undefined;
+        if (claims) {
+          const session = state.sessions.get(claims.sessionId);
+          if (session) session.revokedAt = new Date().toISOString();
+        }
         const response = success({ revoked: true });
         setSessionCookie(response, "", 0);
         return response;
@@ -1201,7 +1364,7 @@ export async function DELETE(request: NextRequest, context: RouteContext<"/api/v
       if (path[0] === "admin" && path[1] === "invites" && path[2]) {
         requireOwner(request);
         requireFreshAuthorization(request, user.id, "admin_action");
-        return success({ revoked: true, inviteId: path[2] });
+        return success(revokeInvite(path[2]));
       }
       throw new Error("NOT_FOUND");
     });

@@ -82,7 +82,10 @@ describe("OpenRouterProvider", () => {
     });
 
     await expect(
-      provider.answer({ question: "What is a stock token?", sourceIds: [] }, REQUIRED_AI_PRIVACY),
+      provider.answer({
+        question: "What is a stock token?",
+        approvedFacts: [{ id: "source-1", title: "Reviewed", claim: "A reviewed fact." }],
+      }, REQUIRED_AI_PRIVACY),
     ).rejects.toThrow("AI_PROVIDER_UNAVAILABLE");
     expect(requestCount).toBe(2);
   });
@@ -149,8 +152,38 @@ describe("OpenRouterProvider", () => {
     });
 
     await expect(
-      provider.answer({ question: "What is a stock token?", sourceIds: [] }, REQUIRED_AI_PRIVACY),
+      provider.answer({
+        question: "What is a stock token?",
+        approvedFacts: [{ id: "source-1", title: "Reviewed", claim: "A reviewed fact." }],
+      }, REQUIRED_AI_PRIVACY),
     ).rejects.toThrow("AI_PRIVACY_UNAVAILABLE");
     expect(requestCount).toBe(1);
+  });
+
+  it("sends approved claims and rejects citations outside that context", async () => {
+    const requests: Array<RequestInit | undefined> = [];
+    const provider = new OpenRouterProvider({
+      apiKey: "test-key",
+      visionModel: "test-vision",
+      textModel: "test-text",
+      fetch: async (_input, init) => {
+        requests.push(init);
+        return responseWithContent(JSON.stringify({
+          answer: "Pepsi is in PepsiCo's reviewed brand portfolio.",
+          sourceIds: ["forged-source"],
+          uncertainty: [],
+        }), 0.000001);
+      },
+    });
+    await expect(provider.answer({
+      question: "Who owns Pepsi?",
+      approvedFacts: [{
+        id: "src-pepsico",
+        title: "PepsiCo Brands",
+        claim: "Pepsi has a reviewed global-parent relationship to PepsiCo.",
+      }],
+    }, REQUIRED_AI_PRIVACY)).rejects.toThrow("AI_INVALID_RESPONSE");
+    const body = JSON.parse(String(requests[0]?.body)) as { messages: unknown };
+    expect(JSON.stringify(body.messages)).toContain("reviewed global-parent relationship");
   });
 });

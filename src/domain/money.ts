@@ -1,13 +1,23 @@
-const decimalPattern = /^(0|[1-9]\d*)(\.\d{1,6})?$/;
-
-export function parseUsdc(value: string): bigint {
+export function parseTokenAmount(value: string, decimals: number): bigint {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
+    throw new Error("Asset unit metadata is invalid.");
+  }
   const trimmed = value.trim();
+  const decimalPattern =
+    decimals === 0
+      ? /^(0|[1-9]\d*)$/
+      : new RegExp(`^(0|[1-9]\\d*)(\\.\\d{1,${decimals}})?$`);
   if (!decimalPattern.test(trimmed))
-    throw new Error("Enter a positive amount with up to 6 decimal places.");
+    throw new Error(`Enter a positive amount with up to ${decimals} decimal places.`);
   const [whole, fraction = ""] = trimmed.split(".");
-  const raw = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
+  const scale = 10n ** BigInt(decimals);
+  const raw = BigInt(whole) * scale + BigInt(fraction.padEnd(decimals, "0") || "0");
   if (raw <= 0n) throw new Error("Amount must be greater than zero.");
   return raw;
+}
+
+export function parseUsdc(value: string): bigint {
+  return parseTokenAmount(value, 6);
 }
 
 export function formatRaw(raw: string | bigint, decimals = 6): string {

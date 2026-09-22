@@ -1,4 +1,5 @@
 import postgres from "postgres@3.4.9";
+import { randomUUID } from "node:crypto";
 
 const jobKinds = ["refresh_issuer_context"] as const;
 
@@ -11,6 +12,8 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required.");
 const database = postgres(databaseUrl, { max: 1, prepare: false });
 const startedAt = new Date();
 const fiveMinuteBucket = Math.floor(startedAt.getTime() / 300_000);
+const workerId = `railway:${randomUUID()}`;
+const leaseUntil = new Date(startedAt.getTime() + 30_000);
 
 type PreStocksRow = {
   symbol: string;
@@ -36,7 +39,7 @@ function isPreStocksRow(value: unknown): value is PreStocksRow {
   );
 }
 
-async function refreshPreStocksMarketData(): Promise<number> {
+async function refreshPreStocksMarketData(heartbeat: () => Promise<void>): Promise<number> {
   const endpoint = new URL(preStocksApiUrl);
   if (endpoint.protocol !== "https:" || endpoint.hostname !== "prestocks.com") {
     throw new Error("PRESTOCKS_ENDPOINT_NOT_ALLOWED");
@@ -50,6 +53,7 @@ async function refreshPreStocksMarketData(): Promise<number> {
 
   const payload: unknown = await response.json();
   if (!Array.isArray(payload)) throw new Error("PRESTOCKS_RESPONSE_INVALID");
+  await heartbeat();
 
   const instruments = await database<{ id: string; mint: string }[]>`
     select id, mint from instruments where issuer_name = 'PreStocks'
@@ -95,6 +99,7 @@ async function refreshPreStocksMarketData(): Promise<number> {
       `;
       snapshots += 1;
     }
+    if (snapshots % 20 === 0) await heartbeat();
   }
 
   return snapshots;
@@ -138,16 +143,91 @@ async function verifyXStocksAssets(): Promise<number> {
   return verified.length;
 }
 
+async function renewJobLease(jobId: string): Promise<void> {
+  const renewed = await database<{ id: string }[]>`
+    update jobs
+    set lease_until = now() + interval '30 seconds',
+        updated_at = now()
+    where id = ${jobId}
+      and state = 'running'
+      and worker_id = ${workerId}
+    returning id
+  `;
+  if (renewed.length === 0) throw new Error("JOB_LEASE_LOST");
+}
+
 try {
   let failedJobs = 0;
   for (const kind of jobKinds) {
     const dedupeKey = `${kind}:${fiveMinuteBucket}`;
+    const claimed = await database<{ id: string; attempts: number }[]>`
+      insert into jobs (
+        kind,
+        dedupe_key,
+        payload_references,
+        state,
+        next_run_at,
+        attempts,
+        lease_until,
+        worker_id,
+        created_at,
+        updated_at
+      )
+      values (
+        ${kind},
+        ${dedupeKey},
+        ${database.json({ source: "railway-scheduler", result: "claimed" })},
+        'running',
+        ${startedAt},
+        1,
+        ${leaseUntil},
+        ${workerId},
+        ${startedAt},
+        ${startedAt}
+      )
+      on conflict (kind, dedupe_key) do update
+      set state = 'running',
+          payload_references = ${database.json({ source: "railway-scheduler", result: "expired_lease_reclaimed" })},
+          attempts = jobs.attempts + 1,
+          lease_until = excluded.lease_until,
+          worker_id = excluded.worker_id,
+          last_error_code = 'LEASE_EXPIRED',
+          updated_at = excluded.updated_at
+      where jobs.state = 'running'
+        and jobs.lease_until is not null
+        and jobs.lease_until <= excluded.updated_at
+        and jobs.attempts < 5
+      returning id, attempts
+    `;
+    if (claimed.length === 0) {
+      const exhausted = await database<{ id: string }[]>`
+        update jobs
+        set state = 'failed',
+            lease_until = null,
+            worker_id = null,
+            last_error_code = 'MAX_ATTEMPTS',
+            updated_at = ${startedAt}
+        where kind = ${kind}
+          and dedupe_key = ${dedupeKey}
+          and state = 'running'
+          and lease_until is not null
+          and lease_until <= ${startedAt}
+          and attempts >= 5
+        returning id
+      `;
+      if (exhausted.length > 0) failedJobs += 1;
+      continue;
+    }
+
     let jobState = "complete";
     let result = "not_started";
 
     try {
-      const snapshots = await refreshPreStocksMarketData();
+      await renewJobLease(claimed[0].id);
+      const snapshots = await refreshPreStocksMarketData(() => renewJobLease(claimed[0].id));
+      await renewJobLease(claimed[0].id);
       const xStocksAssets = await verifyXStocksAssets();
+      await renewJobLease(claimed[0].id);
       result = `prestocks_snapshots:${snapshots},xstocks_assets:${xStocksAssets}`;
     } catch (error) {
       jobState = "failed";
@@ -157,29 +237,27 @@ try {
 
     const payload = { source: "railway-scheduler", result };
 
-    await database`
-      insert into jobs (
-        kind,
-        dedupe_key,
-        payload_references,
-        state,
-        next_run_at,
-        attempts,
-        created_at,
-        updated_at
-      )
-      values (
-        ${kind},
-        ${dedupeKey},
-        ${database.json(payload)},
-        ${jobState},
-        ${startedAt},
-        1,
-        ${startedAt},
-        ${startedAt}
-      )
-      on conflict (kind, dedupe_key) do nothing
+    const settled = await database<{ id: string }[]>`
+      update jobs
+      set payload_references = ${database.json(payload)},
+          state = ${jobState},
+          lease_until = null,
+          updated_at = now(),
+          last_error_code = ${jobState === "failed" ? result : null}
+      where id = ${claimed[0].id}
+        and state = 'running'
+        and worker_id = ${workerId}
+      returning id
     `;
+    if (settled.length === 0) {
+      if (jobState !== "failed") failedJobs += 1;
+      console.error(JSON.stringify({
+        event: "job_lease_lost",
+        kind,
+        dedupeKey,
+        attempts: claimed[0].attempts,
+      }));
+    }
   }
 
   console.log(

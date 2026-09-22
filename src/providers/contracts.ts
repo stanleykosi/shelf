@@ -6,7 +6,12 @@ export const REQUIRED_AI_PRIVACY: PrivacyPolicy = {
 };
 
 export interface IdentityProvider {
-  verifyToken(token: string, challengeId: string): Promise<{ issuer: string; email?: string }>;
+  verifyToken(token: string, challengeId: string): Promise<{
+    issuer: string;
+    email?: string;
+    issuedAt: string;
+    expiresAt: string;
+  }>;
   getSolanaWallet(issuer: string): Promise<{ address: string; network: string }>;
   freshAuthEvidence(token: string): Promise<{ verifiedAt: string }>;
   revokeSessions(issuer: string): Promise<void>;
@@ -23,7 +28,10 @@ export interface VisionProvider {
 
 export interface EducationProvider {
   answer(
-    input: { question: string; sourceIds: string[] },
+    input: {
+      question: string;
+      approvedFacts: Array<{ id: string; title: string; claim: string }>;
+    },
     policy: PrivacyPolicy,
   ): Promise<{
     answer: string;

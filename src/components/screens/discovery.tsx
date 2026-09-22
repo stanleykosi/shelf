@@ -296,6 +296,7 @@ export function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [aiConsent, setAiConsent] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -338,6 +339,7 @@ export function ScanScreen() {
         response = await postJson("discovery/image", {
           mode: selectedMode === "camera" || selectedMode === "upload" ? "photo" : selectedMode,
           imageDataUrl,
+          acknowledgeAiProcessing: aiConsent,
         });
       }
       sessionStorage.setItem("shelf:scan-results", JSON.stringify(response));
@@ -418,6 +420,18 @@ export function ScanScreen() {
         )}
       </div>
       <Card className="section stack">
+        {["camera", "upload", "screenshot", "receipt"].includes(mode) ? (
+          <label className="notice">
+            <input
+              type="checkbox"
+              checked={aiConsent}
+              onChange={(event) => setAiConsent(event.target.checked)}
+            />{" "}
+            I agree to send this image to OpenRouter for this recognition request. Shelf does not
+            retain the image, but OpenRouter and its selected model provider process it under their
+            privacy policies. I have removed unnecessary personal or payment details.
+          </label>
+        ) : null}
         {mode === "camera" ? (
           <>
             <video
@@ -438,7 +452,11 @@ export function ScanScreen() {
               <button className="secondary" data-cta="C07" onClick={retakePhoto}>
                 Retake
               </button>
-              <button data-cta="C08" disabled={!imageDataUrl} onClick={() => recognize("photo")}>
+              <button
+                data-cta="C08"
+                disabled={!imageDataUrl || !aiConsent}
+                onClick={() => recognize("photo")}
+              >
                 Use photo
               </button>
             </div>
@@ -491,7 +509,7 @@ export function ScanScreen() {
             ) : null}
             <button
               data-cta={mode === "receipt" ? "C11" : "C10"}
-              disabled={!imageDataUrl}
+              disabled={!imageDataUrl || !aiConsent}
               onClick={() => recognize(mode)}
             >
               {" "}

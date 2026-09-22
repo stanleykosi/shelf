@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { isValidGtin } from "@/domain/gtin";
 import { premiumBps, premiumLabel } from "@/domain/market-data";
-import { allocateCost, feeFor, formatRaw, parseUsdc, splitBudget } from "@/domain/money";
+import {
+  allocateCost,
+  feeFor,
+  formatRaw,
+  parseTokenAmount,
+  parseUsdc,
+  splitBudget,
+} from "@/domain/money";
 import { financialRecordsCsv } from "@/lib/csv";
 import { readEnv } from "@/lib/env";
 import { pageAccess } from "@/lib/page-access";
@@ -19,6 +26,10 @@ describe("core safety contracts", () => {
     }
 
     expect(parseUsdc("10.000001")).toBe(10_000_001n);
+    expect(parseTokenAmount("1", 8)).toBe(100_000_000n);
+    expect(parseTokenAmount("1", 9)).toBe(1_000_000_000n);
+    expect(parseTokenAmount("1", 0)).toBe(1n);
+    expect(() => parseTokenAmount("1.0", 0)).toThrow();
     for (const input of ["-1", "1e3", "0", "1.0000001", "NaN", "1,5"]) {
       expect(() => parseUsdc(input)).toThrow();
     }
@@ -49,7 +60,7 @@ describe("core safety contracts", () => {
     const now = new Date("2030-01-01T12:00:00.000Z");
     const secret = "a-test-secret-that-is-long-enough-for-session-signing";
     const token = createSessionToken(
-      { userId: "user-1", issuer: "did:ethr:magic", sessionVersion: 2 },
+      { sessionId: "session-1", userId: "user-1", issuer: "did:ethr:magic", sessionVersion: 2 },
       secret,
       now,
     );
