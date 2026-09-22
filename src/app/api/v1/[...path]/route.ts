@@ -35,6 +35,8 @@ import { OpenRouterProvider } from "@/providers/openrouter";
 import { REQUIRED_AI_PRIVACY } from "@/providers/contracts";
 import { env } from "@/lib/env";
 import { productNameForApprovedUrl } from "@/lib/product-url";
+import { hasCurrentAiProcessingConsent } from "@/lib/ai-consent";
+import { safeReturnTo } from "@/lib/routes";
 import { isValidGtin } from "@/domain/gtin";
 import type {
   AccountSummary,
@@ -655,6 +657,7 @@ async function discoveryResponse(
     return recognitionMatches([productNameForApprovedUrl(String(body.url))]);
   }
   if (pathIs(path, "discovery", "image")) {
+    if (!hasCurrentAiProcessingConsent(body)) throw new Error("AI_CONSENT_REQUIRED");
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
     const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
     if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
@@ -756,8 +759,7 @@ async function postResponse(request: NextRequest, path: string[]) {
   const body = await jsonBody(request);
 
   if (pathIs(path, "auth", "challenges") || pathIs(path, "auth", "step-up-challenge")) {
-    const returnPath = String(body.returnPath ?? "/");
-    if (!returnPath.startsWith("/") || returnPath.startsWith("//")) throw new Error("AUTH_INVALID");
+    const returnPath = safeReturnTo(String(body.returnPath ?? "/"), "/");
     const challengeId = randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
     state.authChallenges.set(challengeId, {

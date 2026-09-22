@@ -2,14 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { articles, companies, companyById, productById, products, sources } from "@/data/catalog";
+import {
+  articles,
+  brands,
+  companies,
+  companyById,
+  products,
+  productById,
+  sources,
+} from "@/data/catalog";
 import type { MarketFeed } from "@/domain/market-data";
-import type { Category, Company, MarketHistoryPoint, RecognitionMatch } from "@/domain/types";
+import type { Brand, Category, Company, MarketHistoryPoint, RecognitionMatch } from "@/domain/types";
 import type { PreStocksListing } from "@/providers/prestocks";
 import type { XStocksListing } from "@/providers/xstocks";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
+import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { MarketHistoryChart } from "@/components/screens/markets";
 import {
   Card,
@@ -66,10 +76,10 @@ export function DiscoverScreen() {
           economic exposure to private companies and do not confer ordinary shareholder rights.
         </p>
         <div className="actions">
-          <CtaLink id="market-compare-home" href="/markets">
+          <CtaLink id="market-compare-home" href="/discover?entity=company">
             Compare both markets
           </CtaLink>
-          <CtaLink id="market-private-home" href="/markets/private" secondary>
+          <CtaLink id="market-private-home" href="/discover?entity=company&market=private" secondary>
             Explore private companies
           </CtaLink>
         </div>
@@ -123,7 +133,7 @@ function ProductCard({ productId }: { productId: string }) {
       <p className="muted">
         {product.brand} → {company.name}
       </p>
-      <Link className="button ghost" data-cta="C03" href={`/products/${product.id}`}>
+      <Link className="button ghost" data-cta="C03" href={`/products/${product.slug}`}>
         View product
       </Link>
     </Card>
@@ -141,42 +151,61 @@ function CompanyCard({ company }: { company: Company }) {
       <p className="muted">
         {instrument?.symbol} · issued through {instrument?.issuer}
       </p>
-      <Link className="button ghost" href={`/companies/${company.id}`}>
+      <Link className="button ghost" href={`/companies/${company.slug}`}>
         View company
       </Link>
     </Card>
   );
 }
 
-export function SearchScreen({ initialCategory }: { initialCategory?: string }) {
-  const [query, setQuery] = useState("");
+export function SearchScreen({
+  initialCategory,
+  initialEntity,
+  initialMarket,
+  initialQuery,
+}: {
+  initialCategory?: string;
+  initialEntity?: string;
+  initialMarket?: string;
+  initialQuery?: string;
+}) {
+  const router = useRouter();
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [category, setCategory] = useState(initialCategory ?? "");
   const [results, setResults] = useState(products);
-  const [companyResults, setCompanyResults] = useState(
-    companies.filter((company) => company.instrument),
-  );
+  const [companyResults, setCompanyResults] = useState(companies);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ q: query });
+        const params = new URLSearchParams();
+        if (query) params.set("q", query);
         if (category) params.set("category", category);
         const [productMatches, companyMatches] = await Promise.all([
           apiRequest<typeof products>(`catalog/search?${params}`),
           category
             ? Promise.resolve([])
-            : apiRequest<Company[]>(`catalog/companies?q=${encodeURIComponent(query)}`),
+            : apiRequest<Company[]>(
+                `catalog/companies?q=${encodeURIComponent(query)}${
+                  initialMarket ? `&provider=${initialMarket === "private" ? "prestocks" : "xstocks"}` : ""
+                }`,
+              ),
         ]);
         setResults(productMatches);
-        setCompanyResults(companyMatches.filter((company) => company.instrument));
+        setCompanyResults(companyMatches);
         setError(null);
+        if (initialEntity) params.set("entity", initialEntity);
+        if (initialMarket) params.set("market", initialMarket);
+        router.replace((params.size ? `/discover?${params}` : "/discover") as Route, {
+          scroll: false,
+        });
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Search failed");
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [query, category]);
+  }, [query, category, initialEntity, initialMarket, router]);
 
   function clearFilters() {
     setQuery("");
@@ -219,7 +248,7 @@ export function SearchScreen({ initialCategory }: { initialCategory?: string }) 
         </button>
         <ErrorMessage message={error} />
       </div>
-      <section className="section">
+      {initialEntity !== "company" ? <section className="section">
         {results.length ? (
           <div className="grid">
             {results.map((product) => (
@@ -239,7 +268,7 @@ export function SearchScreen({ initialCategory }: { initialCategory?: string }) 
             unknown name.
           </EmptyState>
         )}
-      </section>
+      </section> : null}
       <section className="section">
         <h2>Companies and investment products</h2>
         {companyResults.length ? (
@@ -251,6 +280,50 @@ export function SearchScreen({ initialCategory }: { initialCategory?: string }) 
         ) : (
           <p className="muted">No reviewed company or issuer instrument matches these filters.</p>
         )}
+      </section>
+    </>
+  );
+}
+
+export function BrandScreen({ brand }: { brand: Brand }) {
+  const brandProducts = brand.productIds
+    .map((productId) => productById(productId))
+    .filter((product) => product !== undefined);
+
+  return (
+    <>
+      <PageIntro eyebrow="Reviewed brand" title={brand.name}>
+        <p>
+          A brand is a consumer identity, not automatically a legal company or investment.
+          Shelf keeps the reviewed relationship and regional context visible.
+        </p>
+      </PageIntro>
+      <section className="section">
+        <h2>Products in Shelf&apos;s reviewed catalog</h2>
+        <div className="grid">
+          {brandProducts.map((product) => (
+            <ProductCard productId={product.id} key={product.id} />
+          ))}
+        </div>
+      </section>
+      <section className="section">
+        <h2>Reviewed company relationships</h2>
+        <div className="grid">
+          {brand.companyRelationships.map((relationship) => {
+            const company = companyById(relationship.companyId);
+            if (!company) return null;
+            return (
+              <Card key={`${relationship.companyId}-${relationship.relationship}-${relationship.region}`}>
+                <span className="badge">{relationship.relationship.replaceAll("_", " ")}</span>
+                <h3>{company.name}</h3>
+                <p className="muted">{relationship.region}</p>
+                <Link className="button ghost" href={`/companies/${company.slug}`}>
+                  View company
+                </Link>
+              </Card>
+            );
+          })}
+        </div>
       </section>
     </>
   );
@@ -296,6 +369,7 @@ export function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -335,9 +409,12 @@ export function ScanScreen() {
         response = await postJson("discovery/link", { url });
       } else {
         if (!imageDataUrl) throw new Error("Choose or capture an image first.");
+        if (!aiProcessingConsent) throw new Error("AI processing consent is required.");
         response = await postJson("discovery/image", {
           mode: selectedMode === "camera" || selectedMode === "upload" ? "photo" : selectedMode,
           imageDataUrl,
+          aiProcessingConsentAccepted: true,
+          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
         });
       }
       sessionStorage.setItem("shelf:scan-results", JSON.stringify(response));
@@ -418,6 +495,17 @@ export function ScanScreen() {
         )}
       </div>
       <Card className="section stack">
+        {["camera", "upload", "screenshot", "receipt"].includes(mode) ? (
+          <label>
+            <input
+              type="checkbox"
+              checked={aiProcessingConsent}
+              onChange={(event) => setAiProcessingConsent(event.target.checked)}
+            />{" "}
+            I agree to send this image to Shelf&apos;s disclosed AI provider for this recognition
+            request. Shelf does not retain the image or raw extracted text.
+          </label>
+        ) : null}
         {mode === "camera" ? (
           <>
             <video
@@ -438,7 +526,11 @@ export function ScanScreen() {
               <button className="secondary" data-cta="C07" onClick={retakePhoto}>
                 Retake
               </button>
-              <button data-cta="C08" disabled={!imageDataUrl} onClick={() => recognize("photo")}>
+              <button
+                data-cta="C08"
+                disabled={!imageDataUrl || !aiProcessingConsent}
+                onClick={() => recognize("photo")}
+              >
                 Use photo
               </button>
             </div>
@@ -491,7 +583,7 @@ export function ScanScreen() {
             ) : null}
             <button
               data-cta={mode === "receipt" ? "C11" : "C10"}
-              disabled={!imageDataUrl}
+              disabled={!imageDataUrl || !aiProcessingConsent}
               onClick={() => recognize(mode)}
             >
               {" "}
@@ -612,7 +704,7 @@ export function ScanResultsScreen() {
                 <Link
                   className="button ghost"
                   data-cta="C16"
-                  href={`/companies/${match.companyId}`}
+                  href={`/companies/${companyById(match.companyId)?.slug ?? match.companyId}`}
                 >
                   View company
                 </Link>
@@ -625,8 +717,8 @@ export function ScanResultsScreen() {
         <button data-cta="C17" disabled={!selected.length} onClick={saveSelected}>
           Save selected
         </button>
-        <Link className="button secondary" href="/shelf">
-          View temporary shelf
+        <Link className="button secondary" href="/saved">
+          View temporary saved items
         </Link>
       </div>
     </>
@@ -642,6 +734,7 @@ export function ProductScreen({ productId }: { productId: string }) {
       <EmptyState title="Product unavailable">This catalog entry may have been retired.</EmptyState>
     );
   const company = companyById(product.companyId)!;
+  const brand = brands.find((candidate) => candidate.name === product.brand);
   const source = sources.find((item) => product.sourceIds.includes(item.id));
   const selectedProductId = product.id;
 
@@ -676,7 +769,9 @@ export function ProductScreen({ productId }: { productId: string }) {
           <div className="product-art">{product.brand[0]}</div>
           <h2>Relationship path</h2>
           <p>
-            {product.name} → {product.brand} → {company.name}
+            {product.name} →{" "}
+            {brand ? <Link href={`/brands/${brand.slug}`}>{product.brand}</Link> : product.brand} →{" "}
+            {company.name}
           </p>
           <p className="muted">{product.region}</p>
           {source ? (
@@ -691,7 +786,7 @@ export function ProductScreen({ productId }: { productId: string }) {
             <button data-cta={saved ? "C19" : "C18"} onClick={toggleSave}>
               {saved ? "Remove from shelf" : "Save to shelf"}
             </button>
-            <CtaLink id="C20" href={`/companies/${company.id}`} secondary>
+            <CtaLink id="C20" href={`/companies/${company.slug}`} secondary>
               Explore company
             </CtaLink>
           </div>
@@ -891,7 +986,7 @@ export function CompanyScreen({ companyId }: { companyId: string }) {
                   {watched ? "On watchlist" : "Add to watchlist"}
                 </button>
                 {company.instrument.capabilities.buy ? (
-                  <CtaLink id="C21" href={`/invest/buy?companyId=${company.id}`}>
+                  <CtaLink id="C21" href={`/invest/${company.slug}`}>
                     Choose amount
                   </CtaLink>
                 ) : null}
@@ -1043,7 +1138,7 @@ export function ShelfScreen() {
             <button className="secondary" data-cta="C28" onClick={summarize}>
               Summarize my shelf
             </button>
-            <CtaLink id="C29" href="/shelf/share" secondary>
+            <CtaLink id="C29" href="/saved/share" secondary>
               Share by link
             </CtaLink>
           </>
@@ -1091,7 +1186,7 @@ export function ShelfScreen() {
                   <h3>{company.name}</h3>
                   <p className="muted">{company.instrument?.symbol}</p>
                   <div className="actions">
-                    <Link className="button" href={`/companies/${company.id}`}>
+                    <Link className="button" href={`/companies/${company.slug}`}>
                       Research
                     </Link>
                     <button className="ghost" onClick={() => removeWatchedCompany(company.id)}>
@@ -1105,8 +1200,8 @@ export function ShelfScreen() {
             <EmptyState
               title="No companies watched"
               action={
-                <CtaLink id="market-watch-empty" href="/markets">
-                  Explore markets
+                <CtaLink id="market-watch-empty" href="/discover?entity=company">
+                  Explore companies
                 </CtaLink>
               }
             >
@@ -1236,7 +1331,7 @@ export function AssistantScreen() {
           >
             Clear conversation
           </button>
-          <CtaLink id="C38" href="/invest/suggest" secondary>
+          <CtaLink id="C38" href="/invest/basket?source=ai" secondary>
             Suggest an allocation
           </CtaLink>
         </div>
@@ -1245,7 +1340,7 @@ export function AssistantScreen() {
           <ResultMessage>
             {answer}
             <div className="actions">
-              <CtaLink id="C39" href="/invest/suggest">
+              <CtaLink id="C39" href="/invest/basket?source=ai">
                 Use this draft
               </CtaLink>
             </div>

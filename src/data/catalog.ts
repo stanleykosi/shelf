@@ -1,4 +1,4 @@
-import type { Company, Product, Source } from "@/domain/types";
+import type { Brand, Company, Product, Source } from "@/domain/types";
 import { preStocksCompanies } from "@/data/prestocks";
 
 export const sources: Source[] = [
@@ -164,6 +164,54 @@ export const products: Product[] = families.map(
   }),
 );
 
+function publicSlug(value: string) {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export const brands: Brand[] = Array.from(new Set(products.map((product) => product.brand)))
+  .map((name) => {
+    const brandProducts = products.filter((product) => product.brand === name);
+    const relationshipKeys = new Set(
+      brandProducts.map(
+        (product) => `${product.companyId}\u0000${product.relationship}\u0000${product.region}`,
+      ),
+    );
+
+    return {
+      slug: publicSlug(name),
+      name,
+      productIds: brandProducts.map((product) => product.id),
+      companyRelationships: Array.from(relationshipKeys).map((key) => {
+        const [companyId, relationship, region] = key.split("\u0000") as [
+          string,
+          Product["relationship"],
+          string,
+        ];
+        const relationshipProducts = brandProducts.filter(
+          (product) =>
+            product.companyId === companyId &&
+            product.relationship === relationship &&
+            product.region === region,
+        );
+        return {
+          companyId,
+          relationship,
+          region,
+          productIds: relationshipProducts.map((product) => product.id),
+          sourceIds: Array.from(
+            new Set(relationshipProducts.flatMap((product) => product.sourceIds)),
+          ),
+        };
+      }),
+    } satisfies Brand;
+  })
+  .sort((left, right) => left.name.localeCompare(right.name));
+
 export const articles = [
   {
     slug: "brands-and-companies",
@@ -240,3 +288,8 @@ export const corporateActions = [
 
 export const companyById = (id: string) => companies.find((company) => company.id === id);
 export const productById = (id: string) => products.find((product) => product.id === id);
+export const companyBySlug = (slug: string) => companies.find((company) => company.slug === slug);
+export const productBySlug = (slug: string) => products.find((product) => product.slug === slug);
+export const brandBySlug = (slug: string) => brands.find((brand) => brand.slug === slug);
+export const companyByInstrumentId = (instrumentId: string) =>
+  companies.find((company) => company.instrument?.id === instrumentId);

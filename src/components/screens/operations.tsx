@@ -107,7 +107,7 @@ export function ShareScreen({ token }: { token?: string }) {
               </span>
               <h2>{company.name}</h2>
               <p className="muted">Research watchlist entry · no position information</p>
-              <Link className="button secondary" href={`/companies/${company.id}`}>
+              <Link className="button secondary" href={`/companies/${company.slug}`}>
                 View company
               </Link>
             </Card>
