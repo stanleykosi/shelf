@@ -1,0 +1,35 @@
+# Dependencies and build artifacts
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Local credentials; only secret-free example files may be committed
+.env
+.env.*
+!.env.example
+!.env.*.example
+secrets/
+.shelf-local/
+*.pem
+*.key
+*.p12
+
+# Test output and runtime logs
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# Local deployment state
+.vercel/
+.netlify/
+.railway/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+.vercel

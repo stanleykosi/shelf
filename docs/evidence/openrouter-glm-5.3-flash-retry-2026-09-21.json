@@ -1,0 +1,1850 @@
+{
+  "runAt": "2026-09-21T19:51:01.318Z",
+  "model": "z-ai/glm-5.3-flash",
+  "providerPolicy": {
+    "dataCollection": "deny",
+    "zdr": true,
+    "requireParameters": true,
+    "maxPricePerMillionTokensUsd": {
+      "prompt": 0.2,
+      "completion": 0.6
+    },
+    "maxOutputTokens": 800
+  },
+  "authorizedMaximumCases": 100,
+  "startIndex": 0,
+  "authorizedMaximumCostUsd": 2,
+  "completedCases": 100,
+  "totalCostUsd": 0.018836,
+  "precision": 1,
+  "recall": 0.98,
+  "schemaValidRate": 0.97,
+  "latencyMs": {
+    "p50": 7214,
+    "p95": 17226
+  },
+  "unexpectedCatalogPredictions": 0,
+  "errors": 3,
+  "limitation": "Synthetic typography tests schema transport, OCR-like recognition, abstention and prompt resistance. It does not establish accuracy on real packaging or camera conditions.",
+  "results": [
+    {
+      "id": "single-groceries-1",
+      "kind": "single",
+      "expected": [
+        "Pepsi"
+      ],
+      "predictions": [
+        "Pepsi"
+      ],
+      "expectedHits": [
+        "Pepsi"
+      ],
+      "catalogPredictions": [
+        "Pepsi"
+      ],
+      "latencyMs": 18134,
+      "costMicrousd": 221,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-2",
+      "kind": "single",
+      "expected": [
+        "Doritos"
+      ],
+      "predictions": [
+        "Doritos"
+      ],
+      "expectedHits": [
+        "Doritos"
+      ],
+      "catalogPredictions": [
+        "Doritos"
+      ],
+      "latencyMs": 14230,
+      "costMicrousd": 233,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-3",
+      "kind": "single",
+      "expected": [
+        "Lay's"
+      ],
+      "predictions": [
+        "Lay's"
+      ],
+      "expectedHits": [
+        "Lay's"
+      ],
+      "catalogPredictions": [
+        "Lay's"
+      ],
+      "latencyMs": 7168,
+      "costMicrousd": 174,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-4",
+      "kind": "single",
+      "expected": [
+        "Quaker"
+      ],
+      "predictions": [
+        "Quaker"
+      ],
+      "expectedHits": [
+        "Quaker"
+      ],
+      "catalogPredictions": [
+        "Quaker"
+      ],
+      "latencyMs": 8087,
+      "costMicrousd": 258,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-5",
+      "kind": "single",
+      "expected": [
+        "Cheetos"
+      ],
+      "predictions": [
+        "Cheetos"
+      ],
+      "expectedHits": [
+        "Cheetos"
+      ],
+      "catalogPredictions": [
+        "Cheetos"
+      ],
+      "latencyMs": 7253,
+      "costMicrousd": 192,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-6",
+      "kind": "single",
+      "expected": [
+        "Pepsi"
+      ],
+      "predictions": [
+        "Pepsi"
+      ],
+      "expectedHits": [
+        "Pepsi"
+      ],
+      "catalogPredictions": [
+        "Pepsi"
+      ],
+      "latencyMs": 8665,
+      "costMicrousd": 190,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-7",
+      "kind": "single",
+      "expected": [
+        "Doritos"
+      ],
+      "predictions": [
+        "Doritos"
+      ],
+      "expectedHits": [
+        "Doritos"
+      ],
+      "catalogPredictions": [
+        "Doritos"
+      ],
+      "latencyMs": 6159,
+      "costMicrousd": 184,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-8",
+      "kind": "single",
+      "expected": [
+        "Lay's"
+      ],
+      "predictions": [
+        "Lay's"
+      ],
+      "expectedHits": [
+        "Lay's"
+      ],
+      "catalogPredictions": [
+        "Lay's"
+      ],
+      "latencyMs": 17226,
+      "costMicrousd": 67,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-9",
+      "kind": "single",
+      "expected": [
+        "Quaker"
+      ],
+      "predictions": [
+        "Quaker"
+      ],
+      "expectedHits": [
+        "Quaker"
+      ],
+      "catalogPredictions": [
+        "Quaker"
+      ],
+      "latencyMs": 15954,
+      "costMicrousd": 219,
+      "schemaValid": true
+    },
+    {
+      "id": "single-groceries-10",
+      "kind": "single",
+      "expected": [
+        "Cheetos"
+      ],
+      "predictions": [
+        "Cheetos"
+      ],
+      "expectedHits": [
+        "Cheetos"
+      ],
+      "catalogPredictions": [
+        "Cheetos"
+      ],
+      "latencyMs": 15740,
+      "costMicrousd": 205,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-1",
+      "kind": "single",
+      "expected": [
+        "Olay"
+      ],
+      "predictions": [
+        "Olay"
+      ],
+      "expectedHits": [
+        "Olay"
+      ],
+      "catalogPredictions": [
+        "Olay"
+      ],
+      "latencyMs": 8371,
+      "costMicrousd": 197,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-2",
+      "kind": "single",
+      "expected": [
+        "Pantene"
+      ],
+      "predictions": [
+        "Pantene"
+      ],
+      "expectedHits": [
+        "Pantene"
+      ],
+      "catalogPredictions": [
+        "Pantene"
+      ],
+      "latencyMs": 6488,
+      "costMicrousd": 207,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-3",
+      "kind": "single",
+      "expected": [
+        "Head & Shoulders"
+      ],
+      "predictions": [
+        "Head & Shoulders"
+      ],
+      "expectedHits": [
+        "Head & Shoulders"
+      ],
+      "catalogPredictions": [
+        "Head & Shoulders"
+      ],
+      "latencyMs": 9625,
+      "costMicrousd": 144,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-4",
+      "kind": "single",
+      "expected": [
+        "Gillette"
+      ],
+      "predictions": [
+        "Gillette"
+      ],
+      "expectedHits": [
+        "Gillette"
+      ],
+      "catalogPredictions": [
+        "Gillette"
+      ],
+      "latencyMs": 15577,
+      "costMicrousd": 222,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-5",
+      "kind": "single",
+      "expected": [
+        "Olay"
+      ],
+      "predictions": [
+        "Olay"
+      ],
+      "expectedHits": [
+        "Olay"
+      ],
+      "catalogPredictions": [
+        "Olay"
+      ],
+      "latencyMs": 9002,
+      "costMicrousd": 209,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-6",
+      "kind": "single",
+      "expected": [
+        "Pantene"
+      ],
+      "predictions": [
+        "Pantene"
+      ],
+      "expectedHits": [
+        "Pantene"
+      ],
+      "catalogPredictions": [
+        "Pantene"
+      ],
+      "latencyMs": 11213,
+      "costMicrousd": 212,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-7",
+      "kind": "single",
+      "expected": [
+        "Head & Shoulders"
+      ],
+      "predictions": [
+        "Head & Shoulders"
+      ],
+      "expectedHits": [
+        "Head & Shoulders"
+      ],
+      "catalogPredictions": [
+        "Head & Shoulders"
+      ],
+      "latencyMs": 12869,
+      "costMicrousd": 243,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-8",
+      "kind": "single",
+      "expected": [
+        "Gillette"
+      ],
+      "predictions": [
+        "Gillette"
+      ],
+      "expectedHits": [
+        "Gillette"
+      ],
+      "catalogPredictions": [
+        "Gillette"
+      ],
+      "latencyMs": 11245,
+      "costMicrousd": 180,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-9",
+      "kind": "single",
+      "expected": [
+        "Olay"
+      ],
+      "predictions": [
+        "Olay"
+      ],
+      "expectedHits": [
+        "Olay"
+      ],
+      "catalogPredictions": [
+        "Olay"
+      ],
+      "latencyMs": 6018,
+      "costMicrousd": 160,
+      "schemaValid": true
+    },
+    {
+      "id": "single-beauty-10",
+      "kind": "single",
+      "expected": [
+        "Pantene"
+      ],
+      "predictions": [
+        "Pantene"
+      ],
+      "expectedHits": [
+        "Pantene"
+      ],
+      "catalogPredictions": [
+        "Pantene"
+      ],
+      "latencyMs": 7231,
+      "costMicrousd": 203,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-1",
+      "kind": "single",
+      "expected": [
+        "Tide"
+      ],
+      "predictions": [
+        "Tide"
+      ],
+      "expectedHits": [
+        "Tide"
+      ],
+      "catalogPredictions": [
+        "Tide"
+      ],
+      "latencyMs": 6038,
+      "costMicrousd": 184,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-2",
+      "kind": "single",
+      "expected": [
+        "Ariel"
+      ],
+      "predictions": [
+        "Ariel"
+      ],
+      "expectedHits": [
+        "Ariel"
+      ],
+      "catalogPredictions": [
+        "Ariel"
+      ],
+      "latencyMs": 5728,
+      "costMicrousd": 184,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-3",
+      "kind": "single",
+      "expected": [
+        "Fairy"
+      ],
+      "predictions": [
+        "Fairy"
+      ],
+      "expectedHits": [
+        "Fairy"
+      ],
+      "catalogPredictions": [
+        "Fairy"
+      ],
+      "latencyMs": 7691,
+      "costMicrousd": 220,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-4",
+      "kind": "single",
+      "expected": [
+        "Oral-B"
+      ],
+      "predictions": [
+        "Oral-B"
+      ],
+      "expectedHits": [
+        "Oral-B"
+      ],
+      "catalogPredictions": [
+        "Oral-B"
+      ],
+      "latencyMs": 9740,
+      "costMicrousd": 197,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-5",
+      "kind": "single",
+      "expected": [
+        "Tide"
+      ],
+      "predictions": [
+        "Tide"
+      ],
+      "expectedHits": [
+        "Tide"
+      ],
+      "catalogPredictions": [
+        "Tide"
+      ],
+      "latencyMs": 5816,
+      "costMicrousd": 181,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-6",
+      "kind": "single",
+      "expected": [
+        "Ariel"
+      ],
+      "predictions": [
+        "Ariel"
+      ],
+      "expectedHits": [
+        "Ariel"
+      ],
+      "catalogPredictions": [
+        "Ariel"
+      ],
+      "latencyMs": 7629,
+      "costMicrousd": 161,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-7",
+      "kind": "single",
+      "expected": [
+        "Fairy"
+      ],
+      "predictions": [
+        "Fairy"
+      ],
+      "expectedHits": [
+        "Fairy"
+      ],
+      "catalogPredictions": [
+        "Fairy"
+      ],
+      "latencyMs": 8975,
+      "costMicrousd": 253,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-8",
+      "kind": "single",
+      "expected": [
+        "Oral-B"
+      ],
+      "predictions": [
+        "Oral-B"
+      ],
+      "expectedHits": [
+        "Oral-B"
+      ],
+      "catalogPredictions": [
+        "Oral-B"
+      ],
+      "latencyMs": 16085,
+      "costMicrousd": 85,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-9",
+      "kind": "single",
+      "expected": [
+        "Tide"
+      ],
+      "predictions": [
+        "Tide"
+      ],
+      "expectedHits": [
+        "Tide"
+      ],
+      "catalogPredictions": [
+        "Tide"
+      ],
+      "latencyMs": 6581,
+      "costMicrousd": 222,
+      "schemaValid": true
+    },
+    {
+      "id": "single-household-10",
+      "kind": "single",
+      "expected": [
+        "Ariel"
+      ],
+      "predictions": [
+        "Ariel"
+      ],
+      "expectedHits": [
+        "Ariel"
+      ],
+      "catalogPredictions": [
+        "Ariel"
+      ],
+      "latencyMs": 7212,
+      "costMicrousd": 223,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-1",
+      "kind": "single",
+      "expected": [
+        "iPhone"
+      ],
+      "predictions": [
+        "iPhone"
+      ],
+      "expectedHits": [
+        "iPhone"
+      ],
+      "catalogPredictions": [
+        "iPhone"
+      ],
+      "latencyMs": 5308,
+      "costMicrousd": 185,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-2",
+      "kind": "single",
+      "expected": [
+        "iPad"
+      ],
+      "predictions": [
+        "iPad"
+      ],
+      "expectedHits": [
+        "iPad"
+      ],
+      "catalogPredictions": [
+        "iPad"
+      ],
+      "latencyMs": 4668,
+      "costMicrousd": 172,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-3",
+      "kind": "single",
+      "expected": [
+        "AirPods"
+      ],
+      "predictions": [
+        "AirPods"
+      ],
+      "expectedHits": [
+        "AirPods"
+      ],
+      "catalogPredictions": [
+        "AirPods"
+      ],
+      "latencyMs": 6091,
+      "costMicrousd": 191,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-4",
+      "kind": "single",
+      "expected": [
+        "Mac"
+      ],
+      "predictions": [
+        "Mac"
+      ],
+      "expectedHits": [
+        "Mac"
+      ],
+      "catalogPredictions": [
+        "Mac"
+      ],
+      "latencyMs": 7008,
+      "costMicrousd": 205,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-5",
+      "kind": "single",
+      "expected": [
+        "iPhone"
+      ],
+      "predictions": [
+        "iPhone"
+      ],
+      "expectedHits": [
+        "iPhone"
+      ],
+      "catalogPredictions": [
+        "iPhone"
+      ],
+      "latencyMs": 14186,
+      "costMicrousd": 225,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-6",
+      "kind": "single",
+      "expected": [
+        "iPad"
+      ],
+      "predictions": [
+        "iPad"
+      ],
+      "expectedHits": [
+        "iPad"
+      ],
+      "catalogPredictions": [
+        "iPad"
+      ],
+      "latencyMs": 7343,
+      "costMicrousd": 188,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-7",
+      "kind": "single",
+      "expected": [
+        "AirPods"
+      ],
+      "predictions": [
+        "AirPods"
+      ],
+      "expectedHits": [
+        "AirPods"
+      ],
+      "catalogPredictions": [
+        "AirPods"
+      ],
+      "latencyMs": 7865,
+      "costMicrousd": 195,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-8",
+      "kind": "single",
+      "expected": [
+        "Mac"
+      ],
+      "predictions": [
+        "Mac"
+      ],
+      "expectedHits": [
+        "Mac"
+      ],
+      "catalogPredictions": [
+        "Mac"
+      ],
+      "latencyMs": 9610,
+      "costMicrousd": 257,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-9",
+      "kind": "single",
+      "expected": [
+        "iPhone"
+      ],
+      "predictions": [
+        "iPhone"
+      ],
+      "expectedHits": [
+        "iPhone"
+      ],
+      "catalogPredictions": [
+        "iPhone"
+      ],
+      "latencyMs": 6747,
+      "costMicrousd": 194,
+      "schemaValid": true
+    },
+    {
+      "id": "single-electronics-10",
+      "kind": "single",
+      "expected": [
+        "iPad"
+      ],
+      "predictions": [
+        "iPad"
+      ],
+      "expectedHits": [
+        "iPad"
+      ],
+      "catalogPredictions": [
+        "iPad"
+      ],
+      "latencyMs": 8544,
+      "costMicrousd": 185,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-1",
+      "kind": "single",
+      "expected": [
+        "Nike"
+      ],
+      "predictions": [
+        "Nike"
+      ],
+      "expectedHits": [
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Nike"
+      ],
+      "latencyMs": 8772,
+      "costMicrousd": 221,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-2",
+      "kind": "single",
+      "expected": [
+        "Jordan"
+      ],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 31875,
+      "costMicrousd": 0,
+      "schemaValid": false,
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "single-clothing-3",
+      "kind": "single",
+      "expected": [
+        "Converse"
+      ],
+      "predictions": [
+        "Converse"
+      ],
+      "expectedHits": [
+        "Converse"
+      ],
+      "catalogPredictions": [
+        "Converse"
+      ],
+      "latencyMs": 7416,
+      "costMicrousd": 186,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-4",
+      "kind": "single",
+      "expected": [
+        "Nike"
+      ],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 32047,
+      "costMicrousd": 0,
+      "schemaValid": false,
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "single-clothing-5",
+      "kind": "single",
+      "expected": [
+        "Jordan"
+      ],
+      "predictions": [
+        "Jordan"
+      ],
+      "expectedHits": [
+        "Jordan"
+      ],
+      "catalogPredictions": [
+        "Jordan"
+      ],
+      "latencyMs": 13581,
+      "costMicrousd": 179,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-6",
+      "kind": "single",
+      "expected": [
+        "Converse"
+      ],
+      "predictions": [
+        "Converse"
+      ],
+      "expectedHits": [
+        "Converse"
+      ],
+      "catalogPredictions": [
+        "Converse"
+      ],
+      "latencyMs": 6150,
+      "costMicrousd": 238,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-7",
+      "kind": "single",
+      "expected": [
+        "Nike"
+      ],
+      "predictions": [
+        "Nike"
+      ],
+      "expectedHits": [
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Nike"
+      ],
+      "latencyMs": 12968,
+      "costMicrousd": 493,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-8",
+      "kind": "single",
+      "expected": [
+        "Jordan"
+      ],
+      "predictions": [
+        "Jordan"
+      ],
+      "expectedHits": [
+        "Jordan"
+      ],
+      "catalogPredictions": [
+        "Jordan"
+      ],
+      "latencyMs": 6729,
+      "costMicrousd": 230,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-9",
+      "kind": "single",
+      "expected": [
+        "Converse"
+      ],
+      "predictions": [
+        "Converse"
+      ],
+      "expectedHits": [
+        "Converse"
+      ],
+      "catalogPredictions": [
+        "Converse"
+      ],
+      "latencyMs": 15440,
+      "costMicrousd": 286,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-10",
+      "kind": "single",
+      "expected": [
+        "Nike"
+      ],
+      "predictions": [
+        "Nike",
+        "clothing test package",
+        "Variant 10"
+      ],
+      "expectedHits": [
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Nike"
+      ],
+      "latencyMs": 6957,
+      "costMicrousd": 130,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-1",
+      "kind": "multi",
+      "expected": [
+        "Pepsi",
+        "Head & Shoulders"
+      ],
+      "predictions": [
+        "Pepsi",
+        "Head & Shoulders"
+      ],
+      "expectedHits": [
+        "Pepsi",
+        "Head & Shoulders"
+      ],
+      "catalogPredictions": [
+        "Pepsi",
+        "Head & Shoulders"
+      ],
+      "latencyMs": 5115,
+      "costMicrousd": 184,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-2",
+      "kind": "multi",
+      "expected": [
+        "Doritos",
+        "Gillette"
+      ],
+      "predictions": [
+        "Doritos",
+        "Gillette"
+      ],
+      "expectedHits": [
+        "Doritos",
+        "Gillette"
+      ],
+      "catalogPredictions": [
+        "Doritos",
+        "Gillette"
+      ],
+      "latencyMs": 6904,
+      "costMicrousd": 167,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-3",
+      "kind": "multi",
+      "expected": [
+        "Lay's",
+        "Tide"
+      ],
+      "predictions": [
+        "Lay's",
+        "Tide"
+      ],
+      "expectedHits": [
+        "Lay's",
+        "Tide"
+      ],
+      "catalogPredictions": [
+        "Lay's",
+        "Tide"
+      ],
+      "latencyMs": 5658,
+      "costMicrousd": 127,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-4",
+      "kind": "multi",
+      "expected": [
+        "Quaker",
+        "Ariel"
+      ],
+      "predictions": [
+        "Quaker",
+        "Ariel"
+      ],
+      "expectedHits": [
+        "Quaker",
+        "Ariel"
+      ],
+      "catalogPredictions": [
+        "Quaker",
+        "Ariel"
+      ],
+      "latencyMs": 5998,
+      "costMicrousd": 126,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-5",
+      "kind": "multi",
+      "expected": [
+        "Cheetos",
+        "Fairy"
+      ],
+      "predictions": [
+        "Cheetos",
+        "Fairy"
+      ],
+      "expectedHits": [
+        "Cheetos",
+        "Fairy"
+      ],
+      "catalogPredictions": [
+        "Cheetos",
+        "Fairy"
+      ],
+      "latencyMs": 8771,
+      "costMicrousd": 212,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-6",
+      "kind": "multi",
+      "expected": [
+        "Olay",
+        "Oral-B"
+      ],
+      "predictions": [
+        "Olay",
+        "Oral-B"
+      ],
+      "expectedHits": [
+        "Olay",
+        "Oral-B"
+      ],
+      "catalogPredictions": [
+        "Olay",
+        "Oral-B"
+      ],
+      "latencyMs": 7214,
+      "costMicrousd": 127,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-7",
+      "kind": "multi",
+      "expected": [
+        "Pantene",
+        "iPhone"
+      ],
+      "predictions": [
+        "Pantene",
+        "iPhone"
+      ],
+      "expectedHits": [
+        "Pantene",
+        "iPhone"
+      ],
+      "catalogPredictions": [
+        "Pantene",
+        "iPhone"
+      ],
+      "latencyMs": 11981,
+      "costMicrousd": 184,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-8",
+      "kind": "multi",
+      "expected": [
+        "Head & Shoulders",
+        "iPad"
+      ],
+      "predictions": [
+        "Head & Shoulders",
+        "iPad"
+      ],
+      "expectedHits": [
+        "Head & Shoulders",
+        "iPad"
+      ],
+      "catalogPredictions": [
+        "Head & Shoulders",
+        "iPad"
+      ],
+      "latencyMs": 5461,
+      "costMicrousd": 234,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-9",
+      "kind": "multi",
+      "expected": [
+        "Gillette",
+        "AirPods"
+      ],
+      "predictions": [
+        "Gillette",
+        "AirPods"
+      ],
+      "expectedHits": [
+        "Gillette",
+        "AirPods"
+      ],
+      "catalogPredictions": [
+        "Gillette",
+        "AirPods"
+      ],
+      "latencyMs": 4699,
+      "costMicrousd": 182,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-10",
+      "kind": "multi",
+      "expected": [
+        "Tide",
+        "Mac"
+      ],
+      "predictions": [
+        "Tide",
+        "Mac"
+      ],
+      "expectedHits": [
+        "Tide",
+        "Mac"
+      ],
+      "catalogPredictions": [
+        "Tide",
+        "Mac"
+      ],
+      "latencyMs": 10718,
+      "costMicrousd": 128,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-11",
+      "kind": "multi",
+      "expected": [
+        "Ariel",
+        "Nike"
+      ],
+      "predictions": [
+        "Ariel",
+        "Nike"
+      ],
+      "expectedHits": [
+        "Ariel",
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Ariel",
+        "Nike"
+      ],
+      "latencyMs": 9140,
+      "costMicrousd": 217,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-12",
+      "kind": "multi",
+      "expected": [
+        "Fairy",
+        "Jordan"
+      ],
+      "predictions": [
+        "Fairy",
+        "Jordan"
+      ],
+      "expectedHits": [
+        "Fairy",
+        "Jordan"
+      ],
+      "catalogPredictions": [
+        "Fairy",
+        "Jordan"
+      ],
+      "latencyMs": 5516,
+      "costMicrousd": 193,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-13",
+      "kind": "multi",
+      "expected": [
+        "Oral-B",
+        "Converse"
+      ],
+      "predictions": [
+        "Oral-B",
+        "Converse"
+      ],
+      "expectedHits": [
+        "Oral-B",
+        "Converse"
+      ],
+      "catalogPredictions": [
+        "Oral-B",
+        "Converse"
+      ],
+      "latencyMs": 6384,
+      "costMicrousd": 173,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-14",
+      "kind": "multi",
+      "expected": [
+        "iPhone",
+        "Pepsi"
+      ],
+      "predictions": [
+        "iPhone",
+        "Pepsi"
+      ],
+      "expectedHits": [
+        "iPhone",
+        "Pepsi"
+      ],
+      "catalogPredictions": [
+        "Pepsi",
+        "iPhone"
+      ],
+      "latencyMs": 6221,
+      "costMicrousd": 160,
+      "schemaValid": true
+    },
+    {
+      "id": "multi-15",
+      "kind": "multi",
+      "expected": [
+        "iPad",
+        "Doritos"
+      ],
+      "predictions": [
+        "iPad",
+        "Doritos"
+      ],
+      "expectedHits": [
+        "iPad",
+        "Doritos"
+      ],
+      "catalogPredictions": [
+        "Doritos",
+        "iPad"
+      ],
+      "latencyMs": 6633,
+      "costMicrousd": 180,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-1",
+      "kind": "receipt",
+      "expected": [
+        "Pepsi",
+        "Fairy"
+      ],
+      "predictions": [
+        "Pepsi",
+        "Fairy"
+      ],
+      "expectedHits": [
+        "Pepsi",
+        "Fairy"
+      ],
+      "catalogPredictions": [
+        "Pepsi",
+        "Fairy"
+      ],
+      "latencyMs": 5674,
+      "costMicrousd": 187,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-2",
+      "kind": "receipt",
+      "expected": [
+        "Doritos",
+        "Oral-B"
+      ],
+      "predictions": [
+        "Doritos",
+        "Oral-B"
+      ],
+      "expectedHits": [
+        "Doritos",
+        "Oral-B"
+      ],
+      "catalogPredictions": [
+        "Doritos",
+        "Oral-B"
+      ],
+      "latencyMs": 5338,
+      "costMicrousd": 211,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-3",
+      "kind": "receipt",
+      "expected": [
+        "Lay's",
+        "iPhone"
+      ],
+      "predictions": [
+        "Lay's",
+        "iPhone"
+      ],
+      "expectedHits": [
+        "Lay's",
+        "iPhone"
+      ],
+      "catalogPredictions": [
+        "Lay's",
+        "iPhone"
+      ],
+      "latencyMs": 9410,
+      "costMicrousd": 197,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-4",
+      "kind": "receipt",
+      "expected": [
+        "Quaker",
+        "iPad"
+      ],
+      "predictions": [
+        "Quaker",
+        "iPad"
+      ],
+      "expectedHits": [
+        "Quaker",
+        "iPad"
+      ],
+      "catalogPredictions": [
+        "Quaker",
+        "iPad"
+      ],
+      "latencyMs": 4640,
+      "costMicrousd": 191,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-5",
+      "kind": "receipt",
+      "expected": [
+        "Cheetos",
+        "AirPods"
+      ],
+      "predictions": [
+        "Cheetos",
+        "AirPods"
+      ],
+      "expectedHits": [
+        "Cheetos",
+        "AirPods"
+      ],
+      "catalogPredictions": [
+        "Cheetos",
+        "AirPods"
+      ],
+      "latencyMs": 5360,
+      "costMicrousd": 216,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-6",
+      "kind": "receipt",
+      "expected": [
+        "Olay",
+        "Mac"
+      ],
+      "predictions": [
+        "Olay",
+        "Mac"
+      ],
+      "expectedHits": [
+        "Olay",
+        "Mac"
+      ],
+      "catalogPredictions": [
+        "Olay",
+        "Mac"
+      ],
+      "latencyMs": 5510,
+      "costMicrousd": 206,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-7",
+      "kind": "receipt",
+      "expected": [
+        "Pantene",
+        "Nike"
+      ],
+      "predictions": [
+        "Pantene",
+        "Nike"
+      ],
+      "expectedHits": [
+        "Pantene",
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Pantene",
+        "Nike"
+      ],
+      "latencyMs": 3727,
+      "costMicrousd": 205,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-8",
+      "kind": "receipt",
+      "expected": [
+        "Head & Shoulders",
+        "Jordan"
+      ],
+      "predictions": [
+        "Head & Shoulders",
+        "Jordan"
+      ],
+      "expectedHits": [
+        "Head & Shoulders",
+        "Jordan"
+      ],
+      "catalogPredictions": [
+        "Head & Shoulders",
+        "Jordan"
+      ],
+      "latencyMs": 5036,
+      "costMicrousd": 295,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-9",
+      "kind": "receipt",
+      "expected": [
+        "Gillette",
+        "Converse"
+      ],
+      "predictions": [
+        "Gillette",
+        "Converse"
+      ],
+      "expectedHits": [
+        "Gillette",
+        "Converse"
+      ],
+      "catalogPredictions": [
+        "Gillette",
+        "Converse"
+      ],
+      "latencyMs": 5676,
+      "costMicrousd": 240,
+      "schemaValid": true
+    },
+    {
+      "id": "receipt-10",
+      "kind": "receipt",
+      "expected": [
+        "Tide",
+        "Pepsi"
+      ],
+      "predictions": [
+        "Tide",
+        "Pepsi"
+      ],
+      "expectedHits": [
+        "Tide",
+        "Pepsi"
+      ],
+      "catalogPredictions": [
+        "Pepsi",
+        "Tide"
+      ],
+      "latencyMs": 9700,
+      "costMicrousd": 200,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-1",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 31550,
+      "costMicrousd": 0,
+      "schemaValid": false,
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "id": "unsupported-2",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 2"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5885,
+      "costMicrousd": 182,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-3",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 3"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 6967,
+      "costMicrousd": 375,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-4",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 4"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 8580,
+      "costMicrousd": 182,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-5",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 5"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 25779,
+      "costMicrousd": 138,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-6",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 6"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5041,
+      "costMicrousd": 217,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-7",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 7"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 7599,
+      "costMicrousd": 365,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-8",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 8"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 7262,
+      "costMicrousd": 86,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-9",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 10802,
+      "costMicrousd": 124,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-10",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 10"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5735,
+      "costMicrousd": 182,
+      "schemaValid": true
+    },
+    {
+      "id": "region-1",
+      "kind": "region",
+      "expected": [],
+      "predictions": [
+        "SUNRISE"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 7615,
+      "costMicrousd": 439,
+      "schemaValid": true
+    },
+    {
+      "id": "region-2",
+      "kind": "region",
+      "expected": [],
+      "predictions": [
+        "Sunrise"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 14424,
+      "costMicrousd": 537,
+      "schemaValid": true
+    },
+    {
+      "id": "region-3",
+      "kind": "region",
+      "expected": [],
+      "predictions": [
+        "SUNRISE"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5432,
+      "costMicrousd": 199,
+      "schemaValid": true
+    },
+    {
+      "id": "region-4",
+      "kind": "region",
+      "expected": [],
+      "predictions": [
+        "SUNRISE"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 16377,
+      "costMicrousd": 125,
+      "schemaValid": true
+    },
+    {
+      "id": "region-5",
+      "kind": "region",
+      "expected": [],
+      "predictions": [
+        "SUNRISE"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 4644,
+      "costMicrousd": 85,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-1",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 4262,
+      "costMicrousd": 227,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-2",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 6902,
+      "costMicrousd": 84,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-3",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 6560,
+      "costMicrousd": 195,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-4",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 6355,
+      "costMicrousd": 86,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-5",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 4994,
+      "costMicrousd": 78,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-6",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 7369,
+      "costMicrousd": 81,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-7",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5563,
+      "costMicrousd": 79,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-8",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 4250,
+      "costMicrousd": 79,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-9",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 11406,
+      "costMicrousd": 81,
+      "schemaValid": true
+    },
+    {
+      "id": "adversarial-10",
+      "kind": "adversarial",
+      "expected": [],
+      "predictions": [],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 5824,
+      "costMicrousd": 78,
+      "schemaValid": true
+    }
+  ]
+}

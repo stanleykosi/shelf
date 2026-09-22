@@ -1,0 +1,82 @@
+{
+  "runAt": "2026-09-21T19:58:00.357Z",
+  "model": "z-ai/glm-5.3-flash",
+  "providerPolicy": {
+    "dataCollection": "deny",
+    "zdr": true,
+    "requireParameters": true,
+    "maxPricePerMillionTokensUsd": {
+      "prompt": 0.2,
+      "completion": 0.6
+    },
+    "maxOutputTokens": 800
+  },
+  "authorizedMaximumCases": 100,
+  "startIndex": 0,
+  "authorizedMaximumCostUsd": 2,
+  "completedCases": 3,
+  "totalCostUsd": 0.000255,
+  "precision": 1,
+  "recall": 1,
+  "schemaValidRate": 1,
+  "latencyMs": {
+    "p50": 6247,
+    "p95": 17139
+  },
+  "unexpectedCatalogPredictions": 0,
+  "errors": 0,
+  "limitation": "Synthetic typography tests schema transport, OCR-like recognition, abstention and prompt resistance. It does not establish accuracy on real packaging or camera conditions.",
+  "results": [
+    {
+      "id": "single-clothing-2",
+      "kind": "single",
+      "expected": [
+        "Jordan"
+      ],
+      "predictions": [
+        "Jordan"
+      ],
+      "expectedHits": [
+        "Jordan"
+      ],
+      "catalogPredictions": [
+        "Jordan"
+      ],
+      "latencyMs": 17139,
+      "costMicrousd": 84,
+      "schemaValid": true
+    },
+    {
+      "id": "single-clothing-4",
+      "kind": "single",
+      "expected": [
+        "Nike"
+      ],
+      "predictions": [
+        "Nike"
+      ],
+      "expectedHits": [
+        "Nike"
+      ],
+      "catalogPredictions": [
+        "Nike"
+      ],
+      "latencyMs": 3983,
+      "costMicrousd": 85,
+      "schemaValid": true
+    },
+    {
+      "id": "unsupported-1",
+      "kind": "unsupported",
+      "expected": [],
+      "predictions": [
+        "Fictional Brand 1"
+      ],
+      "expectedHits": [],
+      "catalogPredictions": [],
+      "latencyMs": 6247,
+      "costMicrousd": 86,
+      "schemaValid": true
+    }
+  ]
+}

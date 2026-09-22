@@ -1,0 +1,1211 @@
+import { createHash, createHmac, randomUUID } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  articles,
+  companies,
+  companyById,
+  corporateActions,
+  productById,
+  sources,
+} from "@/data/catalog";
+import {
+  createOrder,
+  createShare,
+  equalAllocations,
+  ownedOrder,
+  quoteLegFromJupiter,
+  readShare,
+  reviewCatalogReport,
+  searchCatalog,
+  searchCompanies,
+  shelfView,
+  state,
+  stopOrder,
+  updateShelf,
+  updateWatchlist,
+  userForMagicIdentity,
+  watchlistView,
+} from "@/domain/store";
+import type {
+  AllocationDraft,
+  CatalogReport,
+  ConsentRecord,
+} from "@/domain/store";
+import { OpenRouterProvider } from "@/providers/openrouter";
+import { REQUIRED_AI_PRIVACY } from "@/providers/contracts";
+import { env } from "@/lib/env";
+import { productNameForApprovedUrl } from "@/lib/product-url";
+import { isValidGtin } from "@/domain/gtin";
+import type {
+  AccountSummary,
+  LoginChallenge,
+  WalletSigningChallenge,
+  WalletSigningVerification,
+  WalletSummary,
+} from "@/domain/identity";
+import type { MarketFeed } from "@/domain/market-data";
+import type { RecognitionMatch } from "@/domain/types";
+import { readMarketHistory, runWithRuntimeState } from "@/db/runtime-store";
+import { LivePreStocksProvider } from "@/providers/prestocks";
+import type { PreStocksListing } from "@/providers/prestocks";
+import { LiveXStocksProvider } from "@/providers/xstocks";
+import type { XStocksListing } from "@/providers/xstocks";
+import { MagicIdentityProvider } from "@/providers/magic";
+import { JupiterBuildProvider } from "@/providers/live";
+import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
+import { authenticatedUser } from "@/lib/authentication";
+import {
+  isSolanaPublicKey,
+  verifyWalletSigningTransaction,
+  walletSigningMessage,
+} from "@/lib/solana-signing";
+
+const ai = env.OPENROUTER_API_KEY
+  ? new OpenRouterProvider({
+        apiKey: env.OPENROUTER_API_KEY!,
+        visionModel: env.OPENROUTER_VISION_MODEL,
+        textModel: env.OPENROUTER_TEXT_MODEL,
+      })
+  : undefined;
+const preStocks = new LivePreStocksProvider(env.PRESTOCKS_API_URL);
+const xStocks = new LiveXStocksProvider(env.XSTOCKS_API_BASE_URL);
+const magicIdentity = env.MAGIC_SECRET_KEY
+  ? new MagicIdentityProvider({
+        secretKey: env.MAGIC_SECRET_KEY!,
+        network: env.SOLANA_NETWORK,
+      })
+  : undefined;
+const jupiter = env.JUPITER_API_KEY
+  ? new JupiterBuildProvider({ apiKey: env.JUPITER_API_KEY })
+  : undefined;
+type ListingCache<Listing> = {
+  value?: { listings: Listing[]; fetchedAt: number };
+};
+
+const preStocksCache: ListingCache<PreStocksListing> = {};
+const xStocksCache: ListingCache<XStocksListing> = {};
+
+async function cachedListings<Listing>(
+  cache: ListingCache<Listing>,
+  load: () => Promise<Listing[]>,
+  unavailableCode: string,
+): Promise<MarketFeed<Listing>> {
+  const now = Date.now();
+  if (cache.value && now - cache.value.fetchedAt < 5 * 60_000) {
+    return { state: "current", listings: cache.value.listings };
+  }
+
+  try {
+    const listings = await load();
+    cache.value = { listings, fetchedAt: now };
+    return { state: "current", listings };
+  } catch {
+    if (cache.value) return { state: "stale", listings: cache.value.listings };
+    throw new Error(unavailableCode);
+  }
+}
+
+async function preStocksListings(): Promise<MarketFeed<PreStocksListing>> {
+  return cachedListings(preStocksCache, () => preStocks.listings(), "PRESTOCKS_UNAVAILABLE");
+}
+
+async function xStocksListings(): Promise<MarketFeed<XStocksListing>> {
+  return cachedListings(xStocksCache, () => xStocks.listings(), "XSTOCKS_UNAVAILABLE");
+}
+
+async function marketHistory(companyId: string) {
+  const company = companyById(companyId);
+  if (!company?.instrument) throw new Error("NOT_FOUND");
+
+  const observed = await readMarketHistory(company.instrument.mint);
+  if (observed.length) return { mode: "observed", points: observed };
+
+  return { mode: "unavailable", points: [] };
+}
+
+function currentUser(request: NextRequest) {
+  const user = authenticatedUser(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  if (!user) throw new Error("AUTH_REQUIRED");
+  return user;
+}
+
+type AuthSessionResult = {
+  sessionToken: string;
+  data: {
+    userId: string;
+    wallet: string;
+    verifiedAt: string;
+  };
+};
+
+function isAuthSessionResult(value: unknown): value is AuthSessionResult {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "sessionToken" in value &&
+    typeof value.sessionToken === "string",
+  );
+}
+
+function setSessionCookie(response: NextResponse, value: string, maxAge: number) {
+  response.cookies.set(SESSION_COOKIE_NAME, value, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.APP_ORIGIN.startsWith("https://"),
+    path: "/",
+    maxAge,
+    priority: "high",
+  });
+}
+
+function requireOwner(request: NextRequest) {
+  const user = currentUser(request);
+  if (user.role !== "owner") throw new Error("NOT_FOUND");
+  return user;
+}
+
+function success(data: unknown, status = 200) {
+  return NextResponse.json(
+    {
+      data,
+      meta: { requestId: randomUUID(), serverTime: new Date().toISOString() },
+    },
+    {
+      status,
+      headers: { "Cache-Control": "private, no-store" },
+    },
+  );
+}
+
+const statusByError: Record<string, number> = {
+  NOT_FOUND: 404,
+  AUTH_REQUIRED: 401,
+  AUTH_INVALID: 401,
+  AUTH_AUDIENCE_MISMATCH: 401,
+  AUTH_CHALLENGE_REQUIRED: 401,
+  AUTH_ISSUER_MISMATCH: 401,
+  AUTH_REPLAYED: 409,
+  AUTH_UNAVAILABLE: 503,
+  FRESH_AUTH_REQUIRED: 401,
+  ELIGIBILITY_DENIED: 403,
+  PURCHASES_PAUSED: 403,
+  VERSION_CONFLICT: 409,
+  PREVIOUS_LEG_UNRESOLVED: 409,
+  QUOTE_EXPIRED: 409,
+  QUOTE_REQUIRED: 409,
+  INVALID_AMOUNT: 422,
+  INVALID_ALLOCATION: 422,
+  INVALID_INPUT: 422,
+  INVALID_CONSENT: 422,
+  INVALID_EMAIL: 422,
+  INVALID_ORDER_TYPE: 422,
+  INVALID_PAUSE_SCOPE: 422,
+  INVALID_REVIEW_DECISION: 422,
+  REVIEW_ALREADY_COMPLETED: 409,
+  WALLET_REFRESH_UNAVAILABLE: 501,
+  RECONCILIATION_UNAVAILABLE: 501,
+  ADMIN_MUTATION_UNAVAILABLE: 501,
+  ACKNOWLEDGEMENT_REQUIRED: 422,
+  REASON_REQUIRED: 422,
+  IMAGE_TOO_LARGE: 413,
+  IDEMPOTENCY_CONFLICT: 409,
+  DUPLICATE_COMPANY: 422,
+  ASSET_UNSUPPORTED: 422,
+  ORDER_LIMIT: 422,
+  INSUFFICIENT_USDC: 422,
+  INSUFFICIENT_ASSET: 422,
+  UNSUPPORTED_PRODUCT_URL: 422,
+  INVALID_BARCODE: 422,
+  RECIPIENT_INVALID: 422,
+  REVIEW_CHANGED: 409,
+  RECONCILIATION_REQUIRED: 409,
+  SIGNATURE_INVALID: 422,
+  SUBMISSIONS_PAUSED: 503,
+  PRESTOCKS_UNAVAILABLE: 503,
+  XSTOCKS_UNAVAILABLE: 503,
+  SIGNING_UNAVAILABLE: 503,
+  TRADE_EXECUTION_DISABLED: 503,
+  QUOTE_CONFIGURATION_INVALID: 503,
+  QUOTE_PROVIDER_UNAVAILABLE: 503,
+  QUOTE_PROVIDER_INVALID: 502,
+  JUPITER_BUILD_INVALID: 502,
+  JUPITER_TERMS_CHANGED: 409,
+  JUPITER_TIP_FORBIDDEN: 502,
+  JUPITER_PROGRAM_NOT_ALLOWED: 502,
+  JUPITER_SIGNERS_CHANGED: 502,
+  JUPITER_FEE_ACCOUNT_MISSING: 502,
+  JUPITER_BLOCKHASH_INVALID: 502,
+  AI_PROVIDER_UNAVAILABLE: 503,
+  AI_PRIVACY_UNAVAILABLE: 503,
+  AI_INVALID_RESPONSE: 502,
+  AI_DAILY_LIMIT_REACHED: 429,
+  AI_MONTHLY_LIMIT_REACHED: 429,
+  AI_USER_LIMIT_REACHED: 429,
+  AI_ALLOCATION_DISABLED: 403,
+  SOLANA_WALLET_INVALID: 409,
+  SOLANA_WALLET_UNAVAILABLE: 409,
+  WALLET_BINDING_MISMATCH: 409,
+  SOLANA_BLOCKHASH_INVALID: 502,
+  UNSUPPORTED_MEDIA_TYPE: 415,
+  ORIGIN_FORBIDDEN: 403,
+};
+
+function failure(error: unknown) {
+  const reportedCode = error instanceof Error ? error.message : "UNEXPECTED_ERROR";
+  const code = reportedCode in statusByError ? reportedCode : "UNEXPECTED_ERROR";
+  const status = statusByError[code] ?? 500;
+  const retryable = status === 503 || status === 429;
+  const requestId = randomUUID();
+
+  if (code === "UNEXPECTED_ERROR") {
+    console.error(JSON.stringify({
+      event: "api_request_failed",
+      requestId,
+      code,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+    }));
+  }
+
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message: code.replaceAll("_", " ").toLowerCase(),
+        retryable,
+      },
+      meta: { requestId, serverTime: new Date().toISOString() },
+    },
+    { status, headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+
+function isRequestBody(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error("INVALID_INPUT");
+  }
+  return value;
+}
+
+function optionalInteger(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isInteger(value)) throw new Error("INVALID_INPUT");
+  return value;
+}
+
+async function jsonBody(request: NextRequest): Promise<Record<string, unknown>> {
+  try {
+    const body: unknown = await request.json();
+    if (!isRequestBody(body)) throw new Error("INVALID_INPUT");
+    return body;
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_INPUT") throw error;
+    throw new Error("INVALID_INPUT");
+  }
+}
+
+function assertMutationRequest(request: NextRequest) {
+  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+    throw new Error("UNSUPPORTED_MEDIA_TYPE");
+  }
+  const origin = request.headers.get("origin");
+  const allowedOrigins =
+    env.APP_ENV === "local"
+      ? new Set([
+          env.APP_ORIGIN,
+          request.nextUrl.origin,
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+        ])
+      : new Set([env.APP_ORIGIN]);
+  if (origin && !allowedOrigins.has(origin)) throw new Error("ORIGIN_FORBIDDEN");
+  if (
+    env.APP_ENV === "private-beta" &&
+    (!origin || request.headers.get("x-csrf-token") !== "session-bound")
+  ) {
+    throw new Error("ORIGIN_FORBIDDEN");
+  }
+}
+
+function requireFreshAuthorization(request: NextRequest, userId: string, purpose: string) {
+  const token = request.headers.get("x-shelf-step-up");
+  if (!token) throw new Error("FRESH_AUTH_REQUIRED");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const authorization = state.freshAuthorizations.get(tokenHash);
+  const valid =
+    authorization?.userId === userId &&
+    authorization.purpose === purpose &&
+    new Date(authorization.expiresAt) > new Date();
+  if (!valid) throw new Error("FRESH_AUTH_REQUIRED");
+  state.freshAuthorizations.delete(tokenHash);
+}
+
+function pathIs(path: string[], ...segments: string[]) {
+  return path.length === segments.length && path.every((part, index) => part === segments[index]);
+}
+
+async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: string, legId: string) {
+  if (!jupiter) throw new Error("QUOTE_PROVIDER_UNAVAILABLE");
+
+  const order = ownedOrder(user, orderId);
+  const leg = order.legs.find((item) => item.id === legId);
+  if (!leg) throw new Error("NOT_FOUND");
+  if (leg.side === "transfer") throw new Error("TRADE_EXECUTION_DISABLED");
+  if (!user.walletAddress || !user.walletVerifiedAt || !isSolanaPublicKey(user.walletAddress)) {
+    throw new Error("SOLANA_WALLET_UNAVAILABLE");
+  }
+  const company = leg.companyId ? companyById(leg.companyId) : undefined;
+  if (!company?.instrument) throw new Error("ASSET_UNSUPPORTED");
+  if (!env.SPONSOR_PUBLIC_KEY || !env.FEE_USDC_TOKEN_ACCOUNT) {
+    throw new Error("QUOTE_CONFIGURATION_INVALID");
+  }
+
+  const isBuy = leg.side === "buy";
+  const build = await jupiter.buildValidatedExactInput({
+    inputMint: isBuy ? SOLANA_MAINNET_USDC_MINT : company.instrument.mint,
+    outputMint: isBuy ? company.instrument.mint : SOLANA_MAINNET_USDC_MINT,
+    rawAmount: leg.requestedInputRaw,
+    taker: user.walletAddress,
+    payer: env.SPONSOR_PUBLIC_KEY,
+    feeAccount: env.FEE_USDC_TOKEN_ACCOUNT,
+    feeBps: env.APP_FEE_BPS,
+  });
+
+  return quoteLegFromJupiter(user, orderId, legId, {
+    outputRaw: build.outputRaw,
+    minOutputRaw: build.minOutputRaw,
+    priceImpactBps: build.priceImpactBps,
+    routeDigest: build.routeDigest,
+    routeLabels: build.routeLabels,
+    transactionMessageHash: build.messageHash,
+    feeBps: env.APP_FEE_BPS,
+  });
+}
+
+async function getResponse(request: NextRequest, path: string[]) {
+  const url = request.nextUrl;
+
+  if (pathIs(path, "catalog", "search")) {
+    return searchCatalog(
+      url.searchParams.get("q") ?? "",
+      url.searchParams.get("category") ?? undefined,
+    );
+  }
+  if (pathIs(path, "catalog", "companies")) {
+    return searchCompanies(
+      url.searchParams.get("q") ?? "",
+      url.searchParams.get("provider") ?? undefined,
+    );
+  }
+  if (pathIs(path, "catalog", "prestocks")) return preStocksListings();
+  if (pathIs(path, "catalog", "xstocks")) return xStocksListings();
+  // History reads are handled before the runtime-state transaction in GET.
+  // Keeping the route out of other methods makes the database boundary explicit.
+  if (path[0] === "products" && path[1]) return productById(path[1]);
+  if (path[0] === "companies" && path[1]) return companyById(path[1]);
+  if (pathIs(path, "learn")) return articles;
+  if (path[0] === "learn" && path[1]) return articles.find((item) => item.slug === path[1]);
+  if (path[0] === "shares" && path[1]) return readShare(path[1]);
+
+  const user = currentUser(request);
+  if (pathIs(path, "shelf")) return shelfView(user);
+  if (pathIs(path, "watchlist")) return watchlistView(user);
+  if (pathIs(path, "shelf", "shares")) {
+    return [...state.shares.values()]
+      .filter((share) => share.userId === user.id)
+      .map(({ id, expiresAt, revoked }) => ({ id, expiresAt, revoked }));
+  }
+  if (pathIs(path, "wallet")) {
+    return {
+      address: user.walletAddress,
+      network: env.SOLANA_NETWORK,
+      cashRaw: user.cashRaw,
+      reservedRaw: "0",
+      externalInventory: user.holdings.filter((item) => BigInt(item.externalRaw) > 0n),
+    } satisfies WalletSummary & { externalInventory: typeof user.holdings };
+  }
+  if (pathIs(path, "wallet", "deposit")) {
+    return {
+      asset: "USDC",
+      network: env.SOLANA_NETWORK,
+      address: user.walletAddress,
+      depositsEnabled: false,
+    };
+  }
+  if (pathIs(path, "portfolio")) return { cashRaw: user.cashRaw, holdings: user.holdings };
+  if (path[0] === "portfolio" && path[1]) {
+    return user.holdings.find((item) => item.instrumentId === path[1]);
+  }
+  if (pathIs(path, "history")) return user.records;
+  if (path[0] === "history" && path[1]) return user.records.find((item) => item.id === path[1]);
+  if (pathIs(path, "corporate-actions")) return corporateActions;
+  if (path[0] === "corporate-actions" && path[1]) {
+    return corporateActions.find((item) => item.id === path[1]);
+  }
+  if (path[0] === "orders" && path[1]) return ownedOrder(user, path[1]);
+  if (pathIs(path, "capabilities")) {
+    return {
+      learn: true,
+      scan: true,
+      suggest: !state.pauses.suggestions,
+      deposit: false,
+      buy: user.eligible && !state.pauses.buys,
+      sell: user.eligible,
+      transfer: user.eligible,
+      tradePreview: "jupiter",
+      tradeExecution: env.ENABLE_REAL_TRADING,
+      reasonCodes: env.ENABLE_REAL_TRADING
+        ? []
+        : ["SPONSOR_ACTIVATION_PENDING", "LIVE_MONEY_GATE_CLOSED"],
+    };
+  }
+  if (pathIs(path, "me")) {
+    return {
+      id: user.id,
+      role: user.role,
+      invited: user.invited,
+      eligible: user.eligible,
+      email: user.email,
+      walletAddress: user.walletAddress,
+      identityProvider: "magic",
+      ownerBindingId: user.magicIssuer,
+    } satisfies AccountSummary & {
+      id: string;
+      role: typeof user.role;
+      invited: boolean;
+      eligible: boolean;
+    };
+  }
+  if (pathIs(path, "account", "export")) {
+    requireFreshAuthorization(request, user.id, "account_export");
+    return {
+      account: { id: user.id, role: user.role, invited: user.invited, eligible: user.eligible },
+      shelf: shelfView(user),
+      watchlist: watchlistView(user),
+      records: user.records,
+      publicChainDataErasure: false,
+    };
+  }
+  if (path[0] === "ai" && path[1] === "allocation-drafts" && path[2]) {
+    const draft = state.allocationDrafts.get(path[2]);
+    if (!draft || draft.userId !== user.id) throw new Error("NOT_FOUND");
+    return draft;
+  }
+  if (pathIs(path, "admin", "health")) {
+    if (user.role !== "owner") throw new Error("NOT_FOUND");
+    const providersConfigured = Boolean(
+      env.MAGIC_SECRET_KEY &&
+        env.OPENROUTER_API_KEY &&
+        env.JUPITER_API_KEY &&
+        env.SOLANA_RPC_URL &&
+        env.SOLANA_GENESIS_HASH,
+    );
+    return {
+      environment: env.APP_ENV,
+      providerStatus: providersConfigured ? "configured" : "incomplete",
+      network: env.SOLANA_NETWORK,
+      realTrading: env.ENABLE_REAL_TRADING,
+      pendingOrders: [...state.orders.values()].filter((order) => order.status !== "complete")
+        .length,
+      openGates: ["G01", "G02", "G03", "G04", "G05", "G06", "G07", "G08"],
+    };
+  }
+  if (pathIs(path, "admin", "audit")) {
+    requireOwner(request);
+    return state.audits;
+  }
+  if (pathIs(path, "admin", "budgets")) {
+    requireOwner(request);
+    const aiSpentMicrousd = state.aiUsage.reduce((total, entry) => total + entry.costMicrousd, 0);
+    return { sponsorSpentLamports: "0", aiSpentMicrousd };
+  }
+  if (pathIs(path, "admin", "orders")) {
+    requireOwner(request);
+    return [...state.orders.values()].filter((order) => order.status === "outcome_unknown");
+  }
+  if (pathIs(path, "admin", "catalog", "review")) {
+    requireOwner(request);
+    return {
+      pending: state.catalogReports.filter((report) => report.status === "open"),
+      reports: state.catalogReports,
+    };
+  }
+  if (path[0] === "admin" && path[1] === "diagnostics" && path[2]) {
+    requireOwner(request);
+    const order = state.orders.get(path[2]);
+    return {
+      orderId: path[2],
+      status: order?.status ?? "unknown",
+      containsSignedBytes: false,
+      containsSecrets: false,
+    };
+  }
+  if (pathIs(path, "exports", "activity")) {
+    requireFreshAuthorization(request, user.id, "activity_export");
+    return user.records;
+  }
+  throw new Error("NOT_FOUND");
+}
+
+function recognitionMatches(names: string[]): RecognitionMatch[] {
+  return names.map((name, index) => {
+    const product = searchCatalog(name)[0];
+    const company = product ? undefined : searchCompanies(name)[0];
+    return {
+      candidateId: `candidate-${index + 1}`,
+      displayLabel: name,
+      productId: product?.id ?? null,
+      companyId: product?.companyId ?? company?.id ?? null,
+      state: product || company ? "matched" : "unlisted",
+      confidenceBand: product || company ? "high" : "low",
+      sourceIds: product?.sourceIds ?? [],
+      requiresConfirmation: true,
+    };
+  });
+}
+
+function imageBytesFromDataUrl(value: unknown) {
+  const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(value ?? ""));
+  if (!match) throw new Error("UNSUPPORTED_MEDIA_TYPE");
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length || bytes.length > 3 * 1024 * 1024) throw new Error("IMAGE_TOO_LARGE");
+
+  const mediaType = `image/${match[1]}` as "image/jpeg" | "image/png" | "image/webp";
+  const hasExpectedSignature =
+    (mediaType === "image/jpeg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
+    (mediaType === "image/png" &&
+      bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) ||
+    (mediaType === "image/webp" &&
+      bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+      bytes.subarray(8, 12).toString("ascii") === "WEBP");
+  if (!hasExpectedSignature) throw new Error("UNSUPPORTED_MEDIA_TYPE");
+
+  return { bytes, mediaType };
+}
+
+const AI_REQUEST_RESERVE_MICROUSD = 1_000_000;
+const GUEST_AI_REQUESTS_PER_DAY = 5;
+const MEMBER_AI_REQUESTS_PER_DAY = 25;
+
+function aiQuotaSubject(request: NextRequest) {
+  const user = authenticatedUser(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  if (user) return { hash: `user:${user.id}`, dailyLimit: MEMBER_AI_REQUESTS_PER_DAY };
+
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const userAgent = request.headers.get("user-agent") ?? "unknown";
+  const key = env.SESSION_TOKEN_HMAC_KEY ?? "shelf-local-ai-quota";
+  const hash = createHmac("sha256", key).update(`${forwardedFor}:${userAgent}`).digest("hex");
+  return { hash: `guest:${hash}`, dailyLimit: GUEST_AI_REQUESTS_PER_DAY };
+}
+
+function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
+  if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+  const now = Date.now();
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const usedSince = (start: number) =>
+    state.aiUsage
+      .filter((entry) => new Date(entry.at).getTime() >= start)
+      .reduce((total, entry) => total + entry.costMicrousd, 0);
+  if (usedSince(dayAgo) + AI_REQUEST_RESERVE_MICROUSD > env.AI_DAILY_LIMIT_USD * 1_000_000) {
+    throw new Error("AI_DAILY_LIMIT_REACHED");
+  }
+  if (usedSince(monthAgo) + AI_REQUEST_RESERVE_MICROUSD > env.AI_MONTHLY_LIMIT_USD * 1_000_000) {
+    throw new Error("AI_MONTHLY_LIMIT_REACHED");
+  }
+
+  const subjectRequestsToday = state.aiUsage.filter((entry) => {
+    return entry.subjectHash === subject.hash && new Date(entry.at).getTime() >= dayAgo;
+  }).length;
+  if (subjectRequestsToday >= subject.dailyLimit) throw new Error("AI_USER_LIMIT_REACHED");
+
+  const reservation = {
+    at: new Date(now).toISOString(),
+    costMicrousd: AI_REQUEST_RESERVE_MICROUSD,
+    subjectHash: subject.hash,
+  };
+  state.aiUsage.push(reservation);
+  return reservation;
+}
+
+function settleAiUsage(
+  reservation: { at: string; costMicrousd: number } | null,
+  costMicrousd?: number,
+) {
+  if (!reservation) return;
+  if (costMicrousd === undefined) return;
+  reservation.costMicrousd = costMicrousd;
+}
+
+async function discoveryResponse(
+  request: NextRequest,
+  path: string[],
+  body: Record<string, unknown>,
+) {
+  if (pathIs(path, "discovery", "barcode")) {
+    const gtin = String(body.gtin ?? "");
+    if (!isValidGtin(gtin)) throw new Error("INVALID_BARCODE");
+    return recognitionMatches([gtin]);
+  }
+  if (pathIs(path, "discovery", "link")) {
+    return recognitionMatches([productNameForApprovedUrl(String(body.url))]);
+  }
+  if (pathIs(path, "discovery", "image")) {
+    if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+    const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
+    if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
+    const image = imageBytesFromDataUrl(body.imageDataUrl);
+    const reservation = reserveAiBudget(aiQuotaSubject(request));
+    const result = await ai.recognize(image.bytes, image.mediaType, mode, REQUIRED_AI_PRIVACY);
+    settleAiUsage(reservation, result.usageMicrousd);
+    return recognitionMatches(result.names);
+  }
+  return undefined;
+}
+
+async function aiResponse(path: string[], body: Record<string, unknown>, userId: string) {
+  if (path[0] !== "ai") return undefined;
+  if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+  if (pathIs(path, "ai", "answer")) {
+    const question = String(body.question ?? "").trim();
+    if (!question || question.length > 1_000) throw new Error("INVALID_INPUT");
+    const reservation = reserveAiBudget({
+      hash: `user:${userId}`,
+      dailyLimit: MEMBER_AI_REQUESTS_PER_DAY,
+    });
+    const result = await ai.answer(
+      { question, sourceIds: sources.map((source) => source.id) },
+      REQUIRED_AI_PRIVACY,
+    );
+    settleAiUsage(reservation, result.usageMicrousd);
+    return {
+      answer: result.answer,
+      sourceIds: result.sourceIds,
+      uncertainty: result.uncertainty,
+    };
+  }
+  if (pathIs(path, "ai", "shelf-summary")) {
+    const user = state.users.get(userId)!;
+    if (Number(body.shelfVersion) !== user.shelfVersion) throw new Error("VERSION_CONFLICT");
+    const shelf = shelfView(user);
+    return {
+      summary: `Your shelf has ${shelf.items.length} products across ${shelf.groups.length} parent companies. Repeated brands can point to the same company.`,
+      duplicateParents: shelf.groups
+        .filter((group) => group.products.length > 1)
+        .map((group) => group.company.id),
+      categoryCounts: Object.fromEntries(
+        shelf.items.map((item) => [
+          item.category,
+          shelf.items.filter((candidate) => candidate.category === item.category).length,
+        ]),
+      ),
+      proposedSortIds: shelf.items.map((item) => item.id).sort(),
+      sourceIds: [],
+    };
+  }
+  if (pathIs(path, "ai", "allocation-drafts")) {
+    if (!env.ENABLE_AI_ALLOCATION_SUGGESTIONS) {
+      throw new Error("AI_ALLOCATION_DISABLED");
+    }
+    const requestedCompanyIds =
+      body.companyIds === undefined
+        ? companies
+        .filter((company) => company.instrument?.capabilities.buy)
+        .slice(0, 5)
+            .map((company) => company.id)
+        : stringArray(body.companyIds);
+    const companyIds = [...new Set(requestedCompanyIds)].filter((id) => {
+      return Boolean(companyById(id)?.instrument);
+    });
+    if (companyIds.length !== requestedCompanyIds.length || companyIds.length > 5) {
+      throw new Error("INVALID_ALLOCATION");
+    }
+    const budgetRaw = String(body.budgetUsdcRaw);
+    if (!/^\d+$/.test(budgetRaw)) throw new Error("INVALID_AMOUNT");
+    const budget = BigInt(budgetRaw);
+    if (budget > 100_000_000n || budget < BigInt(companyIds.length) * 5_000_000n) {
+      throw new Error("ORDER_LIMIT");
+    }
+    const reservation = reserveAiBudget({
+      hash: `user:${userId}`,
+      dailyLimit: MEMBER_AI_REQUESTS_PER_DAY,
+    });
+    const proposal = await ai.draftAllocation({ companyIds }, REQUIRED_AI_PRIVACY);
+    settleAiUsage(reservation, proposal.usageMicrousd);
+    const id = randomUUID();
+    const draft: AllocationDraft = {
+      id,
+      userId,
+      budgetUsdcRaw: budgetRaw,
+      allocations: equalAllocations(budgetRaw, proposal.companyIds),
+      warnings: ["familiarity_not_valuation", "limited_universe", "token_issuer_risk"],
+      status: "draft",
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    };
+    state.allocationDrafts.set(id, draft);
+    return draft;
+  }
+  return undefined;
+}
+
+async function postResponse(request: NextRequest, path: string[]) {
+  const body = await jsonBody(request);
+
+  if (pathIs(path, "auth", "challenges") || pathIs(path, "auth", "step-up-challenge")) {
+    const returnPath = String(body.returnPath ?? "/");
+    if (!returnPath.startsWith("/") || returnPath.startsWith("//")) throw new Error("AUTH_INVALID");
+    const challengeId = randomUUID();
+    const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+    state.authChallenges.set(challengeId, {
+      consumed: false,
+      expiresAt,
+      purpose: String(body.purpose ?? "login"),
+    });
+    return {
+      challengeId,
+      expiresAt,
+      returnPath,
+      oauthRedirectUri: env.MAGIC_GOOGLE_REDIRECT_URI,
+    } satisfies LoginChallenge;
+  }
+  if (pathIs(path, "auth", "session")) {
+    const challenge = state.authChallenges.get(String(body.challengeId));
+    if (!challenge || new Date(challenge.expiresAt) <= new Date()) throw new Error("AUTH_INVALID");
+    if (challenge.consumed) throw new Error("AUTH_REPLAYED");
+    if (challenge.purpose !== "login") throw new Error("AUTH_INVALID");
+
+    if (!magicIdentity || !env.SESSION_TOKEN_HMAC_KEY) throw new Error("AUTH_UNAVAILABLE");
+    const didToken = String(body.didToken);
+    const identity = await magicIdentity.verifyToken(didToken, String(body.challengeId));
+    const browserWalletAddress = String(body.walletAddress ?? "");
+    if (!isSolanaPublicKey(browserWalletAddress)) throw new Error("SOLANA_WALLET_INVALID");
+    const adminWallet = await magicIdentity.getSolanaWallet(identity.issuer);
+    if (adminWallet.address !== browserWalletAddress) {
+      throw new Error("WALLET_BINDING_MISMATCH");
+    }
+    const walletVerifiedAt = new Date().toISOString();
+    const user = userForMagicIdentity({
+      ...identity,
+      walletAddress: adminWallet.address,
+      walletVerifiedAt,
+      ownerIssuer: env.OWNER_MAGIC_ISSUER,
+    });
+    user.invited = state.invites.some((invite) => {
+      return invite.status === "active" && invite.email === identity.email?.toLowerCase();
+    });
+    challenge.consumed = true;
+    return {
+      sessionToken: createSessionToken(
+        {
+          userId: user.id,
+          issuer: identity.issuer,
+          sessionVersion: user.sessionVersion,
+        },
+        env.SESSION_TOKEN_HMAC_KEY,
+      ),
+      data: {
+        userId: user.id,
+        wallet: adminWallet.address,
+        verifiedAt: walletVerifiedAt,
+      },
+    } satisfies AuthSessionResult;
+  }
+
+  const discovery = await discoveryResponse(request, path, body);
+  if (discovery) return discovery;
+
+  const user = currentUser(request);
+  if (pathIs(path, "wallet", "signing-challenge")) {
+    if (!magicIdentity || !user.magicIssuer) {
+      throw new Error("SIGNING_UNAVAILABLE");
+    }
+    const proposedWalletAddress = String(body.walletAddress ?? "");
+    if (!isSolanaPublicKey(proposedWalletAddress)) throw new Error("SOLANA_WALLET_INVALID");
+    if (user.walletAddress !== proposedWalletAddress) {
+      throw new Error("WALLET_BINDING_MISMATCH");
+    }
+    const challengeId = randomUUID();
+    const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+    state.authChallenges.set(challengeId, {
+      consumed: false,
+      expiresAt,
+      purpose: `wallet_signing:${user.id}`,
+      walletAddress: proposedWalletAddress,
+    });
+    return {
+      challengeId,
+      expiresAt,
+      walletAddress: proposedWalletAddress,
+      network: env.SOLANA_NETWORK,
+      message: walletSigningMessage(challengeId, expiresAt),
+      broadcast: false,
+    } satisfies WalletSigningChallenge;
+  }
+  if (pathIs(path, "wallet", "verify-signing")) {
+    const challengeId = String(body.challengeId);
+    const challenge = state.authChallenges.get(challengeId);
+    const challengeIsCurrent =
+      challenge?.purpose === `wallet_signing:${user.id}` &&
+      !challenge.consumed &&
+      new Date(challenge.expiresAt) > new Date();
+    if (!challenge || !challengeIsCurrent || !challenge.walletAddress) {
+      throw new Error("AUTH_INVALID");
+    }
+    verifyWalletSigningTransaction(
+      String(body.signedTransactionBase64),
+      challenge.walletAddress,
+      walletSigningMessage(challengeId, challenge.expiresAt),
+    );
+    challenge.consumed = true;
+    if (user.walletAddress !== challenge.walletAddress) {
+      throw new Error("WALLET_BINDING_MISMATCH");
+    }
+    user.walletVerifiedAt = new Date().toISOString();
+    state.audits.push({
+      action: "wallet:verify_binding",
+      actorId: user.id,
+      at: user.walletVerifiedAt,
+      reason:
+        "Verified control with a one-time Magic Solana transaction signature; nothing was broadcast",
+    });
+    return {
+      verified: true,
+      walletAddress: challenge.walletAddress,
+      network: env.SOLANA_NETWORK,
+      broadcast: false,
+    } satisfies WalletSigningVerification;
+  }
+  if (pathIs(path, "wallet", "cancel-signing")) {
+    const challengeId = String(body.challengeId);
+    const challenge = state.authChallenges.get(challengeId);
+    const challengeIsCurrent =
+      challenge?.purpose === `wallet_signing:${user.id}` &&
+      !challenge.consumed &&
+      new Date(challenge.expiresAt) > new Date();
+    if (!challenge || !challengeIsCurrent) throw new Error("AUTH_INVALID");
+
+    challenge.consumed = true;
+    state.audits.push({
+      action: "wallet:reject_signing",
+      actorId: user.id,
+      at: new Date().toISOString(),
+      reason: "User cancelled the explicit Shelf signing review before Magic was called",
+    });
+    return { cancelled: true, broadcast: false };
+  }
+  if (pathIs(path, "auth", "step-up")) {
+    const challenge = state.authChallenges.get(String(body.challengeId));
+    if (!challenge || new Date(challenge.expiresAt) <= new Date()) throw new Error("AUTH_INVALID");
+    if (challenge.consumed) throw new Error("AUTH_REPLAYED");
+    const purpose = String(body.purpose);
+    if (challenge.purpose !== purpose) throw new Error("AUTH_INVALID");
+
+    if (!magicIdentity) throw new Error("AUTH_UNAVAILABLE");
+    const identity = await magicIdentity.verifyToken(
+      String(body.didToken),
+      String(body.challengeId),
+    );
+    if (identity.issuer !== user.magicIssuer) throw new Error("AUTH_INVALID");
+    const evidence = await magicIdentity.freshAuthEvidence(String(body.didToken));
+    if (Date.now() - new Date(evidence.verifiedAt).getTime() > 5 * 60_000) {
+      throw new Error("FRESH_AUTH_REQUIRED");
+    }
+
+    challenge.consumed = true;
+    const stepUpToken = randomUUID();
+    const tokenHash = createHash("sha256").update(stepUpToken).digest("hex");
+    state.freshAuthorizations.set(tokenHash, {
+      userId: user.id,
+      purpose,
+      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    });
+    return { stepUpToken };
+  }
+
+  if (path[0] === "admin") {
+    requireOwner(request);
+    requireFreshAuthorization(request, user.id, "admin_action");
+    if (!String(body.reason ?? "").trim()) throw new Error("REASON_REQUIRED");
+  }
+  if (pathIs(path, "auth", "logout-all")) {
+    requireFreshAuthorization(request, user.id, "logout_all");
+    if (magicIdentity && user.magicIssuer) {
+      await magicIdentity.revokeSessions(user.magicIssuer);
+      user.sessionVersion += 1;
+      return { revokedSessions: 1, providerRevocation: "magic" };
+    }
+    throw new Error("AUTH_UNAVAILABLE");
+  }
+  if (pathIs(path, "consents")) {
+    const scope = String(body.scope);
+    if (scope !== "ai_processing" && scope !== "shelf_context" && scope !== "terms") {
+      throw new Error("INVALID_CONSENT");
+    }
+    const consent: ConsentRecord = {
+      id: randomUUID(),
+      userId: user.id,
+      scope,
+      version: String(body.version),
+      accepted: Boolean(body.accepted),
+      recordedAt: new Date().toISOString(),
+    };
+    state.consents.push(consent);
+    return consent;
+  }
+  if (pathIs(path, "catalog", "reports")) {
+    const report: CatalogReport = {
+      id: randomUUID(),
+      productId: body.productId ? String(body.productId) : null,
+      relationshipId: body.relationshipId ? String(body.relationshipId) : null,
+      reasonCode: String(body.reasonCode),
+      safeNote: String(body.note ?? "")
+        .trim()
+        .slice(0, 500),
+      status: "open",
+    };
+    state.catalogReports.push(report);
+    return report;
+  }
+
+  const generated = await aiResponse(path, body, user.id);
+  if (generated) return generated;
+
+  if (pathIs(path, "shelf", "items") || pathIs(path, "shelf", "merge")) {
+    return updateShelf(
+      user,
+      [...user.shelfProductIds, ...stringArray(body.productIds)],
+      optionalInteger(body.expectedVersion),
+    );
+  }
+  if (pathIs(path, "watchlist", "items")) {
+    return updateWatchlist(user, String(body.companyId), true);
+  }
+  if (pathIs(path, "shelf", "share")) {
+    return createShare(
+      user,
+      body.productIds === undefined ? [] : stringArray(body.productIds),
+      body.companyIds === undefined ? [] : stringArray(body.companyIds),
+    );
+  }
+  if (pathIs(path, "orders")) {
+    if (body.type === "transfer") requireFreshAuthorization(request, user.id, "transfer");
+    return createOrder(user, body);
+  }
+  if (path.length === 5 && path[0] === "orders" && path[2] === "legs" && path[4] === "quote") {
+    return quoteOrderLeg(user, path[1], path[3]);
+  }
+  if (path.length === 3 && path[0] === "orders" && path[2] === "stop") {
+    return stopOrder(user, path[1]);
+  }
+  if (pathIs(path, "eligibility", "check")) {
+    user.eligible = false;
+    return {
+      allowed: false,
+      policyVersion: env.FINANCIAL_POLICY_VERSION,
+      reasonCode: "POLICY_REVIEW_PENDING",
+    };
+  }
+  if (pathIs(path, "wallet", "refresh")) throw new Error("WALLET_REFRESH_UNAVAILABLE");
+  if (pathIs(path, "account", "deletion")) {
+    requireFreshAuthorization(request, user.id, "account_deletion");
+    if (!body.acknowledgeChainPermanence || !body.acknowledgeWalletIndependence) {
+      throw new Error("ACKNOWLEDGEMENT_REQUIRED");
+    }
+    user.shelfProductIds = [];
+    user.watchCompanyIds = [];
+    user.shelfName = "Deleted shelf";
+    user.eligible = false;
+    user.invited = false;
+    for (const share of state.shares.values()) {
+      if (share.userId === user.id) share.revoked = true;
+    }
+    for (const [id, draft] of state.allocationDrafts) {
+      if (draft.userId === user.id) state.allocationDrafts.delete(id);
+    }
+    state.consents = state.consents.filter((consent) => consent.userId !== user.id);
+    state.audits.push({
+      action: "account_deleted",
+      actorId: user.id,
+      retained: ["financial_records", "audit_events"],
+      at: new Date().toISOString(),
+    });
+    return {
+      status: "completed",
+      deleted: ["shelf", "watchlist", "shares", "allocation_drafts", "consents", "eligibility"],
+      retained: ["financial_records", "audit_events"],
+      walletDeleted: false,
+    };
+  }
+  if (pathIs(path, "admin", "pauses")) {
+    requireOwner(request);
+    const scope = String(body.scope);
+    if (scope !== "buys" && scope !== "submissions" && scope !== "suggestions") {
+      throw new Error("INVALID_PAUSE_SCOPE");
+    }
+    state.pauses[scope] = Boolean(body.enabled);
+    state.audits.push({
+      action: "pause_changed",
+      scope,
+      enabled: Boolean(body.enabled),
+      reason: String(body.reason),
+      at: new Date().toISOString(),
+    });
+    return state.pauses;
+  }
+  if (pathIs(path, "admin", "reconcile")) {
+    throw new Error("RECONCILIATION_UNAVAILABLE");
+  }
+  if (pathIs(path, "admin", "invites")) {
+    requireOwner(request);
+    const email = String(body.email ?? "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("INVALID_EMAIL");
+    const invite = {
+      id: randomUUID(),
+      email,
+      status: "active" as const,
+      createdAt: new Date().toISOString(),
+    };
+    state.invites.push(invite);
+    return { ...invite, email: email.replace(/(^.).*(@.*$)/, "$1••••$2") };
+  }
+  if (pathIs(path, "admin", "invites", "revoke")) {
+    requireOwner(request);
+    const inviteId = String(body.inviteId);
+    const invite = state.invites.find((candidate) => candidate.id === inviteId);
+    if (!invite) throw new Error("NOT_FOUND");
+    invite.status = "revoked";
+    for (const member of state.users.values()) {
+      if (member.email?.toLowerCase() === invite.email) member.invited = false;
+    }
+    return { status: invite.status, inviteId };
+  }
+  if (
+    path.length === 5 &&
+    path[0] === "admin" &&
+    path[1] === "catalog" &&
+    path[2] === "reports" &&
+    path[4] === "review"
+  ) {
+    const decision = String(body.decision);
+    if (decision !== "approved" && decision !== "rejected") {
+      throw new Error("INVALID_REVIEW_DECISION");
+    }
+    return reviewCatalogReport(path[3], decision, user.id, String(body.reason).trim());
+  }
+  if (
+    path[0] === "admin" &&
+    ["relationships", "instruments"].includes(path[1] ?? "") &&
+    path.length >= 4
+  ) {
+    throw new Error("ADMIN_MUTATION_UNAVAILABLE");
+  }
+  if (pathIs(path, "admin", "limits")) {
+    throw new Error("ADMIN_MUTATION_UNAVAILABLE");
+  }
+  throw new Error("NOT_FOUND");
+}
+
+export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
+  try {
+    const { path } = await context.params;
+    if (path[0] === "markets" && path[1] === "history" && path[2]) {
+      return success(await marketHistory(path[2]));
+    }
+    return await runWithRuntimeState(false, async () => {
+      return success(await getResponse(request, path));
+    });
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function POST(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
+  try {
+    return await runWithRuntimeState(true, async () => {
+      assertMutationRequest(request);
+      const { path } = await context.params;
+      const result = await postResponse(request, path);
+      if (isAuthSessionResult(result)) {
+        const response = success(result.data, 201);
+        setSessionCookie(response, result.sessionToken, SESSION_MAX_AGE_SECONDS);
+        return response;
+      }
+      if (pathIs(path, "auth", "logout-all")) {
+        const response = success(result, 201);
+        setSessionCookie(response, "", 0);
+        return response;
+      }
+      return success(result, 201);
+    });
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function PATCH(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
+  try {
+    return await runWithRuntimeState(true, async () => {
+      assertMutationRequest(request);
+      const { path } = await context.params;
+      const user = currentUser(request);
+      const body = await jsonBody(request);
+      if (!pathIs(path, "shelf")) throw new Error("NOT_FOUND");
+      if (body.name) user.shelfName = String(body.name).trim().slice(0, 60);
+      return success(
+        updateShelf(
+          user,
+          body.itemOrderIds === undefined
+            ? user.shelfProductIds
+            : stringArray(body.itemOrderIds),
+          optionalInteger(body.expectedVersion),
+        ),
+      );
+    });
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function DELETE(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
+  try {
+    return await runWithRuntimeState(true, async () => {
+      assertMutationRequest(request);
+      const { path } = await context.params;
+      if (pathIs(path, "auth", "session")) {
+        const response = success({ revoked: true });
+        setSessionCookie(response, "", 0);
+        return response;
+      }
+      const user = currentUser(request);
+      if (path[0] === "shelf" && path[1] === "items" && path[2]) {
+        return success(
+          updateShelf(
+            user,
+            user.shelfProductIds.filter((id) => id !== path[2]),
+          ),
+        );
+      }
+      if (path[0] === "watchlist" && path[1] === "items" && path[2]) {
+        return success(updateWatchlist(user, path[2], false));
+      }
+      if (path[0] === "shelf" && path[1] === "shares" && path[2]) {
+        const share = state.shares.get(path[2]);
+        if (!share || share.userId !== user.id) throw new Error("NOT_FOUND");
+        share.revoked = true;
+        return success({ revoked: true });
+      }
+      if (path[0] === "admin" && path[1] === "invites" && path[2]) {
+        requireOwner(request);
+        requireFreshAuthorization(request, user.id, "admin_action");
+        return success({ revoked: true, inviteId: path[2] });
+      }
+      throw new Error("NOT_FOUND");
+    });
+  } catch (error) {
+    return failure(error);
+  }
+}

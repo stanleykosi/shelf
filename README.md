@@ -1,0 +1,51 @@
+# Shelf
+
+Shelf connects familiar products and services to reviewed companies, then gives signed-in members a private shelf, watchlist, wallet view, portfolio, records, sharing, AI-assisted discovery, and deliberate investment workflows.
+
+The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share.
+
+Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.
+
+Financial execution and deposits remain disabled until the sponsor is funded, the fee account exists, transaction simulation passes, and the owner authorizes the live-money run.
+
+## Local setup
+
+Requirements: Node.js 22, npm 10, PostgreSQL 16, and the provider credentials listed in `.env.example`.
+
+```bash
+npm ci
+cp .env.example .env.local
+docker compose up -d postgres
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+Open `http://localhost:3000`. Local development uses PostgreSQL and the same provider adapters as production. Missing credentials fail closed; they do not create substitute users, balances, market data, or transactions.
+
+## Verification
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+PLAYWRIGHT_BASE_URL=https://shelf-one-phi.vercel.app npm run test:browser
+```
+
+Browser tests are read-only and use the installed Linux Chromium. They do not install or use Windows Chrome, Firefox, or WebKit.
+
+## Repository map
+
+- `src/app` — App Router pages, health endpoints, and versioned API
+- `src/components/screens` — responsive product screens
+- `src/domain` — exact money, order accounting, lots, and private shares
+- `src/providers` — Magic, OpenRouter, Jupiter, Helius, PreStocks, and xStocks adapters
+- `src/db/schema.ts` and `drizzle/` — PostgreSQL model and migrations
+- `infrastructure/railway-worker.ts` — scheduled issuer-data refresh
+- `tests/e2e` — read-only production browser checks
+- `docs/operator-runbook.md` — local and production operation
+- `docs/production-operations.md` — Vercel, Railway, activation, and rollback
+- `BUILD_STATUS.md` — implementation and readiness record
+
+The approved version-one specification remains in [`docs/product`](docs/product/README.md).
