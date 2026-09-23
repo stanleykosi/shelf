@@ -1,6 +1,6 @@
-type PageAccess = "public" | "member" | "owner";
+export type PageAccess = "public" | "member" | "owner";
 
-const memberRoutes = new Set([
+const legacyMemberRoutes = new Set([
   "/eligibility",
   "/history",
   "/invest/basket",
@@ -19,10 +19,18 @@ const memberRoutes = new Set([
 export function pageAccess(pathname: string): PageAccess {
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return "owner";
   if (
-    memberRoutes.has(pathname) ||
-    pathname.startsWith("/history/") ||
+    legacyMemberRoutes.has(pathname) ||
+    pathname === "/saved/share" ||
+    pathname === "/onboarding" ||
+    pathname.startsWith("/onboarding/") ||
+    pathname === "/account" ||
+    pathname.startsWith("/account/") ||
+    pathname === "/invest/basket" ||
+    pathname.startsWith("/invest/") ||
     pathname.startsWith("/orders/") ||
-    pathname.startsWith("/portfolio/")
+    pathname === "/portfolio" ||
+    pathname.startsWith("/portfolio/") ||
+    pathname.startsWith("/history/")
   ) {
     return "member";
   }

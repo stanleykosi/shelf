@@ -23,7 +23,8 @@ function compactUsd(value: string): string {
 }
 
 function laneLink(lane: MarketLane, current: MarketLane, label: string) {
-  const href = lane === "all" ? "/markets" : `/markets/${lane}`;
+  const href =
+    lane === "all" ? "/discover?entity=company" : `/discover?entity=company&market=${lane}`;
   return (
     <Link className={`market-tab ${lane === current ? "active" : ""}`} href={href as Route}>
       {label}
@@ -136,7 +137,7 @@ function MarketComparison() {
           </div>
         </dl>
         <p className="muted">Economic exposure only; no shareholder voting rights.</p>
-        <CtaLink id="market-public" href="/markets/public">
+        <CtaLink id="market-public" href="/discover?entity=company&market=public">
           Explore public companies
         </CtaLink>
       </Card>
@@ -159,7 +160,7 @@ function MarketComparison() {
           </div>
         </dl>
         <p className="muted">No company shares, voting, dividend, or information rights.</p>
-        <CtaLink id="market-private" href="/markets/private">
+        <CtaLink id="market-private" href="/discover?entity=company&market=private">
           Explore private companies
         </CtaLink>
       </Card>
@@ -296,7 +297,7 @@ function PrivateMarketSection({
         <CtaLink id="private-basket" href="/invest/basket?market=private">
           Build a private-market basket
         </CtaLink>
-        <CtaLink id="private-share" href="/shelf/share" secondary>
+        <CtaLink id="private-share" href="/saved/share" secondary>
           Share your research shelf
         </CtaLink>
       </div>

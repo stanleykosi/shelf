@@ -1,0 +1,18 @@
+interface:
+  display_name: product design architect
+  short_description: Audit and reshape an existing product before frontend implementation.
+    Use for product redesigns, frontend refactors, UX architecture, information architecture,
+    navigation, route/redirect planning, page responsibility, user journeys, state/recovery
+    design, or when creating/updating docs/PRODUCT_DESIGN_GUIDE.md from new concepts
+    or references. Use before visual implementation when the product structure itself
+    may change. Do not use for small styling tweaks, isolated component implementation,
+    or design-system token work.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
