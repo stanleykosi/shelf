@@ -77,6 +77,10 @@ describe("core safety contracts", () => {
 
     const solanaAddress = "GSusvqZ1HBubM48J9SwtHqkNeggnQ6Lpjt18xcarYn3A";
     expect(verifiedSolanaAddress({
+      publicAddress: "0x1234567890123456789012345678901234567890",
+      wallets: [{ network: "mainnet", public_address: solanaAddress, wallet_type: "SOLANA" }],
+    }, solanaAddress)).toBe(solanaAddress);
+    expect(verifiedSolanaAddress({
       publicAddress: null,
       wallets: [{ network: "mainnet", publicAddress: solanaAddress, walletType: "SOLANA" }],
     }, solanaAddress)).toBe(solanaAddress);

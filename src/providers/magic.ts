@@ -1,5 +1,4 @@
 import { Magic, WalletType } from "@magic-sdk/admin";
-import type { MagicUserMetadata } from "@magic-sdk/admin";
 import type { IdentityProvider } from "./contracts";
 import { isSolanaPublicKey } from "@/lib/solana-signing";
 
@@ -9,13 +8,27 @@ type MagicIdentityOptions = {
   network: string;
 };
 
-export function verifiedSolanaAddress(
-  metadata: Pick<MagicUserMetadata, "publicAddress" | "wallets">,
-  expectedAddress: string,
-) {
+type MagicWalletMetadata = {
+  publicAddress: string | null;
+  wallets: unknown[] | null;
+};
+
+function solanaAddressFromWallet(wallet: unknown) {
+  if (!wallet || typeof wallet !== "object" || Array.isArray(wallet)) return undefined;
+  const fields = wallet as Record<string, unknown>;
+  const walletType = fields.walletType ?? fields.wallet_type;
+  const publicAddress = fields.publicAddress ?? fields.public_address;
+
+  if (typeof walletType !== "string" || walletType.toUpperCase() !== WalletType.SOLANA) {
+    return undefined;
+  }
+  return typeof publicAddress === "string" ? publicAddress : undefined;
+}
+
+export function verifiedSolanaAddress(metadata: MagicWalletMetadata, expectedAddress: string) {
   const nestedAddresses = (metadata.wallets ?? [])
-    .filter((wallet) => wallet.walletType?.toUpperCase() === WalletType.SOLANA)
-    .map((wallet) => wallet.publicAddress);
+    .map(solanaAddressFromWallet)
+    .filter(isSolanaPublicKey);
   const validAddresses = [metadata.publicAddress, ...nestedAddresses].filter(isSolanaPublicKey);
 
   if (validAddresses.length === 0) throw new Error("SOLANA_WALLET_INVALID");
