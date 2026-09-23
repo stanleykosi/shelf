@@ -1,6 +1,6 @@
 # Shelf build status
 
-Updated: 2026-09-22
+Updated: 2026-09-23
 
 ## Current release
 
@@ -26,8 +26,9 @@ There are no runtime substitutes for identity, balances, provider data, signatur
 
 - `npm run lint` — passed with no warnings
 - `npm run typecheck` — passed
-- `npm test` — 9 files, 37 focused tests passed
+- `npm test` — 10 files, 44 focused tests passed
 - `npm run build` — passed with Next.js 16.3.5
+- Local production route/browser verification — 6/6 desktop and Pixel 7 checks passed, including exact 307/308/404 response contracts
 - Production `/readyz` — passed against the deployment
 - Production PreStocks endpoint — returned current reviewed listings
 - Anonymous `/api/v1/me` — returned 401
@@ -47,6 +48,7 @@ Frontend refactor Phases 0–2 are complete. The next frontend task may begin Ph
 
 ## Recent maintenance
 
+- 2026-09-23: Audited the complete Phase 0–2 frontend route architecture against the Product Design Guide and recorded fail-first plus final evidence in `docs/PHASE_0_2_ROUTE_VERIFICATION.md`. Corrected two in-scope defects: removed the global loading boundary that committed HTTP 200 before redirects/not-found, and replaced broad auth return-path prefixes with exact canonical shapes and safe segment validation. Added local-production HTTP regression coverage for all 19 guide-listed legacy redirects, invalid entities, guest access, and canonical ID migrations. ESLint, strict TypeScript, 10 Vitest files/44 tests, the Next.js production build, and 6/6 local desktop/Pixel 7 browser checks pass; authenticated probes return 200 for owned resources and indistinguishable 404s for foreign/missing/non-owner resources. No Phase 3 redesign, deployment, provider call, signing, or money action was performed.
 - 2026-09-22: Completed Product Design Guide refactor Phases 0–2 without beginning page redesign. Replaced the optional catch-all/`ScreenRouter` with 35 explicit canonical App Router pages, added reviewed public slugs and a derived Brand read model, implemented one-way legacy redirects and safe auth return-state filtering, enforced versioned AI image-processing consent, and migrated the shell to Discover/Saved/Portfolio with promoted Scan and route-aware mobile state. Existing screen styling remains scaffolding. ESLint, TypeScript, 9 Vitest files/35 tests, the Next.js production build, and all 4 local desktop/Pixel 7 public-route browser checks pass. Local authenticated browser checks remain environment-gated by unavailable PostgreSQL; no provider, deployment, or money action was performed. See `docs/PHASE_0_2_IMPLEMENTATION_SUMMARY.md`.
 - 2026-09-22: Resolved the full authentication, privacy, unit-conversion, state-machine, and scheduler review plus follow-up edge cases. Magic DID proofs are challenge-attached and replay-persisted; sensitive actions force a new authentication using the session's original email or Google method; per-session server revocation, persisted one-time export authorization, changed-wallet fail-closed auditing, and full account identity/session removal are enforced. Image recognition requires informed per-request OpenRouter consent, educational prompts receive reviewed claims and reject forged citations, token parsing covers verified scales including zero decimals, sells/transfers use instrument decimals, transfer destinations are curve/self/mint/account-type checked, and cancelled legs remain terminal. Railway claims before provider work, heartbeats owned work, atomically reclaims expired leases with fenced completion and attempt limits, and both invite revoke contracts share the persisted mutation. Lint, strict type checking, 9 Vitest files/37 tests, and the Next.js 16.3.5 Webpack production build pass. No external provider call, deployment, or financial operation was performed.
 - 2026-09-22: Completed the integrated eight-track code-quality review. The final tree passes ESLint, strict TypeScript, 8 Vitest files/28 tests, the Next.js 16.3.5 Webpack production build, and Madge cycle checks across application and ancillary entrypoints. Knip reports only documented intentional package/entrypoint findings plus the specification-required unused `SponsorSigner` activation interface; no unused application file or removable implementation export remains. No external provider call, deployment, or financial operation was performed.

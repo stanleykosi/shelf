@@ -144,6 +144,35 @@ describe("frontend route architecture", () => {
     expect(safeReturnTo("//attacker.invalid/portfolio")).toBe("/onboarding");
     expect(safeReturnTo("/auth/callback")).toBe("/onboarding");
     expect(safeReturnTo("/unknown/private-place")).toBe("/onboarding");
+
+    for (const destination of [
+      "/products/doritos-snack",
+      "/brands/doritos",
+      "/companies/pepsico",
+      "/learn/what-you-own",
+      "/share/revocable-token",
+      "/invest/pepsico",
+      "/orders/order-id",
+      "/orders/order-id/review",
+      "/portfolio/instrument-id",
+      "/portfolio/instrument-id/sell",
+      "/portfolio/activity/record-id",
+    ]) {
+      expect(safeReturnTo(destination)).toBe(destination);
+    }
+
+    for (const destination of [
+      "/products/",
+      "/products/%",
+      "/products/%2Faccount",
+      "/products/doritos/extra",
+      "/orders/order-id/approve",
+      "/orders/order-id/review/extra",
+      "/portfolio/instrument-id/unknown",
+      "/portfolio/activity/record-id/extra",
+    ]) {
+      expect(safeReturnTo(destination)).toBe("/onboarding");
+    }
   });
 
   it("resolves reviewed public slugs without falling back to another entity", () => {
