@@ -5,11 +5,12 @@ Use this as the completion checklist in the application repository. References i
 | User choice | Product requirement | Main screen / API area | Acceptance |
 |---|---|---|---|
 | U01 newcomers + experienced | PR03, PR16, PR24 | S05/S06/S17; sources + details disclosures | T03,T22,T29,T35 |
-| U24 live issuer-feed discovery | PR01–PR04, PR09, PR16 | /issuer/search, /discovery/search, /discovery/image, /assets/*, /orders; AI owner suggestion → exact issuer mint → Helius inspection → Jupiter | issuer pagination, AI schema/privacy, name join, changed mint rejection, browser purchase path |
+| U24 live issuer-feed discovery | PR01–PR04, PR09, PR16 | /issuer/search, /discovery/query, /discovery/image, /assets/*, /orders; AI owner suggestion → exact issuer mint → Helius inspection → Jupiter | issuer pagination, AI schema/privacy, name join, changed mint rejection, browser purchase path |
 | U25 live issuer Discover UX, reconciled with required categories and shelf | PR01–PR05, PR16, PR24 | Historical separate search paths are superseded by U27; reviewed categories and canonical product/shelf pages remain | category browsing and guest/member save work; issuer links require a current feed match |
-| U26 instant AI-to-issuer linking | PR01–PR04, PR16 | failed direct search retains its query for consent-based product search; AI ownership joins current xStocks and PreStocks listings in the same response | Disney → The Walt Disney DISx, ambiguous names stay unlisted, no asset link for unsupported owners, desktop/mobile flow |
-| U27 unified reviewed-and-live Discover | PR01–PR05, PR16, PR24 | default Discover search checks both feeds first, then AI fallback with explicit consent; reviewed examples remain visible and resolve issuer assets from current mint-checked feeds | direct company without AI, Spiderman → AI owner → DISx, PreStocks fallback, unsupported owner, reviewed product current-asset link, desktop/mobile |
+| U26 instant AI-to-issuer linking | PR01–PR04, PR16 | historical consent step superseded by U29; AI ownership joins current xStocks and PreStocks listings in the same response | Disney → The Walt Disney DISx, ambiguous names stay unlisted, no asset link for unsupported owners, desktop/mobile flow |
+| U27 unified reviewed-and-live Discover | PR01–PR05, PR16, PR24 | default Discover search checks both feeds first; U29 makes AI fallback automatic; reviewed examples remain visible and resolve issuer assets from current mint-checked feeds | direct company without AI, Spiderman → AI owner → DISx, PreStocks fallback, unsupported owner, reviewed product current-asset link, desktop/mobile |
 | U28 provider-supplied issuer images | PR01, PR03, PR04 | optional xStocks `logo` and PreStocks `image` URLs pass through strict source validation to issuer search, AI match, scan and asset detail views | provider URL validation, issuer-logo fallback, both feeds' images in desktop/mobile search results |
+| U29 automatic Discover ownership lookup | PR01–PR04, PR16, PR21 | one Discover request checks xStocks and PreStocks first, then automatically uses the privacy-controlled OpenRouter lookup for unmatched terms; no search consent checkbox or `consent_required` state | direct company never invokes AI, product suggestion joins the current issuer mint, unsupported owner stays unlinked, desktop/mobile search without a second action |
 | U02 English/global ambition | PR03, PR23 | S13 /eligibility/check, /capabilities | T03,T33 |
 | U03 private real-money prototype | PR07–PR15, PR22–PR26 | financial routes, invites, release gates | T06–T21,T30–T35; R0–R2 |
 | U04 mobile-first web | PR01, PR24 | S01–S27 responsive contract | T01,T29,T35 |
@@ -37,7 +38,7 @@ Use this as the completion checklist in the application repository. References i
 
 Each range references explicit actions in document03. In the build repository map each action to a component, handler/route, loading guard and test. Repeated mobile/desktop presentations must share behavior.
 
-Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed products. S06 company investment research uses current issuer assets and consent-based product lookup; brand pages redirect to product lookup. Saving a product and watching an issuer are distinct actions. The separate S10 draft screen and C40–C42 are retired in favor of the editable basket draft action C62.
+Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed products. S06 company investment research uses current issuer assets and automatic product ownership lookup through unified Discover; brand pages redirect to product lookup. Saving a product and watching an issuer are distinct actions. The separate S10 draft screen and C40–C42 are retired in favor of the editable basket draft action C62.
 
 | Screen | CTA IDs | Action family | Tests |
 |---|---|---|---|

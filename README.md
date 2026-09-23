@@ -6,7 +6,8 @@ and Solana mint come from the issuer. Signed-in members have a private shelf, wa
 view, portfolio, records, sharing and deliberate investment workflows.
 
 Discover uses one search field: it checks both live issuer feeds for a company first, then uses
-OpenRouter to suggest the owner of an unmatched product only if the user enabled AI fallback.
+OpenRouter automatically to suggest the owner of an unmatched product. The UI labels AI ownership
+as unverified, while stock assets and mints come only from the current issuer feeds.
 The reviewed product collection remains browseable, and its issuer links are checked against
 current listings rather than assumed from saved token snapshots.
 

@@ -16,7 +16,7 @@ export type IssuerFeedSnapshot = {
 };
 
 export type DiscoveryQueryResult = {
-  kind: "company" | "consent_required" | "product";
+  kind: "company" | "product";
   listings: IssuerListing[];
   matches: RecognitionMatch[];
   unavailable: string[];
@@ -136,16 +136,12 @@ export function matchOwnershipCandidates(
 export async function resolveDiscoveryQuery(
   query: string,
   feeds: IssuerFeedSnapshot,
-  inferOwnership?: () => Promise<OwnershipCandidate[]>,
+  inferOwnership: () => Promise<OwnershipCandidate[]>,
 ): Promise<DiscoveryQueryResult> {
   const listings = searchIssuerListings(query, feeds.listings).slice(0, 50);
   if (listings.length) {
     return { kind: "company", listings, matches: [], unavailable: feeds.unavailable, stale: feeds.stale };
   }
-  if (!inferOwnership) {
-    return { kind: "consent_required", listings: [], matches: [], unavailable: feeds.unavailable, stale: feeds.stale };
-  }
-
   const candidates = await inferOwnership();
   const matches = matchOwnershipCandidates(candidates, feeds.listings).map((match) => ({
     ...match,

@@ -681,19 +681,6 @@ button.quiet-link:hover { background: transparent; color: var(--accent-strong); 
 
 .search-command .search-submit:disabled { opacity: 0.55; }
 
-.ai-fallback-consent {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  max-width: 780px;
-  padding: 14px 2px;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.5;
-}
-
-.ai-fallback-consent input { flex: 0 0 auto; margin-top: 3px; }
-
 .live-search-results {
   margin: 12px 0 40px;
   padding: 22px 24px 28px;

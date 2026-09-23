@@ -2,6 +2,35 @@
 
 Updated: 2026-09-23
 
+## U29 automatic Discover product ownership lookup — production
+
+Discover now accepts one company-or-product search without an AI consent checkbox or second
+search action. The server checks current xStocks and PreStocks issuer listings first. A direct
+company or symbol result returns without an AI request. Only an unmatched term goes to OpenRouter
+under the existing no-data-collection/ZDR policy and quota limits. AI suggests an owner; the
+issuer feed alone supplies the linked asset, symbol and mint. The unused consent-gated
+`/discovery/search` endpoint was removed; scan image, barcode and URL consent flows are unchanged.
+Home and Discover explain the automatic routing, and Discover shows a clear provider or quota
+failure instead of a consent-required state.
+
+`npm run check` passed ESLint, strict TypeScript, all 99 Vitest tests in 15 files and the Next.js
+16.3.5 production build. After the final UI copy change, lint, typecheck and the production build
+passed again. The final built app passed all eight `live-discovery.spec.ts` Chromium checks on
+desktop and mobile, including a single request per query, direct xStocks results, automatic
+xStocks/PreStocks ownership links, unsupported owners and the separate scan consent flow.
+`git diff --check` passed. The first browser attempt was blocked by the local filesystem sandbox
+from launching Chromium and binding a local port; rerunning with the local server and browser
+outside that sandbox passed.
+
+Vercel deployment `dpl_FuE9Zf4KrxuGePdXAexAkMg5shUN` is Ready on
+`https://shelf-one-phi.vercel.app`. Production `/readyz` reports PostgreSQL and OpenRouter ready
+with trade execution disabled. A real direct Disney query sent only `{query}` and returned The
+Walt Disney / DISx without AI. One previously authorized paid synthetic “Spiderman” query sent
+only `{query}` and automatically returned AI-suggested owner The Walt Disney Company joined to
+the current xStocks DISx mint `Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`. No funded
+wallet, quote, trade or transaction was used. This direct Vercel deployment is not yet preserved
+in remote Git.
+
 ## U28 issuer-provided logos — production
 
 The current xStocks asset response includes a `logo` URL and the PreStocks feed includes an
@@ -221,9 +250,9 @@ post-fix ChatGPT requests. No trading, funding, or onchain write occurred.
 
 ## Current release
 
-Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_An5eDmgNq4RhTEiTgaZnsiNSCvcx` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
+Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_FuE9Zf4KrxuGePdXAexAkMg5shUN` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
 
-The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, U27 unified Discover and U28 issuer-provided logos. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
+The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, U27 unified Discover, U28 issuer-provided logos and U29 automatic Discover AI fallback. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
 
 `/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. Read-only production issuer search returns AAPLx and OPENAI with their issuer Solana mints and no unavailable feeds. Anonymous `/api/v1/me` returns 401. A prior production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
 
@@ -272,7 +301,7 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Preserve U28 in remote Git before a future automatic Git deployment can replace the direct
+Preserve U29 in remote Git before a future automatic Git deployment can replace the direct
 Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
 another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
 fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate

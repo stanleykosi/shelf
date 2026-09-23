@@ -8,7 +8,6 @@ import { articles, brands, companies, companyById, productById, products } from 
 import type { Category } from "@/domain/types";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
 import { postJson } from "@/lib/api-client";
-import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { IssuerLogo } from "@/components/issuer-logo";
 import {
   BrandRow,
@@ -34,6 +33,14 @@ const entityModes = [
   ["company", "Companies"],
 ] as const;
 
+const searchErrorMessages: Record<string, string> = {
+  AI_PROVIDER_UNAVAILABLE: "Product ownership lookup is temporarily unavailable. Try again later.",
+  AI_PRIVACY_UNAVAILABLE: "Product ownership lookup is unavailable under Shelf's privacy settings.",
+  AI_DAILY_LIMIT_REACHED: "Today's AI search limit has been reached. Direct company searches still work.",
+  AI_MONTHLY_LIMIT_REACHED: "This month's AI search limit has been reached. Direct company searches still work.",
+  AI_USER_LIMIT_REACHED: "You've reached today's AI search limit. Direct company searches still work.",
+};
+
 export function ConceptHomeScreen() {
   const featuredProducts = [
     "product-doritos-snack",
@@ -56,8 +63,8 @@ export function ConceptHomeScreen() {
           <p className="hero-context">Product-led company research</p>
           <h1 id="home-title">See the company behind what you know.</h1>
           <p className="research-hero-lede">
-            Search a company against current xStocks and PreStocks listings. If it is a product,
-            Shelf can suggest its owner with AI after you allow that lookup.
+            Search a company against current xStocks and PreStocks listings. If neither matches,
+            Shelf sends the term to OpenRouter to suggest a product owner.
           </p>
           <form className="home-search-command" action="/discover" role="search">
             <Search size={20} aria-hidden="true" />
@@ -217,12 +224,6 @@ function LiveSearchResults({
           {result.listings.map((listing) => <LiveIssuerResult key={listing.asset.companyId} listing={listing} />)}
         </div>
       ) : null}
-      {result?.kind === "consent_required" ? (
-        <div className="research-empty">
-          <h2>No company listing matched</h2>
-          <p>If “{query}” is a product or brand, enable AI product lookup above. Shelf will then ask OpenRouter for its likely owner and check both issuer feeds again.</p>
-        </div>
-      ) : null}
       {result?.kind === "product" && matchedAssets.length ? (
         <>
           <p className="live-search-caution">AI suggested the product owner; the issuer feed confirms only the asset. Verify the relationship before acting.</p>
@@ -269,7 +270,6 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
   const [searchResult, setSearchResult] = useState<DiscoveryQueryResult | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
-  const [aiConsent, setAiConsent] = useState(false);
   const [category, setCategory] = useState(initialCategory ?? "");
   const [entity, setEntity] = useState(initialEntity ?? "all");
   const [market, setMarket] = useState(initialMarket ?? "");
@@ -277,7 +277,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
   const [sort, setSort] = useState(initialSort ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const runSearch = useCallback(async (term: string, allowAi: boolean) => {
+  const runSearch = useCallback(async (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) return;
 
@@ -287,16 +287,12 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
     setSearchError(null);
     setSearching(true);
     try {
-      const result = await postJson<DiscoveryQueryResult>("discovery/query", {
-        query: trimmed,
-        aiProcessingConsentAccepted: allowAi,
-        aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
-        acknowledgeAiProcessing: allowAi,
-      });
+      const result = await postJson<DiscoveryQueryResult>("discovery/query", { query: trimmed });
       if (requestId === searchRequest.current) setSearchResult(result);
     } catch (reason) {
       if (requestId === searchRequest.current) {
-        setSearchError(reason instanceof Error ? reason.message.replaceAll("_", " ") : "Search failed");
+        const code = reason instanceof Error ? reason.message : "";
+        setSearchError(searchErrorMessages[code] ?? "Search failed. Please try again.");
       }
     } finally {
       if (requestId === searchRequest.current) setSearching(false);
@@ -305,7 +301,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
 
   useEffect(() => {
     if (!initialQuery?.trim()) return;
-    const timer = window.setTimeout(() => void runSearch(initialQuery, false), 0);
+    const timer = window.setTimeout(() => void runSearch(initialQuery), 0);
     return () => window.clearTimeout(timer);
   }, [initialQuery, runSearch]);
 
@@ -316,14 +312,6 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
     setSearchResult(null);
     setSearchError(null);
     setSearching(false);
-  }
-
-  function changeAiConsent(accepted: boolean) {
-    setAiConsent(accepted);
-    if (accepted && searchedQuery === query.trim() &&
-      (searching || searchResult?.kind === "consent_required")) {
-      void runSearch(query, true);
-    }
   }
 
   useEffect(() => {
@@ -424,7 +412,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
       <header className="discover-title-row">
         <div>
           <h1>Discover</h1>
-          <p>Search current xStocks and PreStocks listings, or explore reviewed product references.</p>
+          <p>Search current xStocks and PreStocks listings. If neither matches, OpenRouter suggests a likely product owner.</p>
         </div>
         <span>{resultCount} reviewed references</span>
       </header>
@@ -433,21 +421,14 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
           inputRef={searchRef}
           onChange={changeQuery}
           onClear={() => changeQuery("")}
-          onSubmit={() => void runSearch(query, aiConsent)}
+          onSubmit={() => void runSearch(query)}
           searching={searching}
           value={query}
         />
       </div>
-      <label className="ai-fallback-consent">
-        <input checked={aiConsent} onChange={(event) => changeAiConsent(event.target.checked)} type="checkbox" />
-        <span>
-          If no company matches, send this search to OpenRouter for an AI product-owner suggestion.
-          Ownership suggestions are unverified; only issuer feeds provide stock assets.
-        </span>
-      </label>
       <LiveSearchResults
         error={searchError}
-        onRetry={() => void runSearch(query, aiConsent)}
+        onRetry={() => void runSearch(query)}
         query={searchedQuery}
         result={searchResult}
         searching={searching}

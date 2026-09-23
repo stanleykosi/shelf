@@ -5,8 +5,8 @@
 For image scans, OpenRouter returns product names and likely current parent-company names in one
 strictly structured response. The unified typed search checks current xStocks and PreStocks
 company names first. If neither feed matches, it runs ownership inference automatically only
-when the user has explicitly enabled AI fallback for that search. Without consent, it asks for
-permission before sending the unmatched query to OpenRouter. These relationships are
+for the unmatched search term, without a second action. The Discover search UI explains this
+routing; its request sends only the search term to OpenRouter. These relationships are
 **unverified AI suggestions**.
 The deterministic backend joins company names to current xStocks and PreStocks listings; issuer
 symbol and mint are never accepted from AI. Users can correct a mismatch through issuer search.

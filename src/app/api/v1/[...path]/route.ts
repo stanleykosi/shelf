@@ -995,19 +995,14 @@ async function discoveryResponse(
     const query = String(body.query ?? "").trim();
     if (!query || query.length > 120) throw new Error("INVALID_INPUT");
     const feeds = await issuerListings();
-    const aiConsent = hasCurrentAiProcessingConsent(body) &&
-      body.acknowledgeAiProcessing === true;
-    if (body.acknowledgeAiProcessing === true && !aiConsent) {
-      throw new Error("AI_CONSENT_REQUIRED");
-    }
 
-    return resolveDiscoveryQuery(query, feeds, aiConsent ? async () => {
+    return resolveDiscoveryQuery(query, feeds, async () => {
       if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
       const reservation = await reserveDiscoveryAiBudget(request);
       const result = await ai.resolveOwnership(query, REQUIRED_AI_PRIVACY);
       await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
       return result.candidates;
-    } : undefined);
+    });
   }
   if (pathIs(path, "discovery", "barcode")) {
     const gtin = String(body.gtin ?? "");
@@ -1036,14 +1031,12 @@ async function discoveryResponse(
       productIdentitySource: product.sourceUrl,
     }));
   }
-  if (pathIs(path, "discovery", "search") || pathIs(path, "discovery", "link")) {
+  if (pathIs(path, "discovery", "link")) {
     if (!hasCurrentAiProcessingConsent(body) || body.acknowledgeAiProcessing !== true) {
       throw new Error("AI_CONSENT_REQUIRED");
     }
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-    const query = path[1] === "link"
-      ? productNameForApprovedUrl(String(body.url))
-      : String(body.query ?? "").trim();
+    const query = productNameForApprovedUrl(String(body.url));
     if (!query || query.length > 120) throw new Error("INVALID_INPUT");
     return recognizeWithIssuerFeeds(request, () => ai.resolveOwnership(query, REQUIRED_AI_PRIVACY));
   }

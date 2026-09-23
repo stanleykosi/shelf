@@ -231,8 +231,6 @@ describe("execution issuer verification", () => {
 
     expect((await resolveDiscoveryQuery("PepsiCo", feeds, inferOwnership)).kind).toBe("company");
     expect(aiCalls).toBe(0);
-    expect((await resolveDiscoveryQuery("Doritos", feeds)).kind).toBe("consent_required");
-    expect(aiCalls).toBe(0);
     expect(await resolveDiscoveryQuery("Doritos", feeds, inferOwnership)).toMatchObject({
       kind: "product",
       matches: [{ issuer: "xstocks", symbol: "PEPx", mint: listing.asset.mint }],

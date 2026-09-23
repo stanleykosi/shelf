@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("one search checks live companies first, then resolves a product after AI consent", async ({ page }) => {
+test("one search checks live companies first, then resolves an unmatched product automatically", async ({ page }) => {
   const disney = {
     provider: "xstocks",
     asset: {
@@ -11,7 +11,7 @@ test("one search checks live companies first, then resolves a product after AI c
       mint: "Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb",
     },
   };
-  const requests: Array<{ query: string; consent: boolean }> = [];
+  const requests: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/issuer/reviewed", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -19,32 +19,33 @@ test("one search checks live companies first, then resolves a product after AI c
   }));
   await page.route("**/api/v1/discovery/query", (route) => {
     const body = route.request().postDataJSON();
-    requests.push({ query: body.query, consent: body.acknowledgeAiProcessing });
+    requests.push(body);
     const common = { listings: [], matches: [], unavailable: [], stale: [] };
-    const result = body.query === "Disney"
-      ? { ...common, kind: "company", listings: [disney] }
-      : body.query === "Spiderman" && body.acknowledgeAiProcessing
-        ? { ...common, kind: "product", matches: [{
-          candidateId: "spiderman-disney",
-          displayLabel: "Spider-Man",
-          ownerName: "Disney",
-          matchedIssuerName: "The Walt Disney",
-          logoUrl: disney.asset.logoUrl,
-          companyId: disney.asset.companyId,
-          issuer: "xstocks",
-          symbol: "DISx",
-          mint: disney.asset.mint,
-          state: "matched",
-        }] }
-        : body.query === "Unknown product" && body.acknowledgeAiProcessing
-          ? { ...common, kind: "product", matches: [{
-            candidateId: "unknown",
-            displayLabel: "Unknown product",
-            ownerName: "Unknown Corp",
-            companyId: null,
-            state: "unlisted",
-          }] }
-          : { ...common, kind: "consent_required" };
+    let result = { ...common, kind: "product" };
+    if (body.query === "Disney") {
+      result = { ...common, kind: "company", listings: [disney] };
+    } else if (body.query === "Spiderman") {
+      result = { ...common, kind: "product", matches: [{
+        candidateId: "spiderman-disney",
+        displayLabel: "Spider-Man",
+        ownerName: "Disney",
+        matchedIssuerName: "The Walt Disney",
+        logoUrl: disney.asset.logoUrl,
+        companyId: disney.asset.companyId,
+        issuer: "xstocks",
+        symbol: "DISx",
+        mint: disney.asset.mint,
+        state: "matched",
+      }] };
+    } else if (body.query === "Unknown product") {
+      result = { ...common, kind: "product", matches: [{
+        candidateId: "unknown",
+        displayLabel: "Unknown product",
+        ownerName: "Unknown Corp",
+        companyId: null,
+        state: "unlisted",
+      }] };
+    }
     return route.fulfill({
       status: 201,
       contentType: "application/json",
@@ -65,8 +66,6 @@ test("one search checks live companies first, then resolves a product after AI c
 
   await search.fill("Spiderman");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "No company listing matched" })).toBeVisible();
-  await page.getByLabel(/If no company matches, send this search to OpenRouter/).check();
   await expect(page.getByText("AI suggested owner: Disney")).toBeVisible();
   await expect(page.locator(".live-issuer-card .issuer-logo img"))
     .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
@@ -78,11 +77,11 @@ test("one search checks live companies first, then resolves a product after AI c
   await expect(page.getByRole("heading", { name: "No supported asset available" })).toBeVisible();
   await expect(page.getByRole("link", { name: /View .* issuer asset/ })).toHaveCount(0);
   expect(requests).toEqual([
-    { query: "Disney", consent: false },
-    { query: "Spiderman", consent: false },
-    { query: "Spiderman", consent: true },
-    { query: "Unknown product", consent: true },
+    { query: "Disney" },
+    { query: "Spiderman" },
+    { query: "Unknown product" },
   ]);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
 });
 
 test("a reviewed product keeps its source and links only to a live issuer mint", async ({ page }) => {
@@ -123,14 +122,13 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
     body: JSON.stringify({ data: { byCompany: {}, unavailable: [], stale: [] } }),
   }));
   await page.route("**/api/v1/discovery/query", (route) => {
-    const consent = route.request().postDataJSON().acknowledgeAiProcessing;
     return route.fulfill({
       status: 201,
       contentType: "application/json",
       body: JSON.stringify({ data: {
-        kind: consent ? "product" : "consent_required",
+        kind: "product",
         listings: [],
-        matches: consent ? [{
+        matches: [{
           candidateId: "chatgpt-openai",
           displayLabel: "ChatGPT",
           ownerName: "OpenAI Group PBC",
@@ -141,7 +139,7 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
           symbol: "OPENAI",
           mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
           state: "matched",
-        }] : [],
+        }],
         unavailable: [],
         stale: [],
       } }),
@@ -149,8 +147,6 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
   });
 
   await page.goto("/discover?q=ChatGPT");
-  await expect(page.getByRole("heading", { name: "No company listing matched" })).toBeVisible();
-  await page.getByLabel(/If no company matches, send this search to OpenRouter/).check();
   await expect(page.getByText("AI suggested owner: OpenAI Group PBC")).toBeVisible();
   await expect(page.locator(".live-issuer-card .issuer-logo img"))
     .toHaveAttribute("src", /prestocks\.com/);
