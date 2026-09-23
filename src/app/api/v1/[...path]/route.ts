@@ -679,10 +679,31 @@ async function getResponse(request: NextRequest, path: string[]) {
     if (provider && provider !== "xstocks" && provider !== "prestocks") {
       throw new Error("INVALID_INPUT");
     }
-    const { listings, unavailable, stale } = await issuerListings();
-    const matches = searchIssuerListings(query, listings)
-      .filter((listing) => !provider || listing.provider === provider);
-    return { listings: matches.slice(offset, offset + 50), total: matches.length, unavailable, stale };
+    let feeds: Awaited<ReturnType<typeof issuerListings>>;
+    if (provider === "xstocks") {
+      const feed = await xStocksListings();
+      feeds = {
+        listings: feed.listings.map((asset) => ({ provider: "xstocks", asset })),
+        unavailable: [],
+        stale: feed.state === "stale" ? ["xStocks"] : [],
+      };
+    } else if (provider === "prestocks") {
+      const feed = await preStocksListings();
+      feeds = {
+        listings: feed.listings.map((asset) => ({ provider: "prestocks", asset })),
+        unavailable: [],
+        stale: feed.state === "stale" ? ["PreStocks"] : [],
+      };
+    } else {
+      feeds = await issuerListings();
+    }
+    const matches = searchIssuerListings(query, feeds.listings);
+    return {
+      listings: matches.slice(offset, offset + 50),
+      total: matches.length,
+      unavailable: feeds.unavailable,
+      stale: feeds.stale,
+    };
   }
   // History reads are handled before the runtime-state transaction in GET.
   // Keeping the route out of other methods makes the database boundary explicit.
@@ -851,14 +872,18 @@ async function getResponse(request: NextRequest, path: string[]) {
   throw new Error("NOT_FOUND");
 }
 
-async function recognitionMatches(candidates: OwnershipCandidate[]): Promise<RecognitionMatch[]> {
-  const { listings, stale, unavailable } = await issuerListings();
+function recognitionMatches(
+  candidates: OwnershipCandidate[],
+  { listings, stale, unavailable }: Awaited<ReturnType<typeof issuerListings>>,
+): RecognitionMatch[] {
   return matchOwnershipCandidates(candidates, listings).map((match) => ({
     ...match,
     feedUnavailable: unavailable.length > 0,
     feedStale: match.issuer === "xstocks"
       ? stale.includes("xStocks")
-      : match.issuer === "prestocks" && stale.includes("PreStocks"),
+      : match.issuer === "prestocks"
+        ? stale.includes("PreStocks")
+        : stale.length > 0,
   }));
 }
 
@@ -944,6 +969,20 @@ async function settleDiscoveryAiUsage(reservation: { id: string }, costMicrousd:
   await runWithRuntimeState(true, async () => settleAiUsage(reservation, costMicrousd));
 }
 
+async function recognizeWithIssuerFeeds(
+  request: NextRequest,
+  recognize: () => Promise<{ candidates: OwnershipCandidate[]; usageMicrousd: number }>,
+): Promise<RecognitionMatch[]> {
+  const reservation = await reserveDiscoveryAiBudget(request);
+  const [recognition, feeds] = await Promise.allSettled([recognize(), issuerListings()]);
+
+  // Settle provider usage even when an issuer feed fails after the AI request.
+  if (recognition.status === "rejected") throw recognition.reason;
+  await settleDiscoveryAiUsage(reservation, recognition.value.usageMicrousd);
+  if (feeds.status === "rejected") throw feeds.reason;
+  return recognitionMatches(recognition.value.candidates, feeds.value);
+}
+
 async function discoveryResponse(
   request: NextRequest,
   path: string[],
@@ -967,13 +1006,11 @@ async function discoveryResponse(
       requiresConfirmation: true,
     }] satisfies RecognitionMatch[];
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-    const reservation = await reserveDiscoveryAiBudget(request);
-    const result = await ai.resolveOwnership(
+    const matches = await recognizeWithIssuerFeeds(request, () => ai.resolveOwnership(
       [product.brand, product.name].filter(Boolean).join(" "),
       REQUIRED_AI_PRIVACY,
-    );
-    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
-    return (await recognitionMatches(result.candidates)).map((match) => ({
+    ));
+    return matches.map((match) => ({
       ...match,
       productIdentitySource: product.sourceUrl,
     }));
@@ -987,10 +1024,7 @@ async function discoveryResponse(
       ? productNameForApprovedUrl(String(body.url))
       : String(body.query ?? "").trim();
     if (!query || query.length > 120) throw new Error("INVALID_INPUT");
-    const reservation = await reserveDiscoveryAiBudget(request);
-    const result = await ai.resolveOwnership(query, REQUIRED_AI_PRIVACY);
-    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
-    return recognitionMatches(result.candidates);
+    return recognizeWithIssuerFeeds(request, () => ai.resolveOwnership(query, REQUIRED_AI_PRIVACY));
   }
   if (pathIs(path, "discovery", "image")) {
     if (!hasCurrentAiProcessingConsent(body)) throw new Error("AI_CONSENT_REQUIRED");
@@ -999,10 +1033,8 @@ async function discoveryResponse(
     const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
     if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
     const image = imageBytesFromDataUrl(body.imageDataUrl);
-    const reservation = await reserveDiscoveryAiBudget(request);
-    const result = await ai.recognize(image.bytes, image.mediaType, mode, REQUIRED_AI_PRIVACY);
-    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
-    return recognitionMatches(result.candidates);
+    return recognizeWithIssuerFeeds(request, () =>
+      ai.recognize(image.bytes, image.mediaType, mode, REQUIRED_AI_PRIVACY));
   }
   return undefined;
 }

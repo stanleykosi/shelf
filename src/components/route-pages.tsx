@@ -2,12 +2,11 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
 import {
   AssistantScreen,
-  BrandScreen,
-  CompanyScreen,
   LearnScreen,
   ProductScreen,
   ScanResultsScreen,
   ScanScreen,
+  SearchScreen,
   ShelfScreen,
 } from "@/components/screens/discovery";
 import {
@@ -76,6 +75,15 @@ export function HomePage() {
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
+  if (first(query.source) === "issuer") {
+    return <SearchScreen
+      key={`${first(query.category) ?? ""}|${first(query.entity) ?? ""}|${first(query.market) ?? ""}|${first(query.q) ?? ""}`}
+      initialCategory={first(query.category)}
+      initialEntity={first(query.entity)}
+      initialMarket={first(query.market)}
+      initialQuery={first(query.q)}
+    />;
+  }
   return (
     <ConceptDiscoverScreen
       initialAvailability={first(query.availability)}
@@ -100,7 +108,6 @@ export async function ProductPage({ params }: { params: AsyncParams<{ slug: stri
   const { slug } = await params;
   const product = productBySlug(slug);
   if (product) return <ProductScreen productId={product.id} />;
-
   const legacyProduct = productById(slug);
   if (legacyProduct) permanentRedirect(`/products/${legacyProduct.slug}`);
   notFound();
@@ -110,20 +117,21 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  return <BrandScreen brand={brand} />;
+  permanentRedirect(`/discover?source=issuer&entity=product&q=${encodeURIComponent(brand.name)}`);
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const company = companyBySlug(slug);
-  if (company?.instrument) {
+  if (!company) {
+    const legacyCompany = companyById(slug);
+    if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
+    notFound();
+  }
+  if (company.instrument) {
     redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}` as Route);
   }
-  if (company) return <CompanyScreen companyId={company.id} />;
-
-  const legacyCompany = companyById(slug);
-  if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
-  notFound();
+  permanentRedirect(`/discover?source=issuer&entity=company&q=${encodeURIComponent(company.name)}`);
 }
 
 export function LearnPage() {

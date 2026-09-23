@@ -264,7 +264,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
 
   return (
     <div className="research-discover">
-      <header className="discover-title-row"><div><h1>Discover</h1><p>Research Products, Brands, and Companies from a reviewed catalog.</p></div><span>{resultCount} results</span></header>
+      <header className="discover-title-row"><div><h1>Discover</h1><p>Research Products, Brands, and Companies from a reviewed catalog.</p><Link className="quiet-link" href="/discover?source=issuer">Browse current issuer assets <ArrowRight size={15} aria-hidden="true" /></Link></div><span>{resultCount} results</span></header>
       <div className="discover-command-area">
         <SearchCommand inputRef={searchRef} onChange={setQuery} onClear={() => setQuery("")} value={query} />
         <EntityTabs entity={entity} onChange={changeEntity} />

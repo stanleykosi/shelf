@@ -67,11 +67,9 @@ test("canonical research routes and route-aware navigation preserve the product 
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
 
   await page.goto("/brands/doritos");
-  await expect(page.getByRole("heading", { name: "Doritos", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View company" })).toHaveAttribute(
-    "href",
-    "/companies/pepsico",
-  );
+  await expect(page).toHaveURL(/\/discover\?source=issuer&entity=product&q=Doritos$/);
+  await expect(page.getByRole("heading", { name: "Find a product or issuer" })).toBeVisible();
+  await expect(page.getByLabel("Product or brand name")).toHaveValue("Doritos");
 
   await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/assets\/xstocks\/PEPx$/);

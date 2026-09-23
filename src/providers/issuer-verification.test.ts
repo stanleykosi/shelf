@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { companyById } from "@/data/catalog";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "./issuer-verification";
-import { companyFromIssuerListing, corporateActionsForIssuerInstrument, matchOwnershipCandidates } from "@/domain/issuer-assets";
+import { companyFromIssuerListing, corporateActionsForIssuerInstrument, matchOwnershipCandidates, searchIssuerListings } from "@/domain/issuer-assets";
 import { SOLANA_TOKEN_2022_PROGRAM_ID } from "./solana-constants";
 
 describe("execution issuer verification", () => {
@@ -117,7 +117,8 @@ describe("execution issuer verification", () => {
       [listing],
     );
     expect(matches[0]).toMatchObject({
-      ownerName: "Apple",
+      ownerName: "Apple Inc.",
+      matchedIssuerName: "Apple",
       issuer: "xstocks",
       mint: listing.asset.mint,
       confidenceBand: "low",
@@ -126,6 +127,38 @@ describe("execution issuer verification", () => {
       [{ productName: "Pixel", companyNames: ["Alphabet Inc."] }],
       [{ ...listing, asset: { ...listing.asset, name: "Alphabet Class A" } }],
     )[0].state).toBe("matched");
+    const disney = { ...listing, asset: {
+      ...listing.asset,
+      companyId: "issuer:xstocks:DISx",
+      name: "The Walt Disney",
+      symbol: "DISx",
+      underlyingSymbol: "DIS",
+      mint: "Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb",
+    } };
+    expect(searchIssuerListings("Disney", [disney])).toHaveLength(1);
+    expect(matchOwnershipCandidates(
+      [{ productName: "Spider-Man", companyNames: ["Disney"] }],
+      [disney],
+    )[0]).toMatchObject({
+      ownerName: "Disney",
+      matchedIssuerName: "The Walt Disney",
+      issuer: "xstocks",
+      symbol: "DISx",
+      mint: disney.asset.mint,
+      state: "matched",
+    });
+    expect(matchOwnershipCandidates(
+      [{ productName: "Unrelated product", companyNames: ["Apple"] }],
+      [{ ...listing, asset: { ...listing.asset, name: "Apple Hospitality" } }],
+    )[0].state).toBe("unlisted");
+    expect(matchOwnershipCandidates(
+      [{ productName: "Unknown product", companyNames: ["Unknown Company"] }],
+      [disney],
+    )[0].state).toBe("unlisted");
+    expect(matchOwnershipCandidates(
+      [{ productName: "Spider-Man", companyNames: ["Disney"] }],
+      [disney, { ...disney, asset: { ...disney.asset, companyId: "issuer:xstocks:OTHERx", name: "Other Disney" } }],
+    )[0].state).toBe("unlisted");
     expect(matchOwnershipCandidates(
       [{ productName: "ChatGPT", companyNames: ["OpenAI Group PBC"] }],
       [{
@@ -147,7 +180,19 @@ describe("execution issuer verification", () => {
           observedAt: new Date(now).toISOString(),
         },
       }],
-    )[0].state).toBe("matched");
+    )[0]).toMatchObject({
+      ownerName: "OpenAI Group PBC",
+      matchedIssuerName: "OpenAI",
+      issuer: "prestocks",
+      symbol: "OPENAI",
+      mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
+    });
+    const unknownOwner = matchOwnershipCandidates(
+      [{ productName: "Unknown product", companyNames: [] }],
+      [listing],
+    )[0];
+    expect(unknownOwner).toMatchObject({ state: "unlisted", companyId: null });
+    expect(unknownOwner.issuer).toBeUndefined();
     expect(() => companyFromIssuerListing(listing, {
       ownerProgram: null, decimals: 9,
     })).toThrow("ISSUER_MINT_INVALID");

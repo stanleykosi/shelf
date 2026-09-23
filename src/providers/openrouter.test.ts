@@ -46,6 +46,35 @@ describe("OpenRouterProvider", () => {
       max_tokens: 800,
     });
     expect(JSON.stringify(body.messages)).toContain("data:image/png;base64,");
+    expect(body.messages[0]).toMatchObject({ role: "system" });
+    expect(JSON.stringify(body.messages[0])).toContain("Do not choose a company because it has a stock token");
+  });
+
+  it("keeps product text as untrusted input and asks for the controlling company", async () => {
+    const requests: Array<RequestInit | undefined> = [];
+    const provider = new OpenRouterProvider({
+      apiKey: "test-key",
+      visionModel: "test-vision",
+      textModel: "test-text",
+      fetch: async (_input, init) => {
+        requests.push(init);
+        return responseWithContent(JSON.stringify({
+          candidates: [{ productName: "ChatGPT", companyNames: ["OpenAI"] }],
+        }), 0.000001);
+      },
+    });
+
+    await expect(provider.resolveOwnership("ChatGPT", REQUIRED_AI_PRIVACY))
+      .resolves.toMatchObject({ candidates: [{ companyNames: ["OpenAI"] }] });
+    const body = JSON.parse(String(requests[0]?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages[0]).toMatchObject({ role: "system" });
+    expect(body.messages[0].content).toContain("ultimate controlling company");
+    expect(body.messages[1]).toMatchObject({
+      role: "user",
+      content: expect.stringContaining('Query data: "ChatGPT"'),
+    });
   });
 
   it("blocks a request when required privacy is relaxed", async () => {

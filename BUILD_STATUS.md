@@ -2,6 +2,93 @@
 
 Updated: 2026-09-23
 
+## Review follow-up — category and product shelf restoration
+
+The reviewed five-category product collections are accessible from home and Discover. Canonical
+product pages again save reviewed product IDs to a guest session or member shelf, while current
+issuer searches remain separate from reviewed relationships. Legacy product IDs redirect to their
+canonical product pages, and legacy company IDs redirect through the canonical company URL before
+the instrument destination. Brand URLs continue to open live product search. Route and journey
+browser contracts now cover category browsing, guest/member product saves and the brand redirect.
+`npm run check` passed: ESLint, strict TypeScript, 98 Vitest tests in 15 files and the
+Next.js 16.3.5 production build. The focused local browser run passed live discovery and
+identity journeys on desktop and mobile (12 checks). The route suite passed all six checks on
+desktop and mobile against that build with a disposable PostgreSQL 16 database, including the
+category, guest-save, member-save and exact redirect contracts. The first route-suite run used
+an invalid local database password and returned HTTP 500 for `/account`; connecting the
+disposable migrated database resolved that setup failure. Browser API responses for issuer,
+AI and member shelf writes were intercepted where the test required them. No live-money action,
+paid AI request or external deployment was part of this review fix. The local implementation
+still needs a separately authorized deployment before production reflects these changes.
+
+## U26 AI ownership to live issuer asset — deployed
+
+Discover now keeps a failed direct-search query when a user chooses consent-based product
+search. AI ownership and both live issuer feeds are fetched concurrently, and the response
+includes the matching issuer asset, symbol and mint without a second user action. Exact
+normalized company names take priority; a unique issuer name ending in the AI's shorter
+company name may also match. Ambiguous or unrelated names remain unlisted and receive no
+asset or purchase link. A product with an identified owner but no matching issuer asset now
+shows a distinct no-available-asset message. This fixes `Disney` joining the observed
+`The Walt Disney` xStocks listing (`DISx`, Solana mint
+`Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`) while preserving the different AI
+owner and issuer names in the UI. A read-only production issuer search confirmed the listing.
+
+`npm run check` passed: lint, strict TypeScript, 98 Vitest tests across 15 files and the
+Next.js 16.3.5 production build. The eight Discover Chromium checks passed on desktop and
+mobile against the local server with intercepted AI/feed responses. The first cold run had
+one asset-page navigation timeout during initial Next.js compilation; the same case passed
+on rerun after compilation. No paid AI request, funding, trade or onchain write was made.
+Vercel deployment `dpl_8SFbMLfeoZ4UaaskdgKtXWTdt4Np` is Ready and owns the production
+alias. Production `/readyz` reports PostgreSQL, Magic, OpenRouter, Jupiter and Helius with
+trade execution disabled. The product-search page returned HTTP 200; read-only issuer search
+returned The Walt Disney / DISx with the expected mint and no unavailable or stale feed.
+The linked `/assets/xstocks/DISx` page returned HTTP 200.
+The consent-based Spiderman → Disney → DISx and unsupported-owner states passed on the
+production desktop and mobile browser with AI/issuer responses intercepted. No paid
+production AI call was made in this milestone. A real AI response can still vary in its
+ownership suggestion, which the UI labels as unverified; the deterministic issuer join
+only links a sufficiently specific, unambiguous current listing.
+
+## U25 live-only Discover flow — deployed
+
+Discover now has two explicit paths. Company search reads the current xStocks and PreStocks
+issuer feeds without an AI request; product search requires OpenRouter consent, asks for the
+current controlling parent, and joins that answer to both live issuer feeds. Results show the AI
+owner separately from the matched issuer name, source, symbol and mint, with a direct link to
+the exact issuer asset page. Missing, stale and unavailable feed states remain distinct, and
+an unconfirmed AI suggestion has no issuer asset or purchase link.
+
+The home and Discover pages no longer show saved product examples or category filters. Historical
+product, brand and company detail URLs redirect to consent-based product search, direct live
+company search, or an issuer asset. Previously saved user product rows remain readable only on
+that user's shelf and invite a fresh lookup; they no longer assert a presaved ownership path.
+The unused static allocation screen was removed; editable basket allocation remains.
+
+The OpenRouter ownership prompt now uses a system instruction, asks for a single current
+controlling parent, rejects investor/partner/subsidiary shortcuts and token-driven guesses,
+and explicitly abstains on uncertainty. The server keeps the AI owner and issuer name
+separate. npm run check passed: ESLint, strict TypeScript, 98 tests in 15 files, and the
+Next.js 16.3.5 production build. Eight desktop/mobile Chromium checks passed using intercepted
+AI and issuer responses; no paid AI call, live trade, funding or onchain write was made.
+The xStocks full feed now fetches pages in small ordered batches, retries transient page failures,
+and fails closed on a missing required page. A read-only local run returned 1,124 Solana listings
+and the expected AAPLx mint in about 20 seconds. The issuer documents a 100-asset maximum page
+size at https://docs.xstocks.fi/apis/openapi/assets/list_public_assets.
+
+Production deployment dpl_B7TmAdtULiRCLLjY3hMVMwFn3Ee1 is Ready on the Shelf alias.
+Production /readyz reports PostgreSQL, Magic, OpenRouter, Jupiter and Helius configured, with
+tradeExecution disabled. The revised product Discover page serves HTTP 200 and no saved examples;
+read-only issuer search returned AAPLx and OPENAI with the expected mints and no unavailable feeds.
+The cold xStocks search took about 20 seconds, down from about 48 seconds before batching; the
+private-only search took about two seconds after it stopped fetching xStocks unnecessarily.
+Historical product and brand URLs redirect to live product search. No paid AI call was made for
+this release. Two residual UI references to the old catalog were replaced with saved-product
+and relationship-report wording in the final deployment; lint, TypeScript and production build
+passed again after that copy change. Issuer mints in result cards now wrap on narrow screens;
+lint, TypeScript and production build passed after this final UI edit. The funded activation
+test and operational launch decisions remain separate gates.
+
 ## U24 live issuer-feed discovery — deployed
 
 The application now replaces presaved-catalog matching in typed search and image scans. The
@@ -49,11 +136,9 @@ post-fix ChatGPT requests. No trading, funding, or onchain write occurred.
 
 ## Current release
 
-Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_GJjdYAkaAVxaJov4mFaMz3phbWmf` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
+Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_8SFbMLfeoZ4UaaskdgKtXWTdt4Np` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
 
-The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, and U24 live issuer-feed discovery. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
-
-The seven issuer/discovery review fixes recorded below are local only; they have not been deployed or checked against the production database. The existing deployment should not be treated as containing them.
+The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U25 live-only Discover UX, and U26 instant AI-to-issuer linking. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
 
 `/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. Read-only production issuer search returns AAPLx and OPENAI with their issuer Solana mints and no unavailable feeds. Anonymous `/api/v1/me` returns 401. A prior production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
 
@@ -77,7 +162,7 @@ There are no runtime substitutes for identity, balances, provider data, signatur
 
 - `npm run lint` — passed with no warnings
 - `npm run typecheck` — passed
-- `npm run check` — ESLint, strict TypeScript, 15 Vitest files/97 tests, and the Next.js 16.3.5 Webpack production build passed on the local review-fix tree
+- `npm run check` — ESLint, strict TypeScript, 15 Vitest files/98 tests, and the Next.js 16.3.5 Webpack production build passed on the final U25 tree
 - `npm run build` — passed with Next.js 16.3.5
 - Local production-build browser verification with disposable PostgreSQL — search/image flows passed on desktop and Pixel 7; exact 307/308/404 route contracts passed on both projects
 - Local production-build browser verification for the review fixes — `live-discovery.spec.ts` passed 3/3 desktop Chromium and 3/3 Pixel 7 tests with issuer/API responses mocked; no live provider call was made by these checks
@@ -85,6 +170,8 @@ There are no runtime substitutes for identity, balances, provider data, signatur
 - Production issuer search — AAPLx from xStocks and OPENAI from PreStocks, with the expected Solana mints and no unavailable feeds
 - Anonymous `/api/v1/me` — returned 401
 - Production Chromium — four mocked search/image flow checks passed on desktop and Pixel 7; those browser checks made no paid OpenRouter request
+- U25 local Chromium — four Discover/scan checks passed on desktop and Pixel 7, including the xStocks and PreStocks product-result links; issuer and AI responses were intercepted
+- U25 production read-only — both issuer searches returned current mints, the new Discover page served HTTP 200, historical product/brand routes redirected to live search, and /readyz reported trading disabled
 - Real OpenRouter recognition — typed iPhone and synthetic-image iPhone passed before the prompt fix; revised prompt passed direct text and image calls; two post-fix production ChatGPT requests passed and matched PreStocks OPENAI
 - Post-fix production image request — expected HTTP 429 guest-quota block; no provider call made. Desktop and Pixel 7 image browser checks passed with AI mocked.
 - Railway scheduled run at 2026-09-22 11:45 UTC — completed issuer refresh and Shelf reconciliation, two checked jobs, zero failures
@@ -100,7 +187,14 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Review and release the local seven-item issuer/discovery fix set before relying on the deployed discovery and purchase paths. After the guest quota window resets, repeat one real production image request on the current deployment; investigate any repeated HTTP 500 with a fresh correlated runtime log. Paid Jupiter build compatibility and funded execution remain separate approval gates. The frontend refactor is complete through Phases 0–2; Phase 3 awaits the planned visual/product concept. Only after separate owner approval for funding and live-money testing, execute the activation checklist without widening its limits.
+U25 has no pending local implementation or deployment step. When the existing guest AI quota
+window resets, make one consented production product search against the revised prompt and
+confirm its suggested owner and issuer match; do not create a new guest identity to evade the
+limit. If a new HTTP 500 appears, use its request ID and fresh Vercel runtime logs. Paid Jupiter
+build compatibility and funded execution remain separate approval gates. The frontend refactor
+is complete through Phases 0–2; Phase 3 awaits the planned visual/product concept. Only after
+separate owner approval for funding and live-money testing, execute the activation checklist
+without widening its limits.
 
 ## Recent maintenance
 

@@ -3,25 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   articles,
   brands,
-  companies,
   companyById,
-  products,
   productById,
+  products,
   sources,
 } from "@/data/catalog";
-import type { MarketFeed } from "@/domain/market-data";
-import type { Brand, Category, Company, MarketHistoryPoint, RecognitionMatch } from "@/domain/types";
-import type { PreStocksListing } from "@/providers/prestocks";
-import type { XStocksListing } from "@/providers/xstocks";
+import type { Category, Company, RecognitionMatch } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
-import { MarketHistoryChart } from "@/components/screens/markets";
 import {
   Card,
   CtaLink,
@@ -56,13 +50,16 @@ export function DiscoverScreen() {
         <CtaLink id="C01" href="/scan">
           Scan a product
         </CtaLink>
-        <CtaLink id="C02" href="/discover?focus=search" secondary>
-          Search products
+        <CtaLink id="C02" href="/discover?entity=product" secondary>
+          Find a product’s company
         </CtaLink>
       </div>
       <section className="section">
         <h2>Browse product categories</h2>
-        <p className="muted">Reviewed product examples help you explore familiar brands. An issuer listing is checked separately.</p>
+        <p className="muted">
+          Explore reviewed product families and save them to your shelf. Check current issuer
+          listings separately before considering an investment.
+        </p>
         <div className="chips" aria-label="Product categories">
           {(Object.keys(categoryLabels) as Category[]).map((category) => (
             <Link key={category} className="button secondary" href={`/discover?category=${category}`}>
@@ -107,23 +104,124 @@ export function DiscoverScreen() {
 }
 
 function ProductCard({ productId }: { productId: string }) {
-  const product = productById(productId)!;
-  const company = companyById(product.companyId)!;
+  const product = productById(productId);
+  if (!product) return null;
 
   return (
     <Card>
-      <div className="product-art" aria-hidden="true">
-        {product.brand.slice(0, 1)}
-      </div>
-      <span className="badge">{categoryLabels[product.category]}</span>
+      <span className="badge">Previously saved product</span>
       <h3>{product.name}</h3>
-      <p className="muted">
-        {product.brand} → {company.name}
-      </p>
+      <p className="muted">Search this product again to check its current company and issuer listing.</p>
       <Link className="button ghost" data-cta="C03" href={`/products/${product.slug}`}>
-        View product
+        View saved product
       </Link>
     </Card>
+  );
+}
+
+export function ProductScreen({ productId }: { productId: string }) {
+  const product = productById(productId);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!product) return;
+    let active = true;
+    apiRequest<{ items: Array<{ id: string }> }>("shelf")
+      .then((shelf) => {
+        if (!active) return;
+        setSignedIn(true);
+        setSaved(shelf.items.some((item) => item.id === product.id));
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        if (authenticationIsRequired(reason)) {
+          const guestIds = JSON.parse(sessionStorage.getItem("shelf:guest-items") ?? "[]") as string[];
+          setSignedIn(false);
+          setSaved(guestIds.includes(product.id));
+        } else {
+          setSaveError(reason instanceof Error ? reason.message : "Shelf unavailable");
+        }
+      });
+    return () => { active = false; };
+  }, [product]);
+
+  if (!product) {
+    return <EmptyState title="Product unavailable">This catalog entry may have been retired.</EmptyState>;
+  }
+
+  const company = companyById(product.companyId);
+  const brand = brands.find((candidate) => candidate.name === product.brand);
+  const source = sources.find((item) => product.sourceIds.includes(item.id));
+
+  async function toggleSave() {
+    if (!product || signedIn === null || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (signedIn) {
+        if (saved) {
+          await apiRequest(`shelf/items/${product.id}`, { method: "DELETE" });
+        } else {
+          await postJson("shelf/items", { productIds: [product.id] });
+        }
+      } else {
+        const guestIds = JSON.parse(sessionStorage.getItem("shelf:guest-items") ?? "[]") as string[];
+        const nextIds = saved
+          ? guestIds.filter((id) => id !== product.id)
+          : [...new Set([...guestIds, product.id])];
+        sessionStorage.setItem("shelf:guest-items", JSON.stringify(nextIds));
+      }
+      setSaved(!saved);
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : "Shelf update failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <PageIntro eyebrow={`${categoryLabels[product.category]} · ${product.brand}`} title={product.name}>
+        <p>
+          This reviewed product family is connected to {company?.name ?? "a company"} through
+          its brand. Exact local products and ownership can vary by region.
+        </p>
+      </PageIntro>
+      <div className="grid">
+        <Card>
+          <div className="product-art" aria-hidden="true">{product.brand[0]}</div>
+          <h2>Reviewed relationship</h2>
+          <p>{product.name} → {brand ? <Link href={`/brands/${brand.slug}`}>{product.brand}</Link> : product.brand} → {company?.name}</p>
+          <p className="muted">{product.region}</p>
+          {source ? <a href={source.url} target="_blank" rel="noreferrer">
+            {source.title} · checked {source.verifiedAt}
+          </a> : null}
+        </Card>
+        <Card>
+          <h2>Keep exploring</h2>
+          <p className="muted">Saving records a product discovery. It does not buy an asset or verify a current issuer listing.</p>
+          <div className="actions">
+            <button data-cta={saved ? "C19" : "C18"} disabled={signedIn === null || saving} onClick={toggleSave}>
+              {saving ? "Updating shelf…" : saved ? "Remove from shelf" : "Save to shelf"}
+            </button>
+            {company ? <CtaLink id="C20" href={`/discover?source=issuer&entity=company&q=${encodeURIComponent(company.name)}` as Route} secondary>
+              Check current issuer listings
+            </CtaLink> : null}
+            <CtaLink id="product-shelf-link" href="/saved" secondary>View shelf</CtaLink>
+          </div>
+          {signedIn === false ? <p className="muted">Guest saves stay in this browser session. Sign in to keep them.</p> : null}
+          <ErrorMessage message={saveError} />
+          {signedIn === null && saveError ? (
+            <button className="ghost" onClick={() => window.location.reload()}>
+              Retry shelf connection
+            </button>
+          ) : null}
+        </Card>
+      </div>
+    </>
   );
 }
 
@@ -139,6 +237,7 @@ function IssuerCard({ listing }: { listing: IssuerListing }) {
         ? asset.underlyingSymbol || "Underlying unavailable"
         : asset.premiumLabel}</p>
       <p className="muted">{asset.description || "Read the issuer page for instrument details."}</p>
+      <p className="muted">Issuer mint: <code className="breakable-code">{asset.mint}</code></p>
       <Link className="button ghost" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
         View issuer asset
       </Link>
@@ -146,8 +245,19 @@ function IssuerCard({ listing }: { listing: IssuerListing }) {
   );
 }
 
+function updateDiscoveryUrl(mode: "company" | "product", query: string, market: string, category?: Category) {
+  const params = new URLSearchParams();
+  params.set("source", "issuer");
+  params.set("entity", mode);
+  if (query.trim()) params.set("q", query.trim());
+  if (mode === "company" && market !== "all") params.set("market", market);
+  if (category) params.set("category", category);
+  window.history.replaceState(null, "", `/discover?${params}`);
+}
+
 export function SearchScreen({
   initialCategory,
+  initialEntity,
   initialMarket,
   initialQuery,
 }: {
@@ -156,23 +266,29 @@ export function SearchScreen({
   initialMarket?: string;
   initialQuery?: string;
 }) {
+  const category = initialCategory && initialCategory in categoryLabels
+    ? initialCategory as Category : undefined;
+  const [mode, setMode] = useState<"company" | "product">(
+    initialEntity === "product" ? "product" : "company",
+  );
   const [query, setQuery] = useState(initialQuery ?? "");
-  const [market, setMarket] = useState(initialMarket ?? "all");
-  const [category, setCategory] = useState<Category | "all">(
-    initialCategory && initialCategory in categoryLabels ? initialCategory as Category : "all",
+  const [market, setMarket] = useState(
+    initialMarket === "public" || initialMarket === "private" ? initialMarket : "all",
   );
   const [feedResults, setFeedResults] = useState<IssuerListing[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [matches, setMatches] = useState<RecognitionMatch[]>([]);
+  const [matches, setMatches] = useState<RecognitionMatch[] | null>(null);
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [stale, setStale] = useState<string[]>([]);
   const [aiConsent, setAiConsent] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(mode === "company");
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [productError, setProductError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (mode !== "company") return;
     let active = true;
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -189,18 +305,13 @@ export function SearchScreen({
         setTotal(response.total);
         setUnavailable(response.unavailable);
         setStale(response.stale);
-        setError(null);
-        const routeParams = new URLSearchParams();
-        if (query) routeParams.set("q", query);
-        if (market !== "all") routeParams.set("market", market);
-        if (category !== "all") routeParams.set("category", category);
-        window.history.replaceState(
-          null,
-          "",
-          routeParams.size ? `/discover?${routeParams}` : "/discover",
-        );
+        setFeedError(null);
       } catch (requestError) {
-        if (active) setError(requestError instanceof Error ? requestError.message : "Issuer search failed");
+        if (active) {
+          setFeedResults([]);
+          setTotal(0);
+          setFeedError(requestError instanceof Error ? requestError.message : "Issuer search failed");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -209,20 +320,22 @@ export function SearchScreen({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [query, market, category, offset]);
+  }, [mode, query, market, offset]);
 
-  function clearFilters() {
-    setQuery("");
-    setMarket("all");
-    setCategory("all");
-    setMatches([]);
+  function changeMode(nextMode: "company" | "product") {
+    setMode(nextMode);
+    setMatches(null);
+    setFeedError(null);
+    setProductError(null);
     setOffset(0);
+    updateDiscoveryUrl(nextMode, query, market, category);
   }
 
   async function findProductOwner() {
     if (!query.trim() || !aiConsent) return;
     setResolving(true);
-    setError(null);
+    setMatches(null);
+    setProductError(null);
     try {
       const result = await postJson<RecognitionMatch[]>("discovery/search", {
         query: query.trim(),
@@ -232,154 +345,199 @@ export function SearchScreen({
       });
       setMatches(result);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message.replaceAll("_", " ") : "Ownership search failed");
+      setProductError(reason instanceof Error ? reason.message.replaceAll("_", " ") : "Ownership search failed");
     } finally {
       setResolving(false);
     }
   }
 
-  const visibleProducts = products.filter((product) =>
-    (category === "all" || product.category === category) &&
-    (!query || [product.name, product.brand].some((value) => value.toLowerCase().includes(query.toLowerCase()))),
+  const selectedFeed = market === "public" ? "xstocks" : market === "private" ? "prestocks" : null;
+  const relevantUnavailable = unavailable.filter((feed) =>
+    !selectedFeed || feed.toLowerCase() === selectedFeed,
+  );
+  const relevantStale = stale.filter((feed) =>
+    !selectedFeed || feed.toLowerCase() === selectedFeed,
   );
 
   return (
     <>
-      <PageIntro eyebrow="Explore" title="Find a product or issuer">
+      <PageIntro eyebrow="Live discovery" title="Find a product or issuer">
         <p>
-          Browse current xStocks public assets and PreStocks private exposure. For a product or
-          brand, AI can suggest its likely owner, then Shelf checks both issuer feeds for a token.
+          Search a company directly in the current xStocks and PreStocks feeds, or name a product
+          and ask AI for its likely owner. Only a matching issuer listing can lead to an asset page.
         </p>
       </PageIntro>
-      <div className="card stack">
-        <Field label="Product, brand or company" htmlFor="issuer-search">
+      <section className="section">
+        <h2>Browse product categories</h2>
+        <div className="chips" aria-label="Product categories">
+          {(Object.keys(categoryLabels) as Category[]).map((option) => (
+            <Link key={option} className="button secondary" aria-current={category === option ? "page" : undefined}
+              href={`/discover?source=issuer&category=${option}`}>
+              {categoryLabels[option]}
+            </Link>
+          ))}
+        </div>
+        {category ? <div className="section">
+          <h3>{categoryLabels[category]} products</h3>
+          <p className="muted">Reviewed product families for discovery and saving. Issuer availability is checked separately.</p>
+          <div className="grid">
+            {products.filter((product) => product.category === category).map((product) => (
+              <Card key={product.id}>
+                <span className="badge">{categoryLabels[product.category]}</span>
+                <h4>{product.name}</h4>
+                <p className="muted">{product.brand} · reviewed family</p>
+                <Link className="button ghost" href={`/products/${product.slug}`}>View product</Link>
+              </Card>
+            ))}
+          </div>
+          <Link className="button secondary" href="/discover?source=issuer">Clear category</Link>
+        </div> : null}
+      </section>
+      <div className="chips" role="group" aria-label="Discovery method">
+        <button aria-pressed={mode === "company"} className={mode === "company" ? "" : "secondary"}
+          onClick={() => changeMode("company")}>Search companies</button>
+        <button aria-pressed={mode === "product"} className={mode === "product" ? "" : "secondary"}
+          onClick={() => changeMode("product")}>Find a product’s company</button>
+      </div>
+      <div className="card stack section">
+        <h2>{mode === "company" ? "Search issuer listings" : "Find the company behind a product"}</h2>
+        <p className="muted">
+          {mode === "company"
+            ? "Company names and symbols come directly from xStocks and PreStocks. Leave the field blank to browse the live feeds."
+            : "Enter a product or brand name. AI suggests its current parent company, then Shelf checks both issuer feeds. Ownership is a suggestion to verify."}
+        </p>
+        <Field label={mode === "company" ? "Company name or symbol" : "Product or brand name"} htmlFor="issuer-search">
           <input
             id="issuer-search"
             maxLength={120}
             value={query}
+            disabled={resolving}
+            placeholder={mode === "company" ? "Search current issuer listings" : "Name the product or brand"}
             onChange={(event) => {
-              setQuery(event.target.value);
+              const nextQuery = event.target.value;
+              setQuery(nextQuery);
               setOffset(0);
-              setMatches([]);
+              setMatches(null);
+              setProductError(null);
+              updateDiscoveryUrl(mode, nextQuery, market, category);
             }}
           />
         </Field>
-        <div className="chips" aria-label="Issuer market">
-          {(["all", "public", "private"] as const).map((option) => (
-            <button key={option} className={market === option ? "" : "secondary"}
-              onClick={() => { setMarket(option); setOffset(0); }}>{option === "all" ? "Both" : option}</button>
-          ))}
-        </div>
-        <Field label="Product category" htmlFor="product-category">
-          <select id="product-category" value={category} onChange={(event) => {
-            setCategory(event.target.value as Category | "all");
-            setOffset(0);
-          }}>
-            <option value="all">All categories</option>
-            {(Object.keys(categoryLabels) as Category[]).map((option) => (
-              <option key={option} value={option}>{categoryLabels[option]}</option>
+        {mode === "company" ? (
+          <div className="chips" role="group" aria-label="Issuer market">
+            {(["all", "public", "private"] as const).map((option) => (
+              <button key={option} aria-pressed={market === option}
+                className={market === option ? "" : "secondary"}
+                onClick={() => {
+                  setMarket(option);
+                  setOffset(0);
+                  updateDiscoveryUrl(mode, query, option, category);
+                }}>
+                {option === "all" ? "Both markets" : option === "public" ? "Public · xStocks" : "Private · PreStocks"}
+              </button>
             ))}
-          </select>
-        </Field>
-        <label className="notice">
-          <input type="checkbox" checked={aiConsent}
-            onChange={(event) => setAiConsent(event.target.checked)} />{" "}
-          I agree to send this search to OpenRouter to suggest the product’s likely owning company.
-          Shelf does not treat that ownership suggestion as verified.
-        </label>
+          </div>
+        ) : (
+          <>
+            <label className="notice">
+              <input type="checkbox" checked={aiConsent}
+                onChange={(event) => setAiConsent(event.target.checked)} />{" "}
+              I agree to send this product name to OpenRouter for an AI ownership suggestion.
+              Shelf does not verify the product-to-company relationship.
+            </label>
+            <button disabled={!query.trim() || !aiConsent || resolving} onClick={findProductOwner}>
+              {resolving ? "Checking ownership and issuer feeds…" : "Find company behind product"}
+            </button>
+          </>
+        )}
         <div className="actions">
-          <button disabled={!query.trim() || !aiConsent || resolving} onClick={findProductOwner}>
-            {resolving ? "Finding owner…" : "Find company behind product"}
-          </button>
-          <button className="secondary" data-cta="C04" onClick={clearFilters}>Clear filters</button>
+          <button className="secondary" data-cta="C04" onClick={() => {
+            setQuery("");
+            setMatches(null);
+            setOffset(0);
+            setProductError(null);
+            updateDiscoveryUrl(mode, "", market, category);
+          }}>Clear search</button>
         </div>
-        <ErrorMessage message={error} />
+        <ErrorMessage message={mode === "company" ? feedError : productError} />
       </div>
-      <section className="section">
-        <h2>{category === "all" ? "Reviewed product examples" : `${categoryLabels[category]} products`}</h2>
-        <p className="muted">These reviewed product relationships are browsing examples, not live issuer listings or proof that a token can be purchased.</p>
-        {visibleProducts.length ? <div className="grid">
-          {visibleProducts.map((product) => <ProductCard key={product.id} productId={product.id} />)}
-        </div> : <EmptyState title="No reviewed products">Try another category or search term.</EmptyState>}
-      </section>
-      {matches.length ? <section className="section">
-        <h2>AI owner suggestions</h2>
-        <p className="muted">Check the product-to-company relationship yourself. The issuer feed confirms only the listed token identity.</p>
+      {mode === "product" && resolving ? <p className="muted section" role="status">Resolving the owner and checking both issuer feeds…</p> : null}
+      {mode === "product" && matches?.length === 0 ? (
+        <section className="section">
+          <EmptyState title="Product not found">
+            AI could not identify a reliable owner for this product. Try a more specific product or brand name.
+          </EmptyState>
+        </section>
+      ) : null}
+      {mode === "product" && matches && matches.length > 0 ? <section className="section">
+        <h2>Product search result</h2>
+        <p className="muted">AI suggests ownership. xStocks or PreStocks confirms a listed asset and mint, not the product relationship. Verify the relationship before acting.</p>
         <div className="grid">{matches.map((match) => (
           <Card key={match.candidateId}>
             <h3>{match.displayLabel}</h3>
-            <p>Likely owner: {match.ownerName ?? "Unknown"}</p>
+            <p>AI suggested owner: {match.ownerName ?? "Could not identify"}</p>
             {match.feedUnavailable ? <p className="notice">An issuer feed was unavailable, so this search may have missed a token.</p> : null}
             {match.feedStale ? <p className="notice">Issuer data is stale. A purchase needs a fresh recheck.</p> : null}
             {match.issuer && match.symbol ? (
-              <Link className="button" href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol)}` as Route}>
-                View {match.symbol} on {match.issuer === "xstocks" ? "xStocks" : "PreStocks"}
+              <>
+                <p className="muted">
+                  Matched issuer listing: <strong>{match.matchedIssuerName ?? match.ownerName}</strong>
+                  {" · "}{match.issuer === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}
+                  {" · "}{match.symbol}
+                </p>
+                <p className="muted">Issuer mint: <code className="breakable-code">{match.mint}</code></p>
+                <Link className="button" href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol)}` as Route}>
+                  View {match.symbol} on {match.issuer === "xstocks" ? "xStocks" : "PreStocks"}
+                </Link>
+              </>
+            ) : (
+              <p className="muted">
+                {!match.ownerName
+                  ? "AI could not identify the current owner. Try a more specific product or brand name."
+                  : match.feedUnavailable || match.feedStale
+                  ? "A current issuer match could not be confirmed while a feed is unavailable or stale."
+                  : `No available issuer asset for this product. AI suggested ${match.ownerName}, but neither xStocks nor PreStocks currently lists a matching company.`}
+              </p>
+            )}
+            {!match.issuer && match.ownerName ? (
+              <Link className="button secondary"
+                href={`/discover?source=issuer&entity=company&q=${encodeURIComponent(match.ownerName)}` as Route}>
+                Search issuer feeds for {match.ownerName}
               </Link>
-            ) : <p className="muted">No matching issuer token was found.</p>}
+            ) : null}
           </Card>
         ))}</div>
       </section> : null}
-      <section className="section">
-        <h2>Current issuer listings</h2>
-        {unavailable.length ? <p className="notice">{unavailable.join(" and ")} feed unavailable; results may be incomplete.</p> : null}
-        {stale.length ? <p className="notice">{stale.join(" and ")} data is stale. Open an asset to refresh before any purchase.</p> : null}
-        {loading ? <p className="muted">Loading issuer feeds…</p> : feedResults.length
+      {mode === "company" ? <section className="section">
+        <h2>{query.trim() ? "Matching issuer listings" : "Browse current issuer listings"}</h2>
+        {relevantUnavailable.length ? <p className="notice">{relevantUnavailable.join(" and ")} feed unavailable; results may be incomplete.</p> : null}
+        {relevantStale.length ? <p className="notice">{relevantStale.join(" and ")} data is stale. Open an asset to refresh before any purchase.</p> : null}
+        {loading ? <p className="muted" role="status">Loading issuer feeds…</p> : feedError ? null : feedResults.length
           ? <div className="grid">{feedResults.map((listing) => (
               <IssuerCard listing={listing} key={listing.asset.companyId} />
             ))}</div>
-          : <EmptyState title="No issuer result">Try another company name or use AI to find a product’s owner.</EmptyState>}
-        {total > 50 ? <div className="actions">
+          : <EmptyState title={relevantUnavailable.length
+            ? "Issuer feeds unavailable"
+            : query.trim() ? "Company not found" : "No issuer listings available"}
+            action={query.trim() && !relevantUnavailable.length ? (
+              <button className="secondary" onClick={() => changeMode("product")}>
+                Find the company behind this product with AI
+              </button>
+            ) : undefined}>
+              {relevantUnavailable.length
+                ? "We cannot confirm whether this company is listed until the unavailable feed returns."
+                : query.trim()
+                  ? "No company or symbol matched the current xStocks and PreStocks listings. If this is a product, AI can suggest its owner for a second issuer lookup."
+                  : "No issuer listings are available right now."}
+            </EmptyState>}
+        {!loading && !feedError && total > 50 ? <div className="actions">
           <button className="secondary" disabled={offset === 0}
             onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>
           <span className="muted">{offset + 1}–{Math.min(offset + 50, total)} of {total}</span>
           <button className="secondary" disabled={offset + 50 >= total}
             onClick={() => setOffset(offset + 50)}>Next</button>
         </div> : null}
-      </section>
-    </>
-  );
-}
-
-export function BrandScreen({ brand }: { brand: Brand }) {
-  const brandProducts = brand.productIds
-    .map((productId) => productById(productId))
-    .filter((product) => product !== undefined);
-
-  return (
-    <>
-      <PageIntro eyebrow="Reviewed brand" title={brand.name}>
-        <p>
-          A brand is a consumer identity, not automatically a legal company or investment.
-          Shelf keeps the reviewed relationship and regional context visible.
-        </p>
-      </PageIntro>
-      <section className="section">
-        <h2>Products in Shelf&apos;s reviewed catalog</h2>
-        <div className="grid">
-          {brandProducts.map((product) => (
-            <ProductCard productId={product.id} key={product.id} />
-          ))}
-        </div>
-      </section>
-      <section className="section">
-        <h2>Reviewed company relationships</h2>
-        <div className="grid">
-          {brand.companyRelationships.map((relationship) => {
-            const company = companyById(relationship.companyId);
-            if (!company) return null;
-            return (
-              <Card key={`${relationship.companyId}-${relationship.relationship}-${relationship.region}`}>
-                <span className="badge">{relationship.relationship.replaceAll("_", " ")}</span>
-                <h3>{company.name}</h3>
-                <p className="muted">{relationship.region}</p>
-                <Link className="button ghost" href={`/companies/${company.slug}`}>
-                  View company
-                </Link>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
+      </section> : null}
     </>
   );
 }
@@ -682,8 +840,8 @@ export function ScanScreen() {
           </Field>
         ) : null}
         {mode === "search" ? (
-          <CtaLink id="C02" href="/discover?focus=search">
-            Search current issuer feeds
+          <CtaLink id="C02" href="/discover?source=issuer&entity=product">
+            Search a product or company
           </CtaLink>
         ) : null}
         <ErrorMessage message={error} />
@@ -783,18 +941,23 @@ export function ScanResultsScreen() {
                 {" "}· {match.symbol} · mint {match.mint}
               </p>
             ) : null}
+            {match.matchedIssuerName ? (
+              <p className="muted">Matched issuer listing: {match.matchedIssuerName}</p>
+            ) : null}
             {match.feedUnavailable ? <p className="notice">An issuer feed was unavailable, so this scan may have missed a token.</p> : null}
             {match.feedStale ? <p className="notice">Issuer data is stale. A purchase requires a fresh recheck.</p> : null}
+            {!match.issuer ? <p className="muted">No matching issuer asset was confirmed. Search the company name to check the live feeds.</p> : null}
             <div className="actions">
               <button
                 data-cta="C13"
+                disabled={!match.issuer || !match.symbol}
                 onClick={() =>
                   setSelected((current) => [...new Set([...current, match.candidateId])])
                 }
               >
                 This is correct
               </button>
-              <Link className="button secondary" data-cta="C14" href="/discover?focus=search">
+              <Link className="button secondary" data-cta="C14" href="/discover?source=issuer&entity=company">
                 Change match
               </Link>
               <button
@@ -831,294 +994,6 @@ export function ScanResultsScreen() {
       </div>
       {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}
       <ErrorMessage message={saveError} />
-    </>
-  );
-}
-
-export function ProductScreen({ productId }: { productId: string }) {
-  const product = productById(productId);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  if (!product)
-    return (
-      <EmptyState title="Product unavailable">This catalog entry may have been retired.</EmptyState>
-    );
-  const company = companyById(product.companyId)!;
-  const brand = brands.find((candidate) => candidate.name === product.brand);
-  const source = sources.find((item) => product.sourceIds.includes(item.id));
-  const selectedProductId = product.id;
-
-  async function toggleSave() {
-    try {
-      if (saved) {
-        await apiRequest(`shelf/items/${selectedProductId}`, { method: "DELETE" });
-        setSaved(false);
-        return;
-      }
-      await postJson("shelf/items", { productIds: [selectedProductId] });
-      setSaved(true);
-      setSaveError(null);
-    } catch (requestError) {
-      setSaveError(requestError instanceof Error ? requestError.message : "Shelf update failed");
-    }
-  }
-
-  return (
-    <>
-      <PageIntro
-        eyebrow={`${categoryLabels[product.category]} · ${product.brand}`}
-        title={product.name}
-      >
-        <p>
-          {product.brand} has a reviewed {product.relationship.replaceAll("_", " ")} relationship
-          with {company.name}.
-        </p>
-      </PageIntro>
-      <div className="grid">
-        <Card>
-          <div className="product-art">{product.brand[0]}</div>
-          <h2>Relationship path</h2>
-          <p>
-            {product.name} →{" "}
-            {brand ? <Link href={`/brands/${brand.slug}`}>{product.brand}</Link> : product.brand} →{" "}
-            {company.name}
-          </p>
-          <p className="muted">{product.region}</p>
-          {source ? (
-            <a href={source.url} target="_blank" rel="noreferrer">
-              {source.title} · checked {source.verifiedAt}
-            </a>
-          ) : null}
-        </Card>
-        <Card>
-          <h2>Keep exploring</h2>
-          <div className="actions">
-            <button data-cta={saved ? "C19" : "C18"} onClick={toggleSave}>
-              {saved ? "Remove from shelf" : "Save to shelf"}
-            </button>
-            <CtaLink id="C20" href={`/companies/${company.slug}`} secondary>
-              Explore company
-            </CtaLink>
-          </div>
-          <ErrorMessage message={saveError} />
-        </Card>
-      </div>
-    </>
-  );
-}
-
-export function CompanyScreen({ companyId }: { companyId: string }) {
-  const company = companyById(companyId);
-  const [preStocksListing, setPreStocksListing] = useState<PreStocksListing | null>(null);
-  const [xStocksListing, setXStocksListing] = useState<XStocksListing | null>(null);
-  const [history, setHistory] = useState<{
-    mode: "observed" | "unavailable";
-    points: MarketHistoryPoint[];
-  }>({ mode: "unavailable", points: [] });
-  const [watched, setWatched] = useState(false);
-  const [watchlistError, setWatchlistError] = useState<string | null>(null);
-  const [marketState, setMarketState] = useState<"current" | "stale" | "unavailable">(
-    "unavailable",
-  );
-
-  useEffect(() => {
-    if (!company?.instrument) return;
-    apiRequest<Array<{ id: string }>>("watchlist")
-      .then((items) => setWatched(items.some((item) => item.id === company.id)))
-      .catch((requestError: unknown) => {
-        setWatched(false);
-        if (!authenticationIsRequired(requestError)) {
-          setWatchlistError(
-            requestError instanceof Error ? requestError.message : "Watchlist unavailable",
-          );
-        }
-      });
-    apiRequest<{ mode: "observed" | "unavailable"; points: MarketHistoryPoint[] }>(
-      `markets/history/${company.id}`,
-    )
-      .then(setHistory)
-      .catch(() => setHistory({ mode: "unavailable", points: [] }));
-
-    if (company.instrument.provider === "prestocks") {
-      apiRequest<MarketFeed<PreStocksListing>>("catalog/prestocks")
-        .then((response) => {
-          setPreStocksListing(
-            response.listings.find((listing) => listing.mint === company.instrument?.mint) ?? null,
-          );
-          setMarketState(response.state);
-        })
-        .catch(() => setMarketState("unavailable"));
-      return;
-    }
-
-    apiRequest<MarketFeed<XStocksListing>>("catalog/xstocks")
-      .then((response) => {
-        setXStocksListing(
-          response.listings.find((listing) => listing.mint === company.instrument?.mint) ?? null,
-        );
-        setMarketState(response.state);
-      })
-      .catch(() => setMarketState("unavailable"));
-  }, [company]);
-
-  async function addToWatchlist() {
-    try {
-      const items = await postJson<Array<{ id: string }>>("watchlist/items", { companyId });
-      setWatched(items.some((item) => item.id === companyId));
-      setWatchlistError(null);
-    } catch (requestError) {
-      setWatchlistError(
-        authenticationIsRequired(requestError)
-          ? "Sign in to keep this company on your private watchlist."
-          : requestError instanceof Error
-            ? requestError.message
-            : "Watchlist update failed",
-      );
-    }
-  }
-
-  if (!company)
-    return (
-      <EmptyState title="Company unavailable">
-        This company is not in the reviewed registry.
-      </EmptyState>
-    );
-  const relatedProducts = products.filter((product) => product.companyId === company.id);
-
-  return (
-    <>
-      <PageIntro eyebrow={`${company.exchange} · ${company.ticker}`} title={company.name}>
-        <p>{company.description}</p>
-      </PageIntro>
-      <div className="grid">
-        <Card>
-          <h2>{relatedProducts.length ? "Brands in the reviewed catalog" : "Registry source"}</h2>
-          <p>
-            {relatedProducts.length
-              ? [...new Set(relatedProducts.map((product) => product.brand))].join(", ")
-              : `${company.instrument?.issuer} lists this private-company exposure instrument.`}
-          </p>
-          <details>
-            <summary data-cta="C23">View sources</summary>
-            <p className="muted">
-              Relationships are supported by reviewed company sources and dated evidence. Exact
-              local products can vary.
-            </p>
-            {company.instrument ? (
-              <a href={company.instrument.referenceUrl} target="_blank" rel="noreferrer">
-                Open issuer source
-              </a>
-            ) : null}
-          </details>
-        </Card>
-        <Card>
-          {company.instrument ? (
-            <span className="badge">
-              {company.instrument.assetClass === "pre_ipo_exposure"
-                ? "Pre-IPO exposure token"
-                : "Public equity token"}
-            </span>
-          ) : null}
-          <h2>{company.instrument ? company.instrument.symbol : "Discovery only"}</h2>
-          {company.instrument ? (
-            <>
-              <p>
-                A tokenized instrument from {company.instrument.issuer}.{" "}
-                {company.instrument.assetClass === "pre_ipo_exposure"
-                  ? "It provides issuer-defined economic exposure to a private company; it is not company stock and does not grant ordinary shareholder rights."
-                  : "It is not an ordinary voting share."}
-              </p>
-              {preStocksListing ? (
-                <div className="stack" aria-label="PreStocks reference market data">
-                  <p>
-                    <strong>Issuer mark:</strong> ${preStocksListing.markPriceUsd}
-                    <br />
-                    <strong>Token reference:</strong> ${preStocksListing.tokenPriceUsd}
-                    <br />
-                    <strong>Market signal:</strong> {preStocksListing.premiumLabel}
-                  </p>
-                  <p className="muted">
-                    Reference data from PreStocks · {marketState}. A Jupiter quote, when available,
-                    determines executable terms.
-                  </p>
-                </div>
-              ) : company.instrument.provider === "prestocks" ? (
-                <p className="muted">Current PreStocks reference pricing is unavailable.</p>
-              ) : null}
-              {xStocksListing ? (
-                <div className="stack" aria-label="xStocks issuer metadata">
-                  <p>
-                    <strong>Underlying:</strong> {xStocksListing.underlyingSymbol} on{" "}
-                    {xStocksListing.exchange}
-                    <br />
-                    <strong>Underlying session:</strong>{" "}
-                    {xStocksListing.marketOpen ? "open" : xStocksListing.marketPeriod}
-                  </p>
-                  <p className="muted">
-                    xStocks metadata · {marketState}. Jupiter determines executable secondary-market
-                    terms; issuer redemption has separate eligibility and minimums.
-                  </p>
-                </div>
-              ) : null}
-              {company.instrument.lifecycle ? (
-                <div className="notice">
-                  <strong>{company.instrument.lifecycle.title}</strong>
-                  <p>{company.instrument.lifecycle.description}</p>
-                  {company.instrument.lifecycle.deadline ? (
-                    <p>
-                      Issuer deadline:{" "}
-                      {new Date(company.instrument.lifecycle.deadline).toLocaleString()}
-                      {company.instrument.lifecycle.successorSymbol
-                        ? ` · referenced successor ${company.instrument.lifecycle.successorSymbol}`
-                        : ""}
-                    </p>
-                  ) : null}
-                  <a href={company.instrument.lifecycle.sourceUrl} target="_blank" rel="noreferrer">
-                    Review issuer notice
-                  </a>
-                </div>
-              ) : null}
-              {company.instrument.provider === "prestocks" ? (
-                <MarketHistoryChart points={history.points} mode={history.mode} />
-              ) : null}
-              <details>
-                <summary data-cta="C24">View token details</summary>
-                <p className="muted">
-                  Mint: {company.instrument.mint}
-                  <br />
-                  Program: {company.instrument.tokenProgram}
-                  <br />
-                  Source: {company.instrument.provider === "prestocks" ? "PreStocks" : "xStocks"}
-                </p>
-              </details>
-              <div className="actions">
-                <button className="secondary" disabled={watched} onClick={addToWatchlist}>
-                  {watched ? "On watchlist" : "Add to watchlist"}
-                </button>
-                {company.instrument.capabilities.buy ? (
-                  <CtaLink id="C21" href={`/invest/${company.slug}`}>
-                    Choose amount
-                  </CtaLink>
-                ) : null}
-                <CtaLink id="C22" href={`/assistant?companyId=${company.id}`} secondary>
-                  Ask about this company
-                </CtaLink>
-              </div>
-              <ErrorMessage message={watchlistError} />
-            </>
-          ) : (
-            <p>Not available to buy on Shelf. You can still save and learn about it.</p>
-          )}
-        </Card>
-      </div>
-      <section className="section">
-        <h2>Products you may recognize</h2>
-        <div className="grid">
-          {relatedProducts.map((product) => (
-            <ProductCard key={product.id} productId={product.id} />
-          ))}
-        </div>
-      </section>
     </>
   );
 }
@@ -1331,7 +1206,7 @@ export function ShelfScreen() {
             <EmptyState
               title="No companies watched"
               action={
-                <CtaLink id="market-watch-empty" href="/discover?entity=company">
+                <CtaLink id="market-watch-empty" href="/discover?source=issuer&entity=company">
                   Explore companies
                 </CtaLink>
               }
@@ -1499,98 +1374,6 @@ export function AssistantScreen() {
           </ResultMessage>
         ) : null}
       </Card>
-    </>
-  );
-}
-
-export function AllocationScreen() {
-  const router = useRouter();
-  const [budget, setBudget] = useState("30");
-  const [draft, setDraft] = useState<Array<{ companyId: string; amountUsdcRaw: string }>>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  async function generateDraft() {
-    try {
-      const raw = (BigInt(budget) * 1_000_000n).toString();
-      const response = await postJson<{
-        allocations: Array<{ companyId: string; amountUsdcRaw: string }>;
-      }>("ai/allocation-drafts", {
-        budgetUsdcRaw: raw,
-        companyIds: companies
-          .filter((company) => company.instrument?.capabilities.buy)
-          .slice(0, 5)
-          .map((company) => company.id),
-        includeShelf: true,
-      });
-      setDraft(response.allocations);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Draft failed");
-    }
-  }
-
-  function updateAllocation(companyId: string, amount: string) {
-    setDraft((current) =>
-      current.map((item) =>
-        item.companyId === companyId ? { ...item, amountUsdcRaw: amount } : item,
-      ),
-    );
-  }
-
-  function applyDraft() {
-    sessionStorage.setItem("shelf:allocation-draft", JSON.stringify(draft));
-    router.push("/invest/basket");
-  }
-
-  return (
-    <>
-      <PageIntro eyebrow="Editable proposal" title="Build an allocation proposal">
-        <p>
-          This is not a return prediction or suitability assessment. Shelf uses only verified
-          supported candidates you explicitly selected.
-        </p>
-      </PageIntro>
-      <Card className="stack">
-        <Field label="Budget in USDC" htmlFor="allocation-budget">
-          <input
-            id="allocation-budget"
-            inputMode="decimal"
-            value={budget}
-            onChange={(event) => setBudget(event.target.value)}
-          />
-        </Field>
-        <label>
-          <input type="checkbox" /> Use my shelf context
-        </label>
-        <button data-cta="C40" onClick={generateDraft}>
-          Generate draft
-        </button>
-        <ErrorMessage message={error} />
-      </Card>
-      {draft.length ? (
-        <section className="section stack">
-          <div className="notice">
-            Limited catalog and token issuer risks apply. Familiarity is not valuation.
-          </div>
-          {draft.map((item) => (
-            <Card key={item.companyId}>
-              <h3>{companyById(item.companyId)?.name}</h3>
-              <Field label="Allocation in raw USDC" htmlFor={`draft-${item.companyId}`}>
-                <input
-                  id={`draft-${item.companyId}`}
-                  data-cta="C41"
-                  inputMode="numeric"
-                  value={item.amountUsdcRaw}
-                  onChange={(event) => updateAllocation(item.companyId, event.target.value)}
-                />
-              </Field>
-            </Card>
-          ))}
-          <button data-cta="C42" onClick={applyDraft}>
-            Apply to basket
-          </button>
-        </section>
-      ) : null}
     </>
   );
 }

@@ -60,3 +60,65 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
     expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
   }
 });
+
+test("all five categories lead to reviewed products and a guest can save one", async ({ page }) => {
+  await page.route("**/api/v1/issuer/search?*", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: { listings: [], total: 0, unavailable: [], stale: [] } }),
+  }));
+  await page.route("**/api/v1/shelf", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
+  }));
+  await page.route("**/api/v1/me", (route) => route.fulfill({
+    status: 401,
+    contentType: "application/json",
+    body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
+  }));
+
+  const categories = {
+    groceries: "Doritos snack",
+    beauty: "Olay skincare",
+    electronics: "iPhone",
+    clothing: "Nike apparel",
+    household: "Tide laundry",
+  } as const;
+  for (const [category, product] of Object.entries(categories)) {
+    await page.goto(`/discover?category=${category}`);
+    await expect(page).toHaveURL(new RegExp(`/discover\\?category=${category}$`));
+    await expect(page.getByRole("link", { name: new RegExp(product) })).toBeVisible();
+  }
+
+  await page.goto("/discover?category=groceries");
+  await page.getByRole("link", { name: /Doritos snack/ }).click();
+  await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
+  const productName = await page.getByRole("heading", { level: 1 }).textContent();
+  await page.getByRole("button", { name: "Save to shelf" }).click();
+  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
+  await page.getByRole("link", { name: "View shelf" }).click();
+  await expect(page.getByRole("heading", { name: productName ?? "" })).toBeVisible();
+});
+
+test("a member product save reaches the shelf items endpoint", async ({ page }) => {
+  let savedIds: string[] = [];
+  await page.route("**/api/v1/shelf", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: { items: [] } }),
+  }));
+  await page.route("**/api/v1/shelf/items", async (route) => {
+    savedIds = route.request().postDataJSON().productIds as string[];
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { version: 2 } }),
+    });
+  });
+
+  await page.goto("/products/doritos-snack");
+  await page.getByRole("button", { name: "Save to shelf" }).click();
+  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
+  expect(savedIds).toEqual(["product-doritos-snack"]);
+});

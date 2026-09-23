@@ -13,7 +13,9 @@ inspects the mint's token program and decimals through Helius, and persists that
 Before Jupiter builds an exact-input route it re-fetches the issuer and requires the same mint.
 Issuer xChange atomic-swap support describes a separate primary-market path and does not gate
 Jupiter secondary-market liquidity; issuer trading halts and Jupiter's own route checks still
-fail closed. Existing catalog rows below remain for historical saved content, not active search.
+fail closed. Reviewed catalog rows below support the five product category collections, product
+detail pages and shelf saves. They do not limit live AI or issuer search, and a reviewed
+product-to-company relationship does not establish a current issuer listing.
 
 ## Verified relationship registry
 

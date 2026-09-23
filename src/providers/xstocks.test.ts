@@ -34,7 +34,21 @@ describe("xStocks provider", () => {
       "issuer:xstocks:PEPx",
     ]);
     expect(listings[0].mint).toBe("XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp");
-    expect(requestedPages).toEqual([0, 1]);
+    expect(requestedPages).toEqual([0, 1, 2]);
+  });
+
+  it("does not accept a later page when an earlier required page fails", async () => {
+    const send: typeof fetch = async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      if (page === 1) return new Response(null, { status: 503 });
+      return new Response(JSON.stringify({
+        nodes: [],
+        page: { currentPage: page, hasNextPage: page === 0 },
+      }));
+    };
+
+    await expect(new LiveXStocksProvider(undefined, send).listings())
+      .rejects.toThrow("XSTOCKS_UNAVAILABLE");
   });
 
   it("rejects an unexpected page and foreign API host", async () => {

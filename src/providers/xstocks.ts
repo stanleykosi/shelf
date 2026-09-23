@@ -101,23 +101,47 @@ export class LiveXStocksProvider {
   async listings(): Promise<XStocksListing[]> {
     const observedAt = new Date().toISOString();
     const listings: XStocksListing[] = [];
+    const maxPages = 20;
+    const pagesPerBatch = 3;
 
-    // Fail at the bound rather than silently returning an incomplete feed.
-    for (let pageNumber = 0; pageNumber < 20; pageNumber += 1) {
+    const fetchPage = async (pageNumber: number) => {
       const endpoint = new URL("public/assets", this.baseUrl);
       endpoint.searchParams.set("page", String(pageNumber));
-      const response = await this.send(endpoint, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (!response.ok) throw new Error("XSTOCKS_UNAVAILABLE");
+      endpoint.searchParams.set("pageSize", "100");
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          response = await this.send(endpoint, {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(12_000),
+          });
+        } catch {
+          response = null;
+        }
+        if (response?.ok || (response && response.status < 500)) break;
+      }
+      if (!response?.ok) throw new Error("XSTOCKS_UNAVAILABLE");
       const page = pageSchema.parse(await response.json());
       if (page.page.currentPage !== pageNumber) throw new Error("XSTOCKS_INVALID_PAGE");
-      for (const asset of page.nodes) {
-        const listing = listingForAsset(asset, observedAt);
-        if (listing) listings.push(listing);
-      }
-      if (!page.page.hasNextPage) {
+      return page;
+    };
+
+    // Responses stay in page order. Speculative requests after the final page
+    // are ignored, while any missing page before it fails the whole feed.
+    for (let firstPage = 0; firstPage < maxPages; firstPage += pagesPerBatch) {
+      const pageNumbers = Array.from(
+        { length: Math.min(pagesPerBatch, maxPages - firstPage) },
+        (_, index) => firstPage + index,
+      );
+      const results = await Promise.allSettled(pageNumbers.map(fetchPage));
+
+      for (const result of results) {
+        if (result.status === "rejected") throw result.reason;
+        for (const asset of result.value.nodes) {
+          const listing = listingForAsset(asset, observedAt);
+          if (listing) listings.push(listing);
+        }
+        if (result.value.page.hasNextPage) continue;
         if (new Set(listings.map((listing) => listing.companyId)).size !== listings.length) {
           throw new Error("XSTOCKS_DUPLICATE_ASSET");
         }

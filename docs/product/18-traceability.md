@@ -6,6 +6,8 @@ Use this as the completion checklist in the application repository. References i
 |---|---|---|---|
 | U01 newcomers + experienced | PR03, PR16, PR24 | S05/S06/S17; sources + details disclosures | T03,T22,T29,T35 |
 | U24 live issuer-feed discovery | PR01–PR04, PR09, PR16 | /issuer/search, /discovery/search, /discovery/image, /assets/*, /orders; AI owner suggestion → exact issuer mint → Helius inspection → Jupiter | issuer pagination, AI schema/privacy, name join, changed mint rejection, browser purchase path |
+| U25 live issuer Discover UX, reconciled with required categories and shelf | PR01–PR05, PR16, PR24 | /discover has separate direct-company and AI product-owner paths plus five reviewed product categories; canonical product pages save product IDs; brand URLs redirect to live discovery | category browsing and guest/member save work; direct feed search uses no AI; product suggestion links only to matched issuer mint; not-found and unavailable states |
+| U26 instant AI-to-issuer linking | PR01–PR04, PR16 | failed direct search retains its query for consent-based product search; AI ownership joins current xStocks and PreStocks listings in the same response | Disney → The Walt Disney DISx, ambiguous names stay unlisted, no asset link for unsupported owners, desktop/mobile flow |
 | U02 English/global ambition | PR03, PR23 | S13 /eligibility/check, /capabilities | T03,T33 |
 | U03 private real-money prototype | PR07–PR15, PR22–PR26 | financial routes, invites, release gates | T06–T21,T30–T35; R0–R2 |
 | U04 mobile-first web | PR01, PR24 | S01–S27 responsive contract | T01,T29,T35 |
@@ -15,8 +17,8 @@ Use this as the completion checklist in the application repository. References i
 | U08 transaction fees | PR20 | S17/S24; quotes/fee records | T13 |
 | U09 Shelf portfolio/history/actions | PR13–PR15 | S19/S20/S23/S24; /portfolio/*,/history/*,/exports/* | T19–T21 |
 | U10 all AI jobs | PR01, PR02, PR03, PR16–PR18 | S03/S04/S09/S10; /discovery/*,/ai/* | T01,T02,T22–T26 |
-| U11 all inputs/multi-product/categories | PR01–PR04 | S02–S06; discovery + catalog | T01–T03,T28,T36 |
-| U12 smaller verified catalog | PR03, PR04, PR22 | S05/S06/S27; catalog review | T03,T30,T36 |
+| U11 all inputs/multi-product/categories | PR01–PR04 | S02–S06; seven inputs and five reviewed category collections remain accessible alongside live issuer search | T01–T03,T28,T36 |
+| U12 smaller verified catalog | PR03, PR04, PR22 | Reviewed product rows support category discovery and shelf saves; they do not limit AI or issuer search and do not assert a live token listing | T03,T30,T36 |
 | U13 paid OpenRouter/privacy | PR16–PR18, PR21 | AI adapter/privacy policy | T22–T26,T31 |
 | U14 guests/scan-first | PR01, PR06, PR25 | S01–S08; local shelf + /shelf/merge | T01,T05,T36 |
 | U15 private/link-share | PR05, PR19, PR21 | S07/S25; /shelf/share,/shares/* | T04,T27 |
@@ -32,6 +34,8 @@ Use this as the completion checklist in the application repository. References i
 ## CTA coverage ledger
 
 Each range references explicit actions in document03. In the build repository map each action to a component, handler/route, loading guard and test. Repeated mobile/desktop presentations must share behavior.
+
+Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed products. S06 company investment research uses current issuer assets and consent-based product lookup; brand pages redirect to product lookup. Saving a product and watching an issuer are distinct actions. The separate S10 draft screen and C40–C42 are retired in favor of the editable basket draft action C62.
 
 | Screen | CTA IDs | Action family | Tests |
 |---|---|---|---|

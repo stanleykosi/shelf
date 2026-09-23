@@ -66,7 +66,21 @@ export function matchOwnershipCandidates(
 ): RecognitionMatch[] {
   return candidates.flatMap<RecognitionMatch>((candidate, index) => {
     const owners = candidate.companyNames.map(comparableName).filter(Boolean);
-    const assets = listings.filter(({ asset }) => owners.includes(comparableName(asset.name)));
+    const exactAssets = listings.filter(({ asset }) => owners.includes(comparableName(asset.name)));
+    let assets = exactAssets;
+
+    // An owner can use a shorter trading name than the issuer feed. For example,
+    // "Disney" should find "The Walt Disney", but "Apple" must not find
+    // "Apple Hospitality" merely because the first word is shared.
+    if (!assets.length) {
+      const shorterNameMatches = listings.filter(({ asset }) => {
+        const issuerName = comparableName(asset.name);
+        return owners.some((owner) => owner.length >= 4 && issuerName.endsWith(` ${owner}`));
+      });
+      const issuerNames = new Set(shorterNameMatches.map(({ asset }) => comparableName(asset.name)));
+      if (issuerNames.size === 1) assets = shorterNameMatches;
+    }
+
     if (!assets.length) {
       return [{
         candidateId: `candidate-${index}`,
@@ -85,7 +99,8 @@ export function matchOwnershipCandidates(
       displayLabel: candidate.productName,
       productId: null,
       companyId: asset.companyId,
-      ownerName: asset.name,
+      ownerName: candidate.companyNames[0],
+      matchedIssuerName: asset.name,
       issuer: provider,
       symbol: asset.symbol,
       mint: asset.mint,
