@@ -235,7 +235,7 @@ In the table below, each **Problem** is CONFIRMED unless its wording describes u
 
 # 4. Target Product Experience
 
-Shelf should feel like an intelligent field guide that can become a careful investment tool—not a trading terminal with a scanner attached. Familiarity opens the door; verified relationships, evidence, and explicit instrument terms build trust; transaction screens become progressively more exact and restrained.
+Shelf should feel like an intelligent visual field guide that can become a careful investment tool—not a trading terminal with a scanner attached. Familiarity opens the door; a narrative Product → Brand → Company path turns recognition into understanding; verified relationships, evidence, and explicit instrument terms build trust. Transaction screens become progressively more exact and restrained only after the Company is understood.
 
 ## What a first-time user should understand
 
@@ -705,26 +705,28 @@ Scan a product.
 Search; browse a few familiar examples; read “How Shelf works.”
 
 ### Information hierarchy
-1. Product → Company promise and Scan/Search.
-2. Three-step explanation: identify, verify, explore exposure.
-3. Familiar product examples across categories.
-4. Trust statement: small reviewed catalog, sources, saving is not owning.
-5. Selected learning links.
+1. Compact Product → Brand → Company promise with Search and Scan immediately usable.
+2. A visual relationship explanation: identify the Product, verify the Brand and Company, then optionally inspect separate exposure.
+3. Familiar reviewed Product starting points with meaningful visual weight.
+4. Brands and Companies introduced through those recognizable Products.
+5. A restrained transition to supported exposure; research remains useful without investing.
+6. Trust statement: reviewed relationships, sources, verification, explicit availability, and no fabricated ownership.
+7. A small set of contextual learning links.
 
 ### Section responsibilities
-The hero establishes value; steps explain the model; examples prove breadth; trust copy sets limits; learning supports hesitant users.
+The compact introduction starts exploration rather than acting as a marketing hero; the relationship sequence teaches the entity model; reviewed examples prove breadth; the exposure transition introduces but does not prioritize finance; trust copy sets limits; learning supports hesitant users.
 
 ### Data displayed
 Reviewed example Products/Brands/Companies, category, relationship status, no personalized or live financial data.
 
 ### Interaction model
-Fast links; no carousel, automatic camera prompt, live ticker, or personalization before consent.
+Search is usable in the first viewport, Scan is a nearby alternative, and entity previews have one clear destination. No carousel, automatic camera prompt, live ticker, or personalization before consent.
 
 ### Related pages
 Scan, Discover, Product, Learn.
 
 ### Mobile behavior
-Single-column hero; Scan sticky only near initial viewport; examples become a short list with “Browse all,” not the entire catalog.
+Single-column compact introduction; Search remains immediately usable; Scan stays globally reachable; the relationship sequence becomes a readable vertical path; examples become a short horizontal collection or list with “Browse all,” not the entire catalog.
 
 ### States
 Default; lightweight skeleton for examples; catalog unavailable with Scan/Search/Learn still usable; offline shows cached educational shell if available.
@@ -754,10 +756,12 @@ Filter, sort, clear, Scan instead.
 
 ### Information hierarchy
 1. Search field with current query.
-2. Entity-type and category filters.
-3. Active-filter summary.
-4. Grouped results: Products, Brands, Companies.
-5. No-result recovery and catalog-coverage note.
+2. Entity modes: All, Products, Brands, Companies.
+3. Contextual primary filters, with market/availability shown only for Company browsing.
+4. Curated lenses derived only from reviewed data, such as categories and Companies represented by multiple recognizable Brands.
+5. Active-filter summary and reset.
+6. Visually distinct Product, Brand, and Company results.
+7. No-result recovery and catalog-coverage note.
 
 ### Section responsibilities
 Search accepts everyday language; grouping prevents entity conflation; filters expose public/private only in Company context; results disclose type and relationship/availability.
@@ -766,7 +770,7 @@ Search accepts everyday language; grouping prevents entity conflation; filters e
 Entity name/type, product category, Brand/Company relation, public/private classification, availability label, verification date where relevant.
 
 ### Interaction model
-Debounced suggestions aid typing; submitted query/filter state updates URL; result cards navigate to canonical detail. Save may appear only after entity type is unmistakable.
+Debounced suggestions aid typing; query, `category`, `entity`, `market`, `availability`, and `sort` remain URL-addressable. Filters respond to the current entity mode. Results are compact, keyboard-navigable previews rather than a uniform card grid. Save may appear only after entity type is unmistakable.
 
 ### Related pages
 Product, Brand, Company, Scan.
@@ -2472,22 +2476,22 @@ Removing a Saved item never sells, hides, or changes a Holding. Selling a Holdin
 
 ## Character
 
-Shelf should feel editorial, evidence-led, and contemporary: part field guide, part research notebook, with a restrained financial layer that becomes more formal as commitment increases. Keep the existing warmth and approachable green direction as a possible starting character, not a locked palette. Avoid a generic exchange, crypto terminal, or neobank dashboard.
+Shelf should feel thoughtful, intelligent, exploratory, editorial, evidence-led, approachable, and credible: part visual field guide, part research notebook, with a restrained financial layer that becomes more formal as commitment increases. Simply Wall St is the primary product-design philosophy for this refactor, interpreted through Shelf's recognition-first entity model and its own visual identity. This means visual hierarchy and narrative explanation before raw complexity—not its branding, Snowflake, layouts, colors, wording, or investor-first framing. Keep the existing warmth and approachable green direction as a possible starting character, not a locked palette. Avoid playful fintech, a generic exchange, crypto terminal, neobank dashboard, stock terminal, or campaign-like startup landing page.
 
 ## Density and whitespace
 
-- Discovery pages: generous space, recognizable imagery, short explanations, compact lists rather than endless equal cards.
+- Discovery pages: a calm but efficient rhythm, recognizable imagery, short explanations, compact lists rather than endless equal cards. Desktop Discover may be reasonably dense; Home remains open enough to teach the relationship sequence.
 - Company pages: medium density with a clear narrative and evidence/exposure sections.
 - Financial review/records/admin: higher information density, aligned facts, fewer decorative surfaces.
 - Whitespace separates conceptual layers, especially Company from Instrument and Saved from Portfolio.
 
 ## Typography personality
 
-Use an assured, highly legible sans-serif with editorial display moments on discovery headings. Financial values use tabular numerals. Avoid oversized headlines that push the first useful action below the fold on small devices. Technical identifiers use a readable mono treatment only where needed.
+Use an assured, highly legible sans-serif with subtle editorial character in discovery headings and compact, neutral UI text elsewhere. Keep heading sizes restrained so Search and Scan remain above the fold. Metadata is smaller but never faint; identity and metadata are visibly distinct. Financial values use tabular numerals. Technical identifiers use a readable mono treatment only where needed.
 
 ## Surfaces and borders
 
-Prefer page structure, dividers, and a few meaningful surfaces over a card around every item. Cards are for discrete entities, exposure summaries, and decisions—not nested wrappers. Borders should clarify grouping; shadows remain subtle and rare. No glassmorphism or glowing token effects.
+Prefer whitespace, page structure, dividers, and subtle background changes over a card around every item. Cards are for genuinely discrete entities, exposure summaries, and decisions—not nested wrappers. Corners are modest rather than pillowy; borders clarify grouping; shadows remain subtle and rare. No glassmorphism, decorative gradients, or glowing token effects.
 
 ## Imagery and identity
 
@@ -2506,7 +2510,7 @@ Charts are optional and secondary to exact text values. Every chart states serie
 
 ## Motion and transitions
 
-Motion explains continuity: candidate confirmation, Save/undo, filter result update, transaction timeline, and drawer entry. Use short, restrained transitions; no celebratory trading effects, parallax, token spins, or FOMO animation. Reduced-motion mode keeps instant state changes and complete status text.
+Motion explains continuity: search focus, filter/result updates, candidate confirmation, Save/undo, transaction timeline, and drawer entry. Use short, restrained, interruptible transitions on opacity and transforms; frequent navigation and keyboard actions stay immediate. No celebratory trading effects, parallax, moving backgrounds, token spins, number drama, or FOMO animation. Reduced-motion variants remove movement while retaining opacity/color state cues and complete status text.
 
 ## Hover and focus
 
@@ -2579,6 +2583,8 @@ Name the failed capability and recovery:
 
 # 17. Interaction Philosophy
 
+Explain before exposing complexity. Each research surface establishes identity and meaning before presenting analytical or financial detail. Pages form a narrative—what this is, why it matters, what is known, where it came from, and what the user can do next—rather than a collection of independent dashboard widgets. Curated, evidence-backed starting points lead; advanced controls appear progressively.
+
 ## Choosing a container
 
 | Pattern | Use when | Shelf examples |
@@ -2626,6 +2632,7 @@ Persist identity/detail pages, meaningful browse filters, Saved view, Activity f
 - Activity/holdings use compact rows; technical detail expands inline.
 - Tables convert to priority rows/cards; exact values remain accessible/copyable.
 - Charts are optional and can collapse to latest values plus accessible data summary.
+- Discover Search stays sticky beneath the compact shell; filters move to a labeled sheet or compact disclosure; secondary result metadata may collapse without hiding entity type or relationship.
 
 ## Tablet (768–1023)
 
@@ -2646,6 +2653,7 @@ Persist identity/detail pages, meaningful browse filters, Saved view, Activity f
 - Constrain reading width; do not fill space with extra columns or larger hero type.
 - Use side space for contextual navigation, source summary, or status—not advertisements/tickers.
 - Admin may use a stable secondary sidebar and detailed work pane.
+- Home and Discover retain a bounded content measure; extra width increases breathing room or supports contextual columns, never giant type or additional promotional cards.
 
 ## Experience-specific adaptations
 
@@ -2770,9 +2778,17 @@ Preserve a validated same-origin return path plus allowed query. Complete requir
 
 # 22. Shared Experience Patterns
 
+## Page Container and Section Header
+
+Public research pages share a bounded content measure and compact section headers with an optional eyebrow, explanatory line, and one contextual action. These primitives create rhythm without wrapping every section in a card.
+
+## Entity Identity
+
+Product, Brand, and Company identities share alignment and type rules while remaining visibly different. Product identity leads with reviewed imagery or an explicit neutral placeholder; Brand identity can show a small set of Product examples; Company identity leads with legal/display name and classification.
+
 ## Entity Preview
 
-Appears in Discover, Saved, shared snapshots, related-entity sections. It leads with entity type, name, one relationship/context line, verification/availability status, and one navigation action. It never uses the same card for Product and Instrument without explicit labels.
+Appears in Discover, Saved, shared snapshots, related-entity sections. Product, Brand, and Company use related but non-identical preview compositions. Each leads with entity type, name, one relationship/context line, verification/availability status where useful, and one navigation action. It never uses the same card for Product and Instrument without explicit labels.
 
 ## Company Identity Header
 
@@ -2849,6 +2865,53 @@ Change procedure:
 - If it changes public/private, Saved/Owned, or entity semantics, update sections 11, 13, 14, 16, and 22 together.
 - If visual only, do not invent a product capability to justify it.
 
+## Concept #1 integration record — accepted 2026-09-23
+
+Evaluated for the global shell, Home, Discover, global Search, and emerging entity previews only. Detail, Scan, Saved, Portfolio, Account, Wallet, authentication, investment, order, and Admin redesigns remain deferred.
+
+### Adopt
+
+- Explain before exposing complexity; every dense value needs a plain-language role in the story.
+- Visual understanding over raw data, using hierarchy and selective visualization only when it explains relationship, status, risk, or availability.
+- Progressive disclosure from familiar → explanatory → analytical → financial.
+- Narrative research pages with a clear order: identity → significance → known facts → evidence → next action.
+- Curated discovery lenses that reduce blank-canvas filtering and are derived from real reviewed data.
+- Calm financial credibility: precise and serious without becoming visually intimidating.
+
+### Adapt
+
+- Simply Wall St's stock-first visual reports become Shelf's Product → Brand → Company relationship story; Instrument detail remains a later, separate layer.
+- Its curated investing ideas become honest lenses such as categories, reviewed familiar Products, multi-Brand Companies, and explicit exposure availability—never performance or popularity claims.
+- Its visual summaries become entity-specific previews and relationship paths, not a copied Snowflake or decorative chart.
+- TradingView contributes compact alignment, scan-friendly metadata, contextual filters, and desktop density only inside discovery/research lists.
+- Quartr contributes clear Company identity and restrained source/date/verification cues, progressively disclosed so Home and Discover stay readable.
+
+### Reject
+
+- Portfolio-command-center positioning, investor urgency, winners/hidden-gems language, rankings, recommendations, alerts, popularity, and performance-led entry points.
+- Trader-first density, live-ticker behavior, price movement emphasis, and identical finance rows for Products, Brands, and Companies.
+- Cloneable brand expression: Simply Wall St's Snowflake, page composition, palette, illustration language, and wording; TradingView blue; Public branding; Ramp's enterprise-finance tone.
+- Giant marketing heroes, testimonial funnels, repeated heavy cards, decorative graphs, and direct financial CTAs from generic search.
+
+### Not applicable
+
+- Valuation, dividend, forecast, financial-health, insider-transaction, broker-import, portfolio-scoring, and stock-comparison patterns unsupported by Shelf's current reviewed catalog.
+- Public's transaction/portfolio patterns and Ramp's account/admin patterns are reserved for their later approved phases.
+
+Reference hierarchy for the refactor: this guide and Shelf's product/entity truth first; Simply Wall St is the primary product-design philosophy; TradingView is a secondary dense-research pattern library; Quartr is a secondary evidence/source pattern library; Public is a later investing/portfolio reference; Ramp is a later account/operations reference. These are not alternate visual directions.
+
+### Concept #1.1 refinement record — accepted 2026-09-23
+
+This refinement is limited to the global shell, Home, and Discover. It preserves the accepted routes, information architecture, recognition-first proposition, Product/Brand/Company separation, and research-before-exposure boundary.
+
+- Product previews use reviewed first-party catalog imagery only when an approved source provides it. Missing imagery uses an explicit, category-aware identity placeholder rather than an invented product rendering.
+- Product → Brand → Company is a reusable relationship-trail pattern: three real entity nodes, one directional path, and one attached evidence statement. It is explanatory, not decorative.
+- Trust moves from repeated uppercase row badges into section explanation, icons, quiet relationship metadata, reviewed dates, and explicit availability language.
+- Discover retains separate Product, Brand, and Company sections, with subtle section surfaces and spacing establishing rhythm without oversized cards.
+- Mobile keeps All/Product/Brand/Company visible while Category, Sort, Market, and Availability live behind a labeled filter control with active-count feedback. Filter state remains URL-backed.
+- Mobile typography uses comfortably readable metadata and action labels; the fixed navigation reserves bottom clearance so final content can scroll completely above it.
+- The repeated Shelf signature is a restrained green evidence line, distinct entity identities, and the connected relationship trail—not a copied Snowflake, crypto motif, glass treatment, or decorative gradient.
+
 # 24. Design Decision Log
 
 | ID | Decision | Reason | Areas Affected | Status |
@@ -2873,6 +2936,9 @@ Change procedure:
 | DD-018 | Scan Results is the only intentionally session-bound page; durable entities, financial operations, and records remain deep-linkable. | Recognition evidence is temporary and privacy-sensitive; financial recovery cannot be. | Scan, routing, state | Accepted |
 | DD-019 | Auth preserves safe intent but never returns directly into automatic approval/signing. | Convenience cannot bypass current terms or explicit authorization. | Auth, onboarding, investment | Accepted |
 | DD-020 | Each rendered state exposes at most one primary action, even when the page's action changes by capability or transaction state. | Prevents research, recovery, and money actions from competing. | All page specs and states | Accepted |
+| DD-021 | Simply Wall St is Shelf's primary product-design philosophy for the refactor, translated through Shelf's recognition-first entity model and own brand. | Its progressive, visual explanation of complex research supports Shelf's goal without requiring a stock-first interface or copied expression. | Shell, Home, Discover, later entity research | Accepted |
+| DD-022 | TradingView, Quartr, Public, and Ramp are specialized pattern libraries, not competing visual directions. | Preserves one coherent Shelf identity while borrowing density, evidence, investing, and operations patterns only where appropriate. | Discover; research evidence; later investing/portfolio; later account/admin | Accepted |
+| DD-023 | Concept #1.1 establishes the relationship trail, reviewed-imagery rule, quiet trust metadata, and mobile filter disclosure as Shelf's reusable discovery language. | Raises familiarity and scanability without changing routes, entity meaning, or the approved Concept #1 direction. | Global shell, Home, Discover; later reusable entity previews | Accepted |
 
 # 25. Recommended Refactor Sequence
 

@@ -19,7 +19,7 @@ const primaryNavigation: Array<{
   section: PrimarySection;
   icon: typeof Compass;
 }> = [
-  { href: "/", label: "Discover", section: "discover", icon: Compass },
+  { href: "/discover", label: "Discover", section: "discover", icon: Compass },
   { href: "/saved", label: "Saved", section: "saved", icon: Bookmark },
   { href: "/portfolio", label: "Portfolio", section: "portfolio", icon: WalletCards },
 ];
@@ -47,8 +47,12 @@ export function AppShell({
     <div className="app-shell">
       <header className="site-header">
         <Link className="brand" href="/" aria-label="Shelf home">
-          <span className="brand-mark">S</span>
-          Shelf
+          <span className="brand-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>Shelf</span>
         </Link>
         <nav className="desktop-nav" aria-label="Primary navigation">
           {primaryNavigation.map(({ href, label, section }) => (
@@ -69,10 +73,11 @@ export function AppShell({
             href="/scan"
           >
             <ScanLine size={18} aria-hidden="true" />
-            Scan a product
+            Scan
           </Link>
-          <Link className="shell-search-action" href="/discover" aria-label="Search Shelf">
+          <Link className="shell-search-action" href="/discover?focus=search" aria-label="Search Shelf">
             <Search size={20} aria-hidden="true" />
+            <span>Search</span>
           </Link>
           <span className="mode-badge">
             {environment === "private-beta" ? "Private beta" : environment}
@@ -83,6 +88,7 @@ export function AppShell({
             aria-label={signedIn ? "Account" : "Sign in"}
           >
             <CircleUserRound size={22} aria-hidden="true" />
+            <span>{signedIn ? "Account" : "Sign in"}</span>
           </Link>
         </div>
       </header>

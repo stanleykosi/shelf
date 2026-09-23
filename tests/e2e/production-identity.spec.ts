@@ -40,7 +40,7 @@ test("production offers Magic sign-in while public research stays available to g
 
   await page.goto("/markets");
   await expect(page).toHaveURL(/\/discover\?entity=company$/);
-  await expect(page.getByRole("heading", { name: "Find products, brands and companies" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
   await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
