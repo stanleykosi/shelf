@@ -39,8 +39,8 @@ test("production offers Magic sign-in while public research stays available to g
   ).toBeVisible();
 
   await page.goto("/markets");
-  await expect(page).toHaveURL(/\/discover(?:\?entity=company)?$/);
-  await expect(page.getByRole("heading", { name: "Find a product or issuer" })).toBeVisible();
+  await expect(page).toHaveURL(/\/discover\?entity=company$/);
+  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
   if (!isLocal) {

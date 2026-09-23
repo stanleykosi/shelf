@@ -4,14 +4,16 @@ import {
   AssistantScreen,
   BrandScreen,
   CompanyScreen,
-  DiscoverScreen,
   LearnScreen,
   ProductScreen,
   ScanResultsScreen,
   ScanScreen,
-  SearchScreen,
   ShelfScreen,
 } from "@/components/screens/discovery";
+import {
+  ConceptDiscoverScreen,
+  ConceptHomeScreen,
+} from "@/components/screens/concept-discovery";
 import {
   EligibilityScreen,
   MagicCallbackScreen,
@@ -69,18 +71,19 @@ function withQuery(pathname: string, query: Query) {
 }
 
 export function HomePage() {
-  return <DiscoverScreen />;
+  return <ConceptHomeScreen />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
   return (
-    <SearchScreen
-      key={`${first(query.category) ?? ""}|${first(query.market) ?? ""}|${first(query.q) ?? ""}`}
+    <ConceptDiscoverScreen
+      initialAvailability={first(query.availability)}
       initialCategory={first(query.category)}
       initialEntity={first(query.entity)}
       initialMarket={first(query.market)}
       initialQuery={first(query.q)}
+      initialSort={first(query.sort)}
     />
   );
 }
