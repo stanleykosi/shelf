@@ -4,7 +4,7 @@ Shelf connects familiar products and services to reviewed companies, then gives 
 
 The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share.
 
-Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.
+Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data and transaction-reconciliation worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.
 
 Financial execution and deposits remain disabled until the sponsor is funded, the fee account exists, transaction simulation passes, and the owner authorizes the live-money run.
 
@@ -42,7 +42,7 @@ Browser tests are read-only and use the installed Linux Chromium. They do not in
 - `src/domain` — exact money, order accounting, lots, and private shares
 - `src/providers` — Magic, OpenRouter, Jupiter, Helius, PreStocks, and xStocks adapters
 - `src/db/schema.ts` and `drizzle/` — PostgreSQL model and migrations
-- `infrastructure/railway-worker.ts` — scheduled issuer-data refresh
+- `infrastructure/railway-worker.ts` — scheduled issuer-data refresh and restart-safe transaction reconciliation
 - `tests/e2e` — read-only production browser checks
 - `docs/operator-runbook.md` — local and production operation
 - `docs/production-operations.md` — Vercel, Railway, activation, and rollback

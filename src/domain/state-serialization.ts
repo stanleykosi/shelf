@@ -22,6 +22,7 @@ export type StoredState = Omit<
   | "sessions"
   | "freshAuthorizations"
   | "allocationDrafts"
+  | "preparations"
 > & {
   users: StoredMap<UserState>;
   orders: StoredMap<Order>;
@@ -35,6 +36,7 @@ export type StoredState = Omit<
   sessions: StoreState["sessions"] extends Map<string, infer Value> ? StoredMap<Value> : never;
   freshAuthorizations: StoredMap<FreshAuthorization>;
   allocationDrafts: StoredMap<AllocationDraft>;
+  preparations: StoredMap<StoreState["preparations"] extends Map<string, infer Value> ? Value : never>;
 };
 
 export function serializeState(state: StoreState): StoredState {
@@ -50,6 +52,7 @@ export function serializeState(state: StoreState): StoredState {
     sessions: [...state.sessions],
     freshAuthorizations: [...state.freshAuthorizations],
     allocationDrafts: [...state.allocationDrafts],
+    preparations: [...state.preparations],
   };
 }
 
@@ -57,6 +60,7 @@ export function deserializeState(stored: StoredState): StoreState {
   const restored: StoreState = {
     ...stored,
     retainedFinancialRecords: stored.retainedFinancialRecords ?? [],
+    sponsorReservations: stored.sponsorReservations ?? [],
     users: new Map(stored.users),
     orders: new Map(stored.orders),
     intents: new Map(stored.intents),
@@ -67,6 +71,7 @@ export function deserializeState(stored: StoredState): StoreState {
     sessions: new Map(stored.sessions ?? []),
     freshAuthorizations: new Map(stored.freshAuthorizations),
     allocationDrafts: new Map(stored.allocationDrafts),
+    preparations: new Map(stored.preparations ?? []),
   };
 
   const verifiedUserIds = new Set<string>();
@@ -76,6 +81,7 @@ export function deserializeState(stored: StoredState): StoreState {
       continue;
     }
     verifiedUserIds.add(userId);
+    user.reconciliationRequiredAssets ??= [];
   }
 
   for (const [orderId, order] of restored.orders) {

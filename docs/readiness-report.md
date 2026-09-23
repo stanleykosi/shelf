@@ -2,7 +2,7 @@
 
 The application runtime is production-only. Magic identity and wallet binding, Railway PostgreSQL persistence, OpenRouter recognition and education, PreStocks discovery, xStocks discovery, Jupiter quote construction, Helius reads, private shelves, watchlists, sharing, exports, privacy controls, and owner access are implemented.
 
-Financial controls are deliberately closed. The repository contains no alternate identity, balance, quote, signature, or transaction implementation. Jupiter previews are validated and visibly non-executable until sponsor activation.
+Financial controls are deliberately closed. The repository contains no alternate identity, balance, quote, signature, or transaction implementation. Jupiter preparations are encrypted, signed over the unchanged reviewed message, simulated and broadcast through Helius, and reconciled from finalized token deltas. These controls remain unreachable until sponsor activation.
 
 ## Open gates
 

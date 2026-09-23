@@ -1,6 +1,7 @@
 # Frontend Refactor Phases 0–2 — Implementation Summary
 
-Date: 2026-09-22  
+Date: 2026-09-22
+
 Scope: structural frontend migration only. Phase 3 page redesign and the future visual system were not started.
 
 ## Phase 0 findings

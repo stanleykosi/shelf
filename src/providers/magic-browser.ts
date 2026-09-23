@@ -3,7 +3,8 @@
 import { OAuthExtension } from "@magic-ext/oauth2";
 import { SolanaExtension } from "@magic-ext/solana";
 import { Magic } from "magic-sdk";
-import { Connection } from "@solana/web3.js";
+import { Buffer } from "buffer";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
 import type { WalletSigningProof } from "@/domain/identity";
 import { createWalletSigningTransaction, isSolanaPublicKey } from "@/lib/solana-signing";
 
@@ -99,6 +100,15 @@ export async function signMagicSolanaProof(challenge: WalletSigningProof) {
     verifySignatures: true,
   });
 
+  return bytesToBase64(result.rawTransaction);
+}
+
+export async function signMagicSolanaTransaction(transactionBase64: string) {
+  const transaction = VersionedTransaction.deserialize(Buffer.from(transactionBase64, "base64"));
+  const result = await magicBrowser().solana.signTransaction(transaction, {
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
   return bytesToBase64(result.rawTransaction);
 }
 

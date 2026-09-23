@@ -38,6 +38,7 @@ const schema = z.object({
   SUPPORT_CONTACT: optionalSupportContact,
   SESSION_TOKEN_HMAC_KEY: optionalSecret,
   OWNER_MAGIC_ISSUER: optionalSecret,
+  WORKER_SHARED_SECRET: optionalSecret,
   OPENROUTER_API_KEY: optionalSecret,
   OPENROUTER_VISION_MODEL: z.string().default("z-ai/glm-5.3-flash"),
   OPENROUTER_TEXT_MODEL: z.string().default("z-ai/glm-5.3-flash"),
@@ -48,6 +49,8 @@ const schema = z.object({
   SOLANA_GENESIS_HASH: optionalSecret,
   JUPITER_API_KEY: optionalSecret,
   SPONSOR_PUBLIC_KEY: optionalSecret,
+  SPONSOR_SECRET_KEY: optionalSecret,
+  DATA_ENCRYPTION_KEY: optionalSecret,
   FEE_USDC_TOKEN_ACCOUNT: optionalSecret,
 });
 
@@ -58,8 +61,19 @@ export function readEnv(source: Record<string, string | undefined> = process.env
   if (env.ENABLE_REAL_TRADING && env.SOLANA_NETWORK !== "mainnet-beta") {
     throw new Error("Real trading requires mainnet-beta.");
   }
-  if (env.ENABLE_REAL_TRADING && (!env.SPONSOR_PUBLIC_KEY || !env.FEE_USDC_TOKEN_ACCOUNT)) {
-    throw new Error("Real trading requires SPONSOR_PUBLIC_KEY and FEE_USDC_TOKEN_ACCOUNT.");
+  if (
+    env.ENABLE_REAL_TRADING &&
+    (!env.SPONSOR_PUBLIC_KEY ||
+      !env.SPONSOR_SECRET_KEY ||
+      !env.DATA_ENCRYPTION_KEY ||
+      !env.FEE_USDC_TOKEN_ACCOUNT ||
+      !env.SOLANA_RPC_URL ||
+      !env.SOLANA_GENESIS_HASH ||
+      !env.JUPITER_API_KEY)
+  ) {
+    throw new Error(
+      "Real trading requires sponsor, encryption, and fee-account configuration.",
+    );
   }
   if (env.ENABLE_DEPOSITS && !env.ENABLE_REAL_TRADING) {
     throw new Error("Deposits cannot start before real trading activation.");

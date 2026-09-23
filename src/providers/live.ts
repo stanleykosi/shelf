@@ -104,9 +104,13 @@ export class JupiterBuildProvider implements QuoteProvider {
 
   async buildValidatedExactInput(input: ExactInputQuoteRequest) {
     const result = await this.requestBuild(input, true);
+    const quote = this.quoteFrom(result);
+    if (Number(result.priceImpactPct) * 10_000 > 100) {
+      throw new Error("PRICE_IMPACT_EXCEEDED");
+    }
     const assembled = validateAndAssembleJupiterBuild(result, input);
     return {
-      ...this.quoteFrom(result),
+      ...quote,
       ...assembled,
       routeLabels: this.routeLabels(result),
     };
@@ -217,6 +221,7 @@ type HeliusOptions = {
   expectedNetwork: string;
   expectedGenesisHash: string;
   fetch?: Fetch;
+  requestTimeoutMs?: number;
 };
 
 export class HeliusChainProvider implements ChainProvider {
@@ -235,7 +240,7 @@ export class HeliusChainProvider implements ChainProvider {
     const response = await this.send(this.options.rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(this.options.requestTimeoutMs ?? 10_000),
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     });
     if (!response.ok) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
@@ -366,6 +371,10 @@ export class HeliusChainProvider implements ChainProvider {
     };
   }
 
+  async blockHeight(commitment: "confirmed" | "finalized" = "confirmed") {
+    return this.rpc("getBlockHeight", [{ commitment }], z.number().int().nonnegative());
+  }
+
   async broadcast(bytes: Uint8Array) {
     const transaction = Buffer.from(bytes).toString("base64");
     const signature = await this.rpc(
@@ -374,6 +383,25 @@ export class HeliusChainProvider implements ChainProvider {
       z.string(),
     );
     return { signature };
+  }
+
+  async simulate(bytes: Uint8Array) {
+    const transaction = Buffer.from(bytes).toString("base64");
+    const result = await this.rpc(
+      "simulateTransaction",
+      [
+        transaction,
+        {
+          encoding: "base64",
+          sigVerify: true,
+          replaceRecentBlockhash: false,
+          commitment: "confirmed",
+        },
+      ],
+      z.object({ value: z.object({ err: z.json().nullable(), unitsConsumed: z.number().nullable().optional() }) }),
+    );
+    if (result.value.err !== null) throw new Error("TRANSACTION_SIMULATION_FAILED");
+    return { unitsConsumed: result.value.unitsConsumed ?? null };
   }
 
   async signatureStatus(signature: string) {
@@ -394,8 +422,103 @@ export class HeliusChainProvider implements ChainProvider {
     );
     const status = result.value[0];
     if (!status) return "not_found" as const;
-    if (status.err) return "failed" as const;
+    if (status.err !== null && status.err !== undefined) {
+      return status.confirmationStatus === "finalized"
+        ? "failed" as const
+        : "pending_failure" as const;
+    }
     if (status.confirmationStatus === "finalized") return "finalized" as const;
-    return "confirmed" as const;
+    if (status.confirmationStatus === "confirmed") return "confirmed" as const;
+    return "processed" as const;
+  }
+
+  async transactionFacts(
+    signature: string,
+    owner: string,
+    sponsorAddress: string,
+    commitment: "confirmed" | "finalized",
+  ) {
+    const tokenBalanceSchema = z.object({
+      accountIndex: z.number().int().nonnegative(),
+      mint: z.string(),
+      owner: z.string().optional(),
+      uiTokenAmount: z.object({ amount: z.string() }),
+    });
+    const transactionSchema = z
+      .object({
+        slot: z.number().int().nonnegative(),
+        blockTime: z.number().int().nullable(),
+        meta: z.object({
+          err: z.json().nullable(),
+          fee: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+          preBalances: z.array(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)),
+          postBalances: z.array(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)),
+          preTokenBalances: z.array(tokenBalanceSchema).nullable(),
+          postTokenBalances: z.array(tokenBalanceSchema).nullable(),
+        }),
+        transaction: z.object({
+          message: z.object({
+            accountKeys: z.array(
+              z.union([z.string(), z.object({ pubkey: z.string() }).passthrough()]),
+            ),
+          }),
+        }),
+      })
+      .nullable();
+    const result = await this.rpc(
+      "getTransaction",
+      [signature, { encoding: "jsonParsed", commitment, maxSupportedTransactionVersion: 0 }],
+      transactionSchema,
+    );
+    if (!result) throw new Error("TRANSACTION_NOT_AVAILABLE");
+
+    const balances = new Map<string, bigint>();
+    const accountBalances = new Map<string, bigint>();
+    const accountKeys = result.transaction.message.accountKeys.map((key) => {
+      return typeof key === "string" ? key : key.pubkey;
+    });
+    const apply = (sign: bigint, rows: z.infer<typeof tokenBalanceSchema>[] | null) => {
+      for (const row of rows ?? []) {
+        const amount = sign * BigInt(row.uiTokenAmount.amount);
+        if (row.owner === owner) {
+          balances.set(row.mint, (balances.get(row.mint) ?? 0n) + amount);
+        }
+        const address = accountKeys[row.accountIndex];
+        if (address) {
+          const key = `${address}:${row.mint}`;
+          accountBalances.set(key, (accountBalances.get(key) ?? 0n) + amount);
+        }
+      }
+    };
+    apply(-1n, result.meta.preTokenBalances);
+    apply(1n, result.meta.postTokenBalances);
+    const sponsorIndex = accountKeys.indexOf(sponsorAddress);
+    if (
+      sponsorIndex < 0 ||
+      result.meta.preBalances[sponsorIndex] === undefined ||
+      result.meta.postBalances[sponsorIndex] === undefined
+    ) {
+      throw new Error("FINALIZED_TRANSACTION_INVALID");
+    }
+    const sponsorDebit =
+      BigInt(result.meta.preBalances[sponsorIndex]) - BigInt(result.meta.postBalances[sponsorIndex]);
+    if (sponsorDebit < 0n) throw new Error("FINALIZED_TRANSACTION_INVALID");
+    return {
+      succeeded: result.meta.err === null,
+      slot: result.slot,
+      blockTime: result.blockTime,
+      networkFeeLamports: result.meta.fee.toString(),
+      sponsorDebitLamports: sponsorDebit.toString(),
+      tokenDeltas: Object.fromEntries([...balances].map(([mint, amount]) => [mint, amount.toString()])),
+      accountTokenDeltas: Object.fromEntries(
+        [...accountBalances].map(([key, amount]) => [key, amount.toString()]),
+      ),
+    };
+  }
+
+  async finalizedTokenDeltas(signature: string, owner: string, sponsorAddress: string) {
+    const facts = await this.transactionFacts(signature, owner, sponsorAddress, "finalized");
+    if (!facts.succeeded) throw new Error("FINALIZED_TRANSACTION_INVALID");
+    return facts;
   }
 }

@@ -15,6 +15,8 @@ import { readEnv } from "@/lib/env";
 import { pageAccess } from "@/lib/page-access";
 import { productNameForApprovedUrl } from "@/lib/product-url";
 import { createSessionToken, readSessionToken } from "@/lib/session";
+import { decryptText, encryptText } from "@/lib/secret-box";
+import { verifiedSolanaAddress } from "@/providers/magic";
 
 describe("core safety contracts", () => {
   it("protects identifiers, money, routes, sessions, URLs, exports, and activation gates", () => {
@@ -67,6 +69,32 @@ describe("core safety contracts", () => {
     expect(readSessionToken(token, secret, now)?.userId).toBe("user-1");
     expect(readSessionToken(`${token}x`, secret, now)).toBeUndefined();
     expect(readSessionToken(token, secret, new Date(now.getTime() + 8 * 86_400_000))).toBeUndefined();
+
+    const encryptionKey = Buffer.alloc(32, 7).toString("base64");
+    const encrypted = encryptText("signed transaction bytes", encryptionKey);
+    expect(encrypted).not.toContain("signed transaction bytes");
+    expect(decryptText(encrypted, encryptionKey)).toBe("signed transaction bytes");
+
+    const solanaAddress = "GSusvqZ1HBubM48J9SwtHqkNeggnQ6Lpjt18xcarYn3A";
+    expect(verifiedSolanaAddress({
+      publicAddress: "0x1234567890123456789012345678901234567890",
+      wallets: [{ network: "mainnet", public_address: solanaAddress, wallet_type: "SOLANA" }],
+    }, solanaAddress)).toBe(solanaAddress);
+    expect(verifiedSolanaAddress({
+      publicAddress: null,
+      wallets: [{ network: "mainnet", publicAddress: solanaAddress, walletType: "SOLANA" }],
+    }, solanaAddress)).toBe(solanaAddress);
+    expect(verifiedSolanaAddress({ publicAddress: solanaAddress, wallets: null }, solanaAddress)).toBe(
+      solanaAddress,
+    );
+    expect(() => verifiedSolanaAddress({
+      publicAddress: null,
+      wallets: [{ network: "mainnet", publicAddress: solanaAddress, walletType: "ETH" }],
+    }, solanaAddress)).toThrow("SOLANA_WALLET_INVALID");
+    expect(() => verifiedSolanaAddress({
+      publicAddress: solanaAddress,
+      wallets: null,
+    }, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")).toThrow("WALLET_BINDING_MISMATCH");
 
     expect(productNameForApprovedUrl("https://www.apple.com/iphone/")).toBe("iPhone");
     for (const url of [

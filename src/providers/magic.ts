@@ -8,6 +8,34 @@ type MagicIdentityOptions = {
   network: string;
 };
 
+type MagicWalletMetadata = {
+  publicAddress: string | null;
+  wallets: unknown[] | null;
+};
+
+function solanaAddressFromWallet(wallet: unknown) {
+  if (!wallet || typeof wallet !== "object" || Array.isArray(wallet)) return undefined;
+  const fields = wallet as Record<string, unknown>;
+  const walletType = fields.walletType ?? fields.wallet_type;
+  const publicAddress = fields.publicAddress ?? fields.public_address;
+
+  if (typeof walletType !== "string" || walletType.toUpperCase() !== WalletType.SOLANA) {
+    return undefined;
+  }
+  return typeof publicAddress === "string" ? publicAddress : undefined;
+}
+
+export function verifiedSolanaAddress(metadata: MagicWalletMetadata, expectedAddress: string) {
+  const nestedAddresses = (metadata.wallets ?? [])
+    .map(solanaAddressFromWallet)
+    .filter(isSolanaPublicKey);
+  const validAddresses = [metadata.publicAddress, ...nestedAddresses].filter(isSolanaPublicKey);
+
+  if (validAddresses.length === 0) throw new Error("SOLANA_WALLET_INVALID");
+  if (!validAddresses.includes(expectedAddress)) throw new Error("WALLET_BINDING_MISMATCH");
+  return expectedAddress;
+}
+
 export class MagicIdentityProvider implements IdentityProvider {
   private readonly magic: Promise<Magic>;
 
@@ -34,13 +62,10 @@ export class MagicIdentityProvider implements IdentityProvider {
     };
   }
 
-  async getSolanaWallet(issuer: string) {
+  async getSolanaWallet(issuer: string, expectedAddress: string) {
     const magic = await this.magic;
     const metadata = await magic.users.getMetadataByIssuerAndWallet(issuer, WalletType.SOLANA);
-    const address = metadata.publicAddress;
-    if (typeof address !== "string" || !isSolanaPublicKey(address)) {
-      throw new Error("SOLANA_WALLET_INVALID");
-    }
+    const address = verifiedSolanaAddress(metadata, expectedAddress);
     return { address, network: this.options.network };
   }
 

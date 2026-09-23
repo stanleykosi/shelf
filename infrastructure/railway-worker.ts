@@ -1,11 +1,13 @@
-import postgres from "postgres@3.4.9";
+import postgres from "postgres";
 import { randomUUID } from "node:crypto";
 
-const jobKinds = ["refresh_issuer_context"] as const;
+const jobKinds = ["refresh_issuer_context", "reconcile_transactions"] as const;
 
 const databaseUrl = process.env.DATABASE_URL;
 const preStocksApiUrl = process.env.PRESTOCKS_API_URL ?? "https://prestocks.com/api/prestocks";
 const xStocksApiBaseUrl = process.env.XSTOCKS_API_BASE_URL ?? "https://api.xstocks.fi/api/v2/";
+const appOrigin = process.env.APP_ORIGIN;
+const workerSharedSecret = process.env.WORKER_SHARED_SECRET;
 
 if (!databaseUrl) throw new Error("DATABASE_URL is required.");
 
@@ -13,7 +15,7 @@ const database = postgres(databaseUrl, { max: 1, prepare: false });
 const startedAt = new Date();
 const fiveMinuteBucket = Math.floor(startedAt.getTime() / 300_000);
 const workerId = `railway:${randomUUID()}`;
-const leaseUntil = new Date(startedAt.getTime() + 30_000);
+const leaseUntil = new Date(startedAt.getTime() + 40_000);
 
 type PreStocksRow = {
   symbol: string;
@@ -143,10 +145,43 @@ async function verifyXStocksAssets(): Promise<number> {
   return verified.length;
 }
 
+async function reconcileTransactions(heartbeat: () => Promise<void>): Promise<string> {
+  if (!appOrigin || !workerSharedSecret) throw new Error("RECONCILIATION_CONFIGURATION_REQUIRED");
+  const endpoint = new URL("/api/internal/reconcile", appOrigin);
+  let checked = 0;
+  let finalized = 0;
+  let errors = 0;
+  let remaining = 0;
+  let execution = "disabled";
+  for (let batch = 0; batch < 2; batch += 1) {
+    await heartbeat();
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${workerSharedSecret}` },
+      signal: AbortSignal.timeout(24_000),
+    });
+    if (!response.ok) throw new Error(`RECONCILIATION_HTTP_${response.status}`);
+    const payload: unknown = await response.json();
+    if (!isRecord(payload) || !isRecord(payload.data) ||
+      typeof payload.data.checked !== "number" || typeof payload.data.finalized !== "number" ||
+      typeof payload.data.remaining !== "number" || typeof payload.data.errors !== "number" ||
+      typeof payload.data.execution !== "string") {
+      throw new Error("RECONCILIATION_INVALID");
+    }
+    checked += payload.data.checked;
+    finalized += payload.data.finalized;
+    errors += payload.data.errors;
+    remaining = payload.data.remaining;
+    execution = payload.data.execution;
+    if (remaining === 0 || checked === 0 || execution !== "enabled") break;
+  }
+  return `checked:${checked},finalized:${finalized},errors:${errors},remaining:${remaining},execution:${execution}`;
+}
+
 async function renewJobLease(jobId: string): Promise<void> {
   const renewed = await database<{ id: string }[]>`
     update jobs
-    set lease_until = now() + interval '30 seconds',
+    set lease_until = now() + interval '40 seconds',
         updated_at = now()
     where id = ${jobId}
       and state = 'running'
@@ -224,11 +259,15 @@ try {
 
     try {
       await renewJobLease(claimed[0].id);
-      const snapshots = await refreshPreStocksMarketData(() => renewJobLease(claimed[0].id));
+      if (kind === "refresh_issuer_context") {
+        const snapshots = await refreshPreStocksMarketData(() => renewJobLease(claimed[0].id));
+        await renewJobLease(claimed[0].id);
+        const xStocksAssets = await verifyXStocksAssets();
+        result = `prestocks_snapshots:${snapshots},xstocks_assets:${xStocksAssets}`;
+      } else {
+        result = await reconcileTransactions(() => renewJobLease(claimed[0].id));
+      }
       await renewJobLease(claimed[0].id);
-      const xStocksAssets = await verifyXStocksAssets();
-      await renewJobLease(claimed[0].id);
-      result = `prestocks_snapshots:${snapshots},xstocks_assets:${xStocksAssets}`;
     } catch (error) {
       jobState = "failed";
       failedJobs += 1;
@@ -263,7 +302,7 @@ try {
   console.log(
     JSON.stringify({
       status: failedJobs ? "partial_failure" : "complete",
-      providers: ["prestocks", "xstocks"],
+      providers: ["prestocks", "xstocks", "shelf-reconciliation"],
       checkedJobs: jobKinds.length,
       failedJobs,
       startedAt: startedAt.toISOString(),

@@ -26,6 +26,7 @@ export type WalletSummary = {
   network: string;
   cashRaw: string;
   reservedRaw: string;
+  reconciliationRequiredAssets: string[];
 };
 
 export type WalletSigningProof = {

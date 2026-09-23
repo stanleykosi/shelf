@@ -6,6 +6,7 @@ test("production offers Magic sign-in while public research stays available to g
   page,
   request,
 }) => {
+  test.setTimeout(120_000);
   const isLocal = process.env.PLAYWRIGHT_BASE_URL?.startsWith("http://127.0.0.1");
   if (!isLocal) {
     const readiness = await request.get("/readyz");
@@ -42,8 +43,17 @@ test("production offers Magic sign-in while public research stays available to g
   await expect(page.getByRole("heading", { name: "Find products, brands and companies" })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
-  await page.goto("/shelf");
-  await expect(page).toHaveURL(/\/saved$/);
+  await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("details").filter({ hasText: "View token details" })).toContainText(
+    "Source: PreStocks",
+  );
+  await expect(page.getByRole("link", { name: "Choose amount" })).toHaveAttribute(
+    "href",
+    "/invest/openai",
+  );
+
+  await page.goto("/shelf", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
   await expect(page.getByRole("link", { name: "Sign in to keep this shelf" })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 });
