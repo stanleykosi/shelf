@@ -5,6 +5,11 @@ PreStocks issuer feeds for that company. The ownership suggestion is unverified;
 and Solana mint come from the issuer. Signed-in members have a private shelf, watchlist, wallet
 view, portfolio, records, sharing and deliberate investment workflows.
 
+Discover uses one search field: it checks both live issuer feeds for a company first, then uses
+OpenRouter to suggest the owner of an unmatched product only if the user enabled AI fallback.
+The reviewed product collection remains browseable, and its issuer links are checked against
+current listings rather than assumed from saved token snapshots.
+
 The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share. Barcode discovery uses public Open Food/Beauty/Products Facts for a product-name clue before the same AI and issuer lookup.
 
 Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data and transaction-reconciliation worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.

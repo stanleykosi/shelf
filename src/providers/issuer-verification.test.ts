@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { companyById } from "@/data/catalog";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "./issuer-verification";
-import { companyFromIssuerListing, corporateActionsForIssuerInstrument, matchOwnershipCandidates, searchIssuerListings } from "@/domain/issuer-assets";
+import { companyFromIssuerListing, corporateActionsForIssuerInstrument, matchOwnershipCandidates, resolveDiscoveryQuery, reviewedIssuerLinks, searchIssuerListings } from "@/domain/issuer-assets";
 import { SOLANA_TOKEN_2022_PROGRAM_ID } from "./solana-constants";
 
 describe("execution issuer verification", () => {
@@ -199,6 +199,48 @@ describe("execution issuer verification", () => {
     expect(companyFromIssuerListing(listing, {
       ownerProgram: SOLANA_TOKEN_2022_PROGRAM_ID, decimals: 9,
     }).instrument).toMatchObject({ mint: listing.asset.mint, decimals: 9, tokenProgram: "token-2022" });
+  });
+
+  it("searches issuer feeds before AI and links reviewed products only to current mints", async () => {
+    const listing = {
+      provider: "xstocks" as const,
+      asset: {
+        companyId: "issuer:xstocks:PEPx",
+        name: "PepsiCo",
+        description: "PepsiCo xStock",
+        symbol: "PEPx",
+        underlyingSymbol: "PEP",
+        mint: company.instrument!.mint,
+        exchange: "Nasdaq",
+        marketOpen: true,
+        marketPeriod: "market",
+        nextChangeAt: "",
+        tradingHalted: false,
+        supportsAtomicSwaps: true,
+        observedAt: new Date(now).toISOString(),
+      },
+    };
+    const feeds = { listings: [listing], unavailable: [], stale: [] };
+    let aiCalls = 0;
+    const inferOwnership = async () => {
+      aiCalls += 1;
+      return [{ productName: "Doritos", companyNames: ["PepsiCo"] }];
+    };
+
+    expect((await resolveDiscoveryQuery("PepsiCo", feeds, inferOwnership)).kind).toBe("company");
+    expect(aiCalls).toBe(0);
+    expect((await resolveDiscoveryQuery("Doritos", feeds)).kind).toBe("consent_required");
+    expect(aiCalls).toBe(0);
+    expect(await resolveDiscoveryQuery("Doritos", feeds, inferOwnership)).toMatchObject({
+      kind: "product",
+      matches: [{ issuer: "xstocks", symbol: "PEPx", mint: listing.asset.mint }],
+    });
+    expect(aiCalls).toBe(1);
+    expect(reviewedIssuerLinks(feeds).byCompany[company.id]).toEqual([listing]);
+    expect(reviewedIssuerLinks({ ...feeds, listings: [{
+      ...listing,
+      asset: { ...listing.asset, mint: "changed-mint" },
+    }] }).byCompany[company.id]).toEqual([]);
   });
 
   it("preserves reviewed lifecycle context only for the same issuer symbol and mint", () => {

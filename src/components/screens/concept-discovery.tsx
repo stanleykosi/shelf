@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
 import { articles, brands, companies, companyById, productById, products } from "@/data/catalog";
 import type { Category } from "@/domain/types";
+import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
+import { postJson } from "@/lib/api-client";
+import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import {
   BrandRow,
   ProductTile,
@@ -52,13 +55,13 @@ export function ConceptHomeScreen() {
           <p className="hero-context">Product-led company research</p>
           <h1 id="home-title">See the company behind what you know.</h1>
           <p className="research-hero-lede">
-            Start with a familiar product. Shelf connects it to the Brand and Company, then keeps
-            market exposure separate from the research.
+            Search a company against current xStocks and PreStocks listings. If it is a product,
+            Shelf can suggest its owner with AI after you allow that lookup.
           </p>
           <form className="home-search-command" action="/discover" role="search">
             <Search size={20} aria-hidden="true" />
-            <label className="sr-only" htmlFor="home-research-search">Search products, brands, or companies</label>
-            <input id="home-research-search" name="q" placeholder="Search products, brands, or companies" type="search" />
+            <label className="sr-only" htmlFor="home-research-search">Search a company or product</label>
+            <input id="home-research-search" name="q" placeholder="Search a company or product" type="search" />
             <button type="submit"><span>Search</span><ArrowRight size={17} aria-hidden="true" /></button>
           </form>
           <div className="hero-actions">
@@ -85,8 +88,8 @@ export function ConceptHomeScreen() {
       <section className="research-home-section company-research-section">
         <SectionHeader
           title="Companies behind familiar brands"
-          description="Reviewed relationships, market context, and exposure status in one view."
-          action={<Link className="quiet-link" href="/discover?entity=company">Company directory <ArrowRight size={15} aria-hidden="true" /></Link>}
+          description="Reviewed relationships with current issuer availability checked from live feeds."
+          action={<Link className="quiet-link" href="/discover?entity=company">Reviewed companies <ArrowRight size={15} aria-hidden="true" /></Link>}
         />
         <ResearchTable companies={familiarCompanies} />
       </section>
@@ -102,7 +105,7 @@ export function ConceptHomeScreen() {
         </div>
         <dl className="coverage-metrics">
           <div><dt>Reviewed companies</dt><dd>{companies.length}</dd></div>
-          <div><dt>Supported exposure</dt><dd>{supportedCompanyCount}</dd></div>
+          <div><dt>Reviewed issuer records</dt><dd>{supportedCompanyCount}</dd></div>
           <div><dt>Verified relationships</dt><dd>{products.length}</dd></div>
         </dl>
         <div className="methodology-principles" aria-label="Research methodology principles">
@@ -144,8 +147,8 @@ function FilterFields({ availability, category, entity, market, setAvailability,
       <label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       {entity === "company" ? (
         <>
-          <label><span>Market status</span><select value={market} onChange={(event) => setMarket(event.target.value)}><option value="">All companies</option><option value="public">Public</option><option value="private">Private</option></select></label>
-          <label><span>Exposure</span><select value={availability} onChange={(event) => setAvailability(event.target.value)}><option value="">Any availability</option><option value="available">Available</option><option value="research">Research only</option></select></label>
+          <label><span>Reviewed market</span><select value={market} onChange={(event) => setMarket(event.target.value)}><option value="">All companies</option><option value="public">Public</option><option value="private">Private</option></select></label>
+          <label><span>Issuer record</span><select value={availability} onChange={(event) => setAvailability(event.target.value)}><option value="">Any record</option><option value="available">On record</option><option value="research">Research only</option></select></label>
         </>
       ) : null}
       <label><span>Sort</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="">Catalog order</option><option value="name">Name A–Z</option></select></label>
@@ -161,16 +164,156 @@ function EntityTabs({ entity, onChange }: { entity: string; onChange: (value: st
   );
 }
 
+function LiveIssuerResult({ listing }: { listing: IssuerListing }) {
+  const { provider, asset } = listing;
+  return (
+    <article className="live-issuer-card">
+      <p className="eyebrow">{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}</p>
+      <h3>{asset.name}</h3>
+      <p>{asset.symbol} · Issuer mint <code className="breakable-code">{asset.mint}</code></p>
+      <Link href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
+        View {asset.symbol} issuer asset <ArrowRight size={15} aria-hidden="true" />
+      </Link>
+    </article>
+  );
+}
+
+function LiveSearchResults({
+  error,
+  query,
+  result,
+  searching,
+  onRetry,
+}: {
+  error: string | null;
+  query: string | null;
+  result: DiscoveryQueryResult | null;
+  searching: boolean;
+  onRetry: () => void;
+}) {
+  if (!query) return null;
+
+  const matchedAssets = result?.matches.filter((match) => match.issuer && match.symbol) ?? [];
+  const suggestedOwners = Array.from(new Set(result?.matches.map((match) => match.ownerName).filter(Boolean) ?? []));
+
+  return (
+    <section aria-live="polite" className="live-search-results">
+      <div className="result-workspace-heading">
+        <p>Live issuer search for <strong>“{query}”</strong></p>
+        <span>xStocks + PreStocks</span>
+      </div>
+      {searching ? <p role="status">Checking issuer feeds and, if needed, product ownership…</p> : null}
+      {error ? <div className="research-empty"><h2>Search unavailable</h2><p>{error}</p><button onClick={onRetry} type="button">Retry search</button></div> : null}
+      {result?.unavailable.length ? <p className="live-search-caution">{result.unavailable.join(" and ")} feed unavailable. Results may be incomplete.</p> : null}
+      {result?.stale.length ? <p className="live-search-caution">{result.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
+      {result?.kind === "company" ? (
+        <div className="live-issuer-grid">
+          {result.listings.map((listing) => <LiveIssuerResult key={listing.asset.companyId} listing={listing} />)}
+        </div>
+      ) : null}
+      {result?.kind === "consent_required" ? (
+        <div className="research-empty">
+          <h2>No company listing matched</h2>
+          <p>If “{query}” is a product or brand, enable AI product lookup above. Shelf will then ask OpenRouter for its likely owner and check both issuer feeds again.</p>
+        </div>
+      ) : null}
+      {result?.kind === "product" && matchedAssets.length ? (
+        <>
+          <p className="live-search-caution">AI suggested the product owner; the issuer feed confirms only the asset. Verify the relationship before acting.</p>
+          <div className="live-issuer-grid">
+            {matchedAssets.map((match) => (
+              <article className="live-issuer-card" key={match.candidateId}>
+                <p className="eyebrow">AI suggested owner: {match.ownerName}</p>
+                <h3>{match.matchedIssuerName ?? match.ownerName}</h3>
+                <p>{match.issuer === "xstocks" ? "Public · xStocks" : "Private · PreStocks"} · {match.symbol}</p>
+                <p>Issuer mint <code className="breakable-code">{match.mint}</code></p>
+                <Link href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol!)}` as Route}>
+                  View {match.symbol} issuer asset <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {result?.kind === "product" && !matchedAssets.length ? (
+        <div className="research-empty">
+          <h2>{suggestedOwners.length && result.unavailable.length
+            ? "Issuer availability unconfirmed"
+            : suggestedOwners.length ? "No supported asset available" : "No company found"}</h2>
+          <p>{suggestedOwners.length
+            ? `AI suggested ${suggestedOwners.join(", ")}, but no matching current xStocks or PreStocks asset was confirmed.`
+            : "AI could not identify a reliable company behind this product. Try a more specific name."}</p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function ConceptDiscoverScreen({ initialAvailability, initialCategory, initialEntity, initialMarket, initialQuery, initialSort }: { initialAvailability?: string; initialCategory?: string; initialEntity?: string; initialMarket?: string; initialQuery?: string; initialSort?: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const leavingDiscover = useRef(false);
+  const searchRequest = useRef(0);
   const [query, setQuery] = useState(initialQuery ?? "");
+  const [searchedQuery, setSearchedQuery] = useState<string | null>(null);
+  const [searchResult, setSearchResult] = useState<DiscoveryQueryResult | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
   const [category, setCategory] = useState(initialCategory ?? "");
   const [entity, setEntity] = useState(initialEntity ?? "all");
   const [market, setMarket] = useState(initialMarket ?? "");
   const [availability, setAvailability] = useState(initialAvailability ?? "");
   const [sort, setSort] = useState(initialSort ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const runSearch = useCallback(async (term: string, allowAi: boolean) => {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+
+    const requestId = ++searchRequest.current;
+    setSearchedQuery(trimmed);
+    setSearchResult(null);
+    setSearchError(null);
+    setSearching(true);
+    try {
+      const result = await postJson<DiscoveryQueryResult>("discovery/query", {
+        query: trimmed,
+        aiProcessingConsentAccepted: allowAi,
+        aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
+        acknowledgeAiProcessing: allowAi,
+      });
+      if (requestId === searchRequest.current) setSearchResult(result);
+    } catch (reason) {
+      if (requestId === searchRequest.current) {
+        setSearchError(reason instanceof Error ? reason.message.replaceAll("_", " ") : "Search failed");
+      }
+    } finally {
+      if (requestId === searchRequest.current) setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!initialQuery?.trim()) return;
+    const timer = window.setTimeout(() => void runSearch(initialQuery, false), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialQuery, runSearch]);
+
+  function changeQuery(value: string) {
+    searchRequest.current += 1;
+    setQuery(value);
+    setSearchedQuery(null);
+    setSearchResult(null);
+    setSearchError(null);
+    setSearching(false);
+  }
+
+  function changeAiConsent(accepted: boolean) {
+    setAiConsent(accepted);
+    if (accepted && searchedQuery === query.trim() &&
+      (searching || searchResult?.kind === "consent_required")) {
+      void runSearch(query, true);
+    }
+  }
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("focus") === "search") searchRef.current?.focus();
@@ -200,7 +343,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (leavingDiscover.current || new URLSearchParams(window.location.search).get("source") === "issuer") return;
+      if (leavingDiscover.current) return;
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       if (category) params.set("category", category);
@@ -213,7 +356,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
     return () => window.clearTimeout(timer);
   }, [availability, category, entity, market, query, sort]);
 
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = searchedQuery?.toLowerCase() ?? "";
   const productResults = useMemo(() => {
     const matches = products.filter((product) => {
       const company = companyById(product.companyId);
@@ -243,14 +386,14 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
   }, [availability, category, market, normalizedQuery, sort]);
 
   const resultCount = (entity === "all" || entity === "product" ? productResults.length : 0) + (entity === "all" || entity === "brand" ? brandResults.length : 0) + (entity === "all" || entity === "company" ? companyResults.length : 0);
-  const visibleProducts = entity === "all" ? productResults.slice(0, normalizedQuery ? 8 : 8) : productResults;
+  const visibleProducts = entity === "all" ? productResults.slice(0, 8) : productResults;
   const visibleBrands = entity === "all" ? brandResults.slice(0, 6) : brandResults;
   const visibleCompanies = entity === "all" ? companyResults.slice(0, 6) : companyResults;
   const activeFilters = [
     category ? { label: categoryLabels[category as Category] ?? category, clear: () => setCategory("") } : null,
     sort ? { label: "Name A–Z", clear: () => setSort("") } : null,
     entity === "company" && market ? { label: market === "public" ? "Public" : "Private", clear: () => setMarket("") } : null,
-    entity === "company" && availability ? { label: availability === "available" ? "Exposure available" : "Research only", clear: () => setAvailability("") } : null,
+    entity === "company" && availability ? { label: availability === "available" ? "Issuer on record" : "Research only", clear: () => setAvailability("") } : null,
   ].filter((filter) => filter !== null);
 
   function changeEntity(value: string) {
@@ -258,7 +401,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
     if (value !== "company") { setMarket(""); setAvailability(""); }
   }
 
-  function clearAll() { setQuery(""); setCategory(""); setMarket(""); setAvailability(""); setSort(""); }
+  function clearAll() { changeQuery(""); setCategory(""); setMarket(""); setAvailability(""); setSort(""); }
 
   const filterProps: FilterProps = { availability, category, entity, market, setAvailability, setCategory, setMarket, setSort, sort };
 
@@ -267,11 +410,42 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       if (event.target instanceof Element && event.target.closest("a[href]")) leavingDiscover.current = true;
     }}>
-      <header className="discover-title-row"><div><h1>Discover</h1><p>Research Products, Brands, and Companies from a reviewed catalog.</p><Link className="quiet-link" href="/discover?source=issuer">Browse current issuer assets <ArrowRight size={15} aria-hidden="true" /></Link></div><span>{resultCount} results</span></header>
+      <header className="discover-title-row">
+        <div>
+          <h1>Discover</h1>
+          <p>Search current xStocks and PreStocks listings, or explore reviewed product references.</p>
+        </div>
+        <span>{resultCount} reviewed references</span>
+      </header>
       <div className="discover-command-area">
-        <SearchCommand inputRef={searchRef} onChange={setQuery} onClear={() => setQuery("")} value={query} />
-        <EntityTabs entity={entity} onChange={changeEntity} />
+        <SearchCommand
+          inputRef={searchRef}
+          onChange={changeQuery}
+          onClear={() => changeQuery("")}
+          onSubmit={() => void runSearch(query, aiConsent)}
+          searching={searching}
+          value={query}
+        />
       </div>
+      <label className="ai-fallback-consent">
+        <input checked={aiConsent} onChange={(event) => changeAiConsent(event.target.checked)} type="checkbox" />
+        <span>
+          If no company matches, send this search to OpenRouter for an AI product-owner suggestion.
+          Ownership suggestions are unverified; only issuer feeds provide stock assets.
+        </span>
+      </label>
+      <LiveSearchResults
+        error={searchError}
+        onRetry={() => void runSearch(query, aiConsent)}
+        query={searchedQuery}
+        result={searchResult}
+        searching={searching}
+      />
+      <div className="reviewed-browser-heading">
+        <h2>Reviewed product references</h2>
+        <p>These examples explain product ownership. Current assets are checked against live issuer feeds.</p>
+      </div>
+      <EntityTabs entity={entity} onChange={changeEntity} />
       <div className="mobile-filter-command">
         <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
       </div>
@@ -284,7 +458,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
         </aside>
 
         <main className="result-workspace">
-          <div className="result-workspace-heading"><p>{normalizedQuery ? <>Results for <strong>“{query.trim()}”</strong></> : "Reviewed catalog"}</p><span>{resultCount} matches</span></div>
+          <div className="result-workspace-heading"><p>{normalizedQuery ? <>Reviewed references for <strong>“{searchedQuery}”</strong></> : "Browse reviewed examples"}</p><span>{resultCount} references</span></div>
           {resultCount ? (
             <div className="entity-result-groups">
               {(entity === "all" || entity === "product") && visibleProducts.length ? (
@@ -304,7 +478,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
               ) : null}
             </div>
           ) : (
-            <div className="research-empty"><h2>No reviewed match</h2><p>Try another spelling or clear the current filters. Shelf will not infer a Company from an unverified name.</p><div><button onClick={clearAll} type="button">Clear filters</button><Link href="/scan">Scan a product</Link></div></div>
+            <div className="research-empty"><h2>No reviewed reference</h2><p>Reviewed examples cover selected products; the live search above checks both issuer feeds and can resolve other products with AI consent.</p><div><button onClick={clearAll} type="button">Clear filters</button><Link href="/scan">Scan a product</Link></div></div>
           )}
         </main>
       </div>

@@ -45,11 +45,8 @@ test("production offers Magic sign-in while public research stays available to g
 
   if (!isLocal) {
     await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/assets\/prestocks\/OPENAI$/);
-    await expect(page.getByRole("link", { name: "Review a purchase" })).toHaveAttribute(
-      "href",
-      "/assets/prestocks/OPENAI/buy",
-    );
+    await expect(page).toHaveURL(/\/discover\?q=OpenAI$/);
+    await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("OpenAI");
   }
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
@@ -67,12 +64,12 @@ test("canonical research routes and route-aware navigation preserve the product 
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
 
   await page.goto("/brands/doritos");
-  await expect(page).toHaveURL(/\/discover\?source=issuer&entity=product&q=Doritos$/);
-  await expect(page.getByRole("heading", { name: "Find a product or issuer" })).toBeVisible();
-  await expect(page.getByLabel("Product or brand name")).toHaveValue("Doritos");
+  await expect(page).toHaveURL(/\/discover\?q=Doritos$/);
+  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Doritos");
 
   await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/assets\/xstocks\/PEPx$/);
+  await expect(page).toHaveURL(/\/discover\?q=PepsiCo$/);
 
   await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');

@@ -6,7 +6,6 @@ import {
   ProductScreen,
   ScanResultsScreen,
   ScanScreen,
-  SearchScreen,
   ShelfScreen,
 } from "@/components/screens/discovery";
 import {
@@ -76,16 +75,13 @@ export function HomePage() {
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
   if (first(query.source) === "issuer") {
-    return <SearchScreen
-      key={`${first(query.category) ?? ""}|${first(query.entity) ?? ""}|${first(query.market) ?? ""}|${first(query.q) ?? ""}`}
-      initialCategory={first(query.category)}
-      initialEntity={first(query.entity)}
-      initialMarket={first(query.market)}
-      initialQuery={first(query.q)}
-    />;
+    const currentQuery = { ...query };
+    delete currentQuery.source;
+    permanentRedirect(withQuery("/discover", { ...currentQuery, focus: "search" }) as Route);
   }
   return (
     <ConceptDiscoverScreen
+      key={first(query.q) ?? ""}
       initialAvailability={first(query.availability)}
       initialCategory={first(query.category)}
       initialEntity={first(query.entity)}
@@ -117,7 +113,7 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  permanentRedirect(`/discover?source=issuer&entity=product&q=${encodeURIComponent(brand.name)}`);
+  permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
@@ -128,10 +124,7 @@ export async function CompanyPage({ params }: { params: AsyncParams<{ slug: stri
     if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
     notFound();
   }
-  if (company.instrument) {
-    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}` as Route);
-  }
-  permanentRedirect(`/discover?source=issuer&entity=company&q=${encodeURIComponent(company.name)}`);
+  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
 }
 
 export function LearnPage() {

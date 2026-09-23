@@ -2,15 +2,51 @@
 
 Updated: 2026-09-23
 
-## PR #3 and local discovery integration — main
+## U27 unified live and reviewed Discover — production
 
-PR #3's research-led Home and Discover screens are the default experience. The five reviewed
-product categories and canonical product/shelf journeys remain available there. The live issuer
-directory and consent-based product-owner search from U25/U26 remain available at
-`/discover?source=issuer`, linked from the default Discover screen. Brand URLs open that live
-product search, and non-instrument company URLs open its direct company search. This section
-supersedes the older U25 description of Home/Discover below; those entries describe the releases
-at the time, not the current combined route. Real trading and deposits remain disabled.
+Home and Discover now use one company-or-product search. The server checks current xStocks and
+PreStocks issuer listings first. A direct company or symbol result needs no AI request. When
+neither feed matches, the same query can continue through OpenRouter after the user explicitly
+opts in; the suggested owner is joined to current issuer listings before an asset link appears.
+Unknown owners, unsupported assets, stale feeds and unavailable feeds have distinct states.
+The old `/discover?source=issuer` bookmark redirects into this unified search.
+
+PR #3's reviewed product and brand examples remain in Home and Discover. Their company/product
+paths now check current issuer data. A reviewed instrument receives a direct asset link only
+when its provider, symbol and mint still match the feed; otherwise it stays a research example.
+Product pages and the reviewed company table show that status without using the static catalog
+as the live asset source. Brand and company URLs open the unified search. Scan results also link
+there. Real trading and deposits remain disabled.
+
+`npm run check` passed on the final implementation: ESLint, strict TypeScript, 99 Vitest tests
+in 15 files and the Next.js 16.3.5 production build. `git diff --check` passed. Local Chromium
+checks against the built app and an isolated migrated PostgreSQL 16 database passed: six route
+and shelf checks plus 21 Home/Discover/scan/identity checks on desktop and mobile (five
+suite-specific skips). An earlier route run used the stale local database password and got
+HTTP 500; the same exact route suite passed against the isolated database. Issuer and AI browser
+responses were intercepted. Read-only local API checks found Disney → DISx and put Spiderman at
+the AI-consent step without calling OpenRouter.
+
+Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` is Ready on
+`https://shelf-one-phi.vercel.app`. Production `/readyz` reports Magic, OpenRouter, Jupiter,
+Helius and PostgreSQL with trade execution disabled. A production feed query returned The Walt
+Disney / DISx with the expected mint and no unavailable or stale feed. A Spiderman query without
+consent returned `consent_required`, with no paid AI call. Production reviewed-link data mapped
+PepsiCo to PEPx and OpenAI to the PreStocks OPENAI token with no feed warnings. All eight
+desktop/mobile production Chromium discovery checks passed with issuer and AI responses
+intercepted. One previously authorized, consented production OpenRouter query for synthetic
+“Spiderman” returned “Spider-Man” with owner “The Walt Disney Company”; Shelf joined it to the
+current xStocks DISx mint `Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`, with no feed
+warnings. That call used AI only and made no trade. This release was deployed directly from the
+local working tree; it has not been pushed to the remote Git repository.
+
+## PR #3 and earlier local discovery integration — historical
+
+PR #3 introduced the research-led Home and Discover screens. The five reviewed product
+categories and canonical product/shelf journeys were restored there. At that release, the live
+issuer directory and consent-based product-owner search from U25/U26 were separate at
+`/discover?source=issuer`. U27 above supersedes that route and search behavior. Real trading and
+deposits remained disabled.
 The catalog filter URL uses Next.js-supported native history updates, and navigation out of
 Discover cancels pending filter updates so result links cannot be reversed by a delayed update.
 `npm run check` passed: ESLint, strict TypeScript, 98 Vitest tests in 15 files, and the
@@ -156,9 +192,9 @@ post-fix ChatGPT requests. No trading, funding, or onchain write occurred.
 
 ## Current release
 
-Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_8SFbMLfeoZ4UaaskdgKtXWTdt4Np` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
+Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
 
-The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U25 live-only Discover UX, and U26 instant AI-to-issuer linking. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
+The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, and U27 unified Discover. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
 
 `/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. Read-only production issuer search returns AAPLx and OPENAI with their issuer Solana mints and no unavailable feeds. Anonymous `/api/v1/me` returns 401. A prior production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
 
@@ -207,15 +243,12 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Confirm any resulting automatic deployment separately; the local tests do not prove production
-readiness. When the existing guest AI quota
-window resets, make one consented production product search against the revised prompt and
-confirm its suggested owner and issuer match; do not create a new guest identity to evade the
-limit. If a new HTTP 500 appears, use its request ID and fresh Vercel runtime logs. Paid Jupiter
-build compatibility and funded execution remain separate approval gates. The frontend refactor
-now includes PR #3's visual/product concept. Only after
-separate owner approval for funding and live-money testing, execute the activation checklist
-without widening its limits.
+Preserve U27 in remote Git before a future automatic Git deployment can replace the direct
+Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
+another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
+fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate
+approval gates. Only after separate owner approval for funding and live-money testing, execute
+the activation checklist without widening its limits.
 
 ## Recent maintenance
 

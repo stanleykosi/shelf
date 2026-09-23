@@ -3,8 +3,11 @@
 ## Active discovery decision (U24, 2026-09-23)
 
 For image scans, OpenRouter returns product names and likely current parent-company names in one
-strictly structured response. For typed product searches, the same ownership inference runs only
-after an explicit AI action and consent. These relationships are **unverified AI suggestions**.
+strictly structured response. The unified typed search checks current xStocks and PreStocks
+company names first. If neither feed matches, it runs ownership inference automatically only
+when the user has explicitly enabled AI fallback for that search. Without consent, it asks for
+permission before sending the unmatched query to OpenRouter. These relationships are
+**unverified AI suggestions**.
 The deterministic backend joins company names to current xStocks and PreStocks listings; issuer
 symbol and mint are never accepted from AI. Users can correct a mismatch through issuer search.
 An unresolved product stays unresolved. The older reviewed-catalog recognition and relationship

@@ -57,7 +57,9 @@ import {
   companyFromIssuerListing,
   corporateActionsForIssuerInstrument,
   matchOwnershipCandidates,
+  resolveDiscoveryQuery,
   reviewedCompanyForListing,
+  reviewedIssuerLinks,
   searchIssuerListings,
   type IssuerListing,
 } from "@/domain/issuer-assets";
@@ -665,6 +667,7 @@ async function getResponse(request: NextRequest, path: string[]) {
 
   if (pathIs(path, "catalog", "prestocks")) return preStocksListings();
   if (pathIs(path, "catalog", "xstocks")) return xStocksListings();
+  if (pathIs(path, "issuer", "reviewed")) return reviewedIssuerLinks(await issuerListings());
   if (path.length === 4 && path[0] === "issuer" && path[1] === "asset") {
     return exactIssuerAsset(path[2], path[3]);
   }
@@ -988,6 +991,24 @@ async function discoveryResponse(
   path: string[],
   body: Record<string, unknown>,
 ) {
+  if (pathIs(path, "discovery", "query")) {
+    const query = String(body.query ?? "").trim();
+    if (!query || query.length > 120) throw new Error("INVALID_INPUT");
+    const feeds = await issuerListings();
+    const aiConsent = hasCurrentAiProcessingConsent(body) &&
+      body.acknowledgeAiProcessing === true;
+    if (body.acknowledgeAiProcessing === true && !aiConsent) {
+      throw new Error("AI_CONSENT_REQUIRED");
+    }
+
+    return resolveDiscoveryQuery(query, feeds, aiConsent ? async () => {
+      if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+      const reservation = await reserveDiscoveryAiBudget(request);
+      const result = await ai.resolveOwnership(query, REQUIRED_AI_PRIVACY);
+      await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
+      return result.candidates;
+    } : undefined);
+  }
   if (pathIs(path, "discovery", "barcode")) {
     const gtin = String(body.gtin ?? "");
     if (!isValidGtin(gtin)) throw new Error("INVALID_BARCODE");
@@ -1581,6 +1602,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
     }
     if (
       pathIs(path, "issuer", "search") ||
+      pathIs(path, "issuer", "reviewed") ||
       (path.length === 4 && path[0] === "issuer" && path[1] === "asset") ||
       pathIs(path, "catalog", "prestocks") ||
       pathIs(path, "catalog", "xstocks")

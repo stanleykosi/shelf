@@ -32,27 +32,44 @@ test("Home teaches the entity path and starts discovery without a financial CTA"
 test("Discover distinguishes entity modes and preserves contextual Company filters", async ({
   page,
 }, testInfo) => {
+  await page.route("**/api/v1/discovery/query", (route) => route.fulfill({
+    status: 201,
+    contentType: "application/json",
+    body: JSON.stringify({ data: {
+      kind: "company",
+      listings: [{ provider: "prestocks", asset: {
+        companyId: "issuer:prestocks:OPENAI",
+        name: "OpenAI",
+        symbol: "OPENAI",
+        mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
+      } }],
+      matches: [],
+      unavailable: [],
+      stale: [],
+    } }),
+  }));
   await page.goto("/discover");
 
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
-  await expect(page.getByText("Research Products, Brands, and Companies from a reviewed catalog."))
+  await expect(page.getByText("Search current xStocks and PreStocks listings, or explore reviewed product references."))
     .toBeVisible();
 
   await page.getByRole("button", { name: "Companies", exact: true }).click();
   await expect(page).toHaveURL(/\/discover\?entity=company$/);
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("dialog").getByLabel("Market status").selectOption("private");
+    await page.getByRole("dialog").getByLabel("Reviewed market").selectOption("private");
     await page.getByRole("dialog").getByRole("button", { name: /Show .* results/ }).click();
   } else {
-    await page.getByLabel("Market status").selectOption("private");
+    await page.getByLabel("Reviewed market").selectOption("private");
   }
   await expect(page).toHaveURL(/entity=company&market=private/);
   await expect(page.locator(".research-table td").getByText("Private", { exact: true }).first()).toBeVisible();
 
-  await page.getByPlaceholder("Search products, brands, or companies").fill("OpenAI");
+  await page.getByPlaceholder("Search a company or product").fill("OpenAI");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=OpenAI/);
-  await expect(page.getByRole("link", { name: /OpenAI/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /View OPENAI issuer asset/ })).toBeVisible();
 
   const hasDocumentOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,

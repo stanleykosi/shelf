@@ -52,10 +52,12 @@ Status: 200 read/update; 201 new resource; 202 operation accepted/pending; 204 l
 | Method/path | Access / input | Output / behavior |
 |---|---|---|
 | GET /issuer/search?q=&provider=&offset= | guest/member | xStocks and PreStocks Solana listings; 50 per page, total, unavailable and stale feed names; query max 120 chars; provider xstocks/prestocks |
+| GET /issuer/reviewed | guest/member | reviewed company IDs mapped only to current issuer listings; configured symbols also require the reviewed Solana mint to match; unavailable/stale feed names returned |
 | GET /products/{id} | guest/member | public product/relations + private saved flag only for member, no-store when personalized |
 | GET /companies/{id} | guest/member | CompanyCard, jurisdiction-aware promotion policy |
 | GET /learn and /learn/{slug} | guest/member | approved editorial content, sources and version |
 | POST /discovery/search | guest/member+AI consent; {query,aiProcessingConsentAccepted,aiProcessingConsentVersion,acknowledgeAiProcessing} | AI likely-owner suggestions joined by company name to current issuer listings; no model-supplied mint |
+| POST /discovery/query | guest/member; {query,aiProcessingConsentAccepted?,aiProcessingConsentVersion?,acknowledgeAiProcessing?} | search both issuer feeds first; return matching company assets without AI, `consent_required` for an unmatched query without consent, or AI owner suggestions joined to the same feed snapshot after consent; never accept a model-supplied mint |
 | POST /discovery/image | guest/member+AI consent; {imageDataUrl,mode,consent fields} | temporary product and likely-owner candidates joined to current issuer listings; no retained image/OCR |
 | POST /discovery/barcode | guest/member+AI consent; {gtin,consent fields} | public Open Food/Beauty/Products Facts product-name lookup → AI likely owner → issuer feed; unresolved if no name; never GTIN→mint |
 | POST /discovery/link | guest/member+AI consent; {url,consent fields} | approved URL yields a product name for AI ownership resolution; unsupported site → 422 |

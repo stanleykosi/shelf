@@ -9,6 +9,26 @@ export type IssuerListing =
   | { provider: "xstocks"; asset: XStocksListing }
   | { provider: "prestocks"; asset: PreStocksListing };
 
+export type IssuerFeedSnapshot = {
+  listings: IssuerListing[];
+  unavailable: string[];
+  stale: string[];
+};
+
+export type DiscoveryQueryResult = {
+  kind: "company" | "consent_required" | "product";
+  listings: IssuerListing[];
+  matches: RecognitionMatch[];
+  unavailable: string[];
+  stale: string[];
+};
+
+export type ReviewedIssuerLinks = {
+  byCompany: Record<string, IssuerListing[]>;
+  unavailable: string[];
+  stale: string[];
+};
+
 export type CorporateActionView = Omit<(typeof corporateActions)[number], "instrumentId"> & {
   instrumentId: string;
 };
@@ -110,6 +130,56 @@ export function matchOwnershipCandidates(
       requiresConfirmation: true as const,
     }));
   });
+}
+
+export async function resolveDiscoveryQuery(
+  query: string,
+  feeds: IssuerFeedSnapshot,
+  inferOwnership?: () => Promise<OwnershipCandidate[]>,
+): Promise<DiscoveryQueryResult> {
+  const listings = searchIssuerListings(query, feeds.listings).slice(0, 50);
+  if (listings.length) {
+    return { kind: "company", listings, matches: [], unavailable: feeds.unavailable, stale: feeds.stale };
+  }
+  if (!inferOwnership) {
+    return { kind: "consent_required", listings: [], matches: [], unavailable: feeds.unavailable, stale: feeds.stale };
+  }
+
+  const candidates = await inferOwnership();
+  const matches = matchOwnershipCandidates(candidates, feeds.listings).map((match) => ({
+    ...match,
+    feedUnavailable: feeds.unavailable.length > 0,
+    feedStale: match.issuer === "xstocks"
+      ? feeds.stale.includes("xStocks")
+      : match.issuer === "prestocks"
+        ? feeds.stale.includes("PreStocks")
+        : feeds.stale.length > 0,
+  }));
+  return { kind: "product", listings: [], matches, unavailable: feeds.unavailable, stale: feeds.stale };
+}
+
+export function reviewedIssuerLinks(feeds: IssuerFeedSnapshot): ReviewedIssuerLinks {
+  const byCompany: Record<string, IssuerListing[]> = {};
+
+  for (const company of companies) {
+    if (company.instrument) {
+      byCompany[company.id] = feeds.listings.filter(({ provider, asset }) =>
+        provider === company.instrument?.provider &&
+        asset.symbol.toLowerCase() === company.instrument.symbol.toLowerCase() &&
+        asset.mint === company.instrument.mint,
+      );
+      continue;
+    }
+
+    const matches = matchOwnershipCandidates(
+      [{ productName: company.name, companyNames: [company.name] }],
+      feeds.listings,
+    );
+    const matchedIds = new Set(matches.map((match) => match.companyId));
+    byCompany[company.id] = feeds.listings.filter(({ asset }) => matchedIds.has(asset.companyId));
+  }
+
+  return { byCompany, unavailable: feeds.unavailable, stale: feeds.stale };
 }
 
 export function companyFromIssuerListing(
