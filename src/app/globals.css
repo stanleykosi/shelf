@@ -130,7 +130,32 @@ textarea:focus-visible {
 }
 
 .desktop-nav a:hover,
-.account-link:hover {
+.account-link:hover,
+.desktop-nav a.active {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.shell-actions {
+  flex-wrap: nowrap;
+}
+
+.shell-scan-action {
+  display: none;
+  gap: 7px;
+  align-items: center;
+}
+
+.shell-search-action {
+  display: none;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.shell-search-action:hover {
   color: var(--ink);
   background: var(--surface);
 }
@@ -168,6 +193,15 @@ textarea:focus-visible {
 .bottom-nav .scan-link {
   color: white;
   background: var(--accent);
+}
+
+.bottom-nav a.active:not(.scan-link) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.bottom-nav .scan-link:not(.active) {
+  background: var(--accent-strong);
 }
 
 .eyebrow {
@@ -604,6 +638,14 @@ th {
 
   .desktop-nav {
     display: flex;
+  }
+
+  .shell-scan-action {
+    display: inline-flex;
+  }
+
+  .shell-search-action {
+    display: grid;
   }
 
   .bottom-nav {

@@ -57,6 +57,19 @@ export type Product = {
   region: string;
 };
 
+export type Brand = {
+  slug: string;
+  name: string;
+  productIds: string[];
+  companyRelationships: Array<{
+    companyId: string;
+    relationship: Product["relationship"];
+    region: string;
+    productIds: string[];
+    sourceIds: string[];
+  }>;
+};
+
 export type RecognitionMatch = {
   candidateId: string;
   displayLabel: string;

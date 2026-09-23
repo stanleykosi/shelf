@@ -25,18 +25,23 @@ function messageFrom(error: unknown) {
     : "Request failed";
 }
 
-export function BuyScreen({ companyId = "company-pepsico" }: { companyId?: string }) {
+export function BuyScreen({ companyId }: { companyId: string }) {
   const router = useRouter();
-  const company = companyById(companyId) ?? companies[0];
+  const company = companyById(companyId);
   const [amount, setAmount] = useState("10");
   const [error, setError] = useState<string | null>(null);
+
+  if (!company) {
+    return <EmptyState title="Company unavailable">This reviewed company could not be found.</EmptyState>;
+  }
+  const selectedCompanyId = company.id;
 
   async function createPurchase() {
     try {
       const order = await postJson<Order>("orders", {
         clientIntentId: crypto.randomUUID(),
         type: "buy",
-        companyId: company.id,
+        companyId: selectedCompanyId,
         amountUsdcRaw: parseUsdc(amount).toString(),
         slippageBps: 50,
       });
@@ -97,7 +102,7 @@ export function BuyScreen({ companyId = "company-pepsico" }: { companyId?: strin
           <button data-cta="C57" onClick={createPurchase}>
             Review purchase
           </button>
-          <CtaLink id="C58" href="/wallet/deposit" secondary>
+          <CtaLink id="C58" href="/account/wallet/deposit" secondary>
             Deposit USDC
           </CtaLink>
         </div>
@@ -253,7 +258,7 @@ export function BasketScreen({ market }: { market?: string }) {
           <button data-cta="C61" onClick={createBasket}>
             Review basket
           </button>
-          <CtaLink id="C62" href="/invest/suggest" secondary>
+          <CtaLink id="C62" href="/invest/basket?source=ai" secondary>
             Get an AI draft
           </CtaLink>
         </div>
@@ -263,7 +268,7 @@ export function BasketScreen({ market }: { market?: string }) {
   );
 }
 
-export function SellScreen({ instrumentId = "instrument-pepx" }: { instrumentId?: string }) {
+export function SellScreen({ instrumentId }: { instrumentId: string }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState("1");
   const [error, setError] = useState<string | null>(null);
@@ -656,7 +661,7 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
         <CtaLink id="C73" href="/portfolio">
           View holding
         </CtaLink>
-        <CtaLink id="C85" href="/history" secondary>
+        <CtaLink id="C85" href="/portfolio/activity" secondary>
           View record
         </CtaLink>
         <CtaLink id="C75" href="/" secondary>
@@ -733,7 +738,7 @@ export function PortfolioScreen() {
         )}
       </section>
       <div className="section actions">
-        <CtaLink id="C74" href="/history" secondary>
+        <CtaLink id="C74" href="/portfolio/activity" secondary>
           View history
         </CtaLink>
       </div>
@@ -791,13 +796,21 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
           </div>
         </dl>
         <div className="actions">
-          <CtaLink id="C76" href={`/invest/sell?assetId=${holding.instrumentId}`}>
+          <CtaLink id="C76" href={`/portfolio/${holding.instrumentId}/sell`}>
             Sell
           </CtaLink>
-          <CtaLink id="C77" href="/wallet/send" secondary>
+          <CtaLink
+            id="C77"
+            href={`/account/wallet/send?asset=${holding.instrumentId}&scope=tracked`}
+            secondary
+          >
             Send
           </CtaLink>
-          <CtaLink id="C78" href={`/companies/${holding.companyId}`} secondary>
+          <CtaLink
+            id="C78"
+            href={`/companies/${companyById(holding.companyId)?.slug ?? holding.companyId}`}
+            secondary
+          >
             View company
           </CtaLink>
           <CtaLink id="C79" href="/learn/splits-and-dividends" secondary>
@@ -883,7 +896,7 @@ export function HistoryScreen() {
                     <td>{record.asset}</td>
                     <td>{record.rawAmount}</td>
                     <td>
-                      <Link data-cta="C85" href={`/history/${record.id}`}>
+                      <Link data-cta="C85" href={`/portfolio/activity/${record.id}`}>
                         View record
                       </Link>
                     </td>

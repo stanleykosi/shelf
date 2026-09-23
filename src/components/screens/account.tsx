@@ -205,7 +205,10 @@ export function WelcomeScreen() {
           />{" "}
           I confirm I am an adult.
         </label>
-        <CtaLink id="C47" href={terms && adult ? "/eligibility" : "/welcome"}>
+        <CtaLink
+          id="C47"
+          href={terms && adult ? "/onboarding/availability" : "/onboarding"}
+        >
           Continue
         </CtaLink>
         <button className="secondary" data-cta="C48" onClick={mergeGuestShelf}>
@@ -367,7 +370,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
             <button className="secondary" data-cta="C55" onClick={refreshBalance}>
               I’ve sent USDC
             </button>
-            <CtaLink id="C56" href="/invest/buy?companyId=company-pepsico" secondary>
+            <CtaLink id="C56" href="/invest/pepsico" secondary>
               Return to purchase
             </CtaLink>
           </div>
@@ -399,10 +402,10 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
         </Card>
       </div>
       <div className="section actions">
-        <CtaLink id="C51" href="/wallet/deposit">
+        <CtaLink id="C51" href="/account/wallet/deposit">
           Deposit USDC
         </CtaLink>
-        <CtaLink id="C52" href="/wallet/send" secondary>
+        <CtaLink id="C52" href="/account/wallet/send" secondary>
           Send USDC
         </CtaLink>
         <button className="secondary" data-cta="C53" onClick={refreshBalance}>

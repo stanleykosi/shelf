@@ -1,12 +1,35 @@
-import Link from "next/link";
-import { CircleUserRound, Compass, Landmark, LibraryBig, WalletCards } from "lucide-react";
+"use client";
 
-const navigation = [
-  { href: "/", label: "Discover", icon: Compass },
-  { href: "/markets", label: "Markets", icon: Landmark },
-  { href: "/shelf", label: "Shelf", icon: LibraryBig },
-  { href: "/portfolio", label: "Portfolio", icon: WalletCards },
-] as const;
+import Link from "next/link";
+import type { Route } from "next";
+import { usePathname } from "next/navigation";
+import {
+  Bookmark,
+  CircleUserRound,
+  Compass,
+  ScanLine,
+  Search,
+  WalletCards,
+} from "lucide-react";
+import { activePrimarySection, type PrimarySection } from "@/lib/routes";
+
+const primaryNavigation: Array<{
+  href: string;
+  label: string;
+  section: PrimarySection;
+  icon: typeof Compass;
+}> = [
+  { href: "/", label: "Discover", section: "discover", icon: Compass },
+  { href: "/saved", label: "Saved", section: "saved", icon: Bookmark },
+  { href: "/portfolio", label: "Portfolio", section: "portfolio", icon: WalletCards },
+];
+
+const mobileNavigation = [
+  primaryNavigation[0],
+  { href: "/scan", label: "Scan", section: "scan" as const, icon: ScanLine },
+  primaryNavigation[1],
+  primaryNavigation[2],
+];
 
 export function AppShell({
   children,
@@ -17,6 +40,9 @@ export function AppShell({
   signedIn: boolean;
   environment: "local" | "integration" | "private-beta";
 }) {
+  const pathname = usePathname();
+  const activeSection = activePrimarySection(pathname);
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -25,29 +51,52 @@ export function AppShell({
           Shelf
         </Link>
         <nav className="desktop-nav" aria-label="Primary navigation">
-          {navigation.map(({ href, label }) => (
-            <Link href={href} key={href}>
+          {primaryNavigation.map(({ href, label, section }) => (
+            <Link
+              aria-current={activeSection === section ? "page" : undefined}
+              className={activeSection === section ? "active" : undefined}
+              href={href as Route}
+              key={href}
+            >
               {label}
             </Link>
           ))}
         </nav>
-        <div className="actions">
+        <div className="actions shell-actions">
+          <Link
+            aria-current={activeSection === "scan" ? "page" : undefined}
+            className="button shell-scan-action"
+            href="/scan"
+          >
+            <ScanLine size={18} aria-hidden="true" />
+            Scan a product
+          </Link>
+          <Link className="shell-search-action" href="/discover" aria-label="Search Shelf">
+            <Search size={20} aria-hidden="true" />
+          </Link>
           <span className="mode-badge">
             {environment === "private-beta" ? "Private beta" : environment}
           </span>
           <Link
             className="account-link"
-            href={signedIn ? "/settings" : "/sign-in"}
-            aria-label={signedIn ? "Account settings" : "Sign in"}
+            href={signedIn ? "/account" : "/sign-in"}
+            aria-label={signedIn ? "Account" : "Sign in"}
           >
-            <CircleUserRound size={22} />
+            <CircleUserRound size={22} aria-hidden="true" />
           </Link>
         </div>
       </header>
       <main className="main-content">{children}</main>
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        {navigation.map(({ href, label, icon: Icon }) => (
-          <Link className={label === "Markets" ? "scan-link" : ""} href={href} key={href}>
+        {mobileNavigation.map(({ href, label, section, icon: Icon }) => (
+          <Link
+            aria-current={activeSection === section ? "page" : undefined}
+            className={`${section === "scan" ? "scan-link" : ""}${
+              activeSection === section ? " active" : ""
+            }`}
+            href={href as Route}
+            key={href}
+          >
             <Icon size={20} aria-hidden="true" />
             {label}
           </Link>
