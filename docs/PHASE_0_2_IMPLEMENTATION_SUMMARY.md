@@ -69,6 +69,7 @@ The data model still lacks a persisted onboarding-completion/terms-version state
 - `npm test` — 9 files, 35 tests passed.
 - `npm run build` — compiled, type-checked, generated all canonical and legacy route pages, and completed. Magic emitted its pre-existing network-unavailable service message while page data was collected; the build still completed and no paid/provider operation was initiated.
 - Local Playwright Chromium — public route/navigation checks passed on desktop and Pixel 7 after test-environment corrections. Local readiness correctly remained 503 because PostgreSQL was not running.
+- The final route quality-gate pass confirmed that fixed legacy Markets classifications override conflicting legacy query values rather than creating ambiguous duplicate filters.
 
 ## Temporary UI compromises
 

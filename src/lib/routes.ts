@@ -63,7 +63,7 @@ const knownDynamicPrefixes = [
 function withSafeQuery(pathname: string, source: URLSearchParams, initial?: URLSearchParams) {
   const target = initial ?? new URLSearchParams();
   for (const [key, value] of source) {
-    if (safeQueryKeys.has(key) && value) target.append(key, value);
+    if (safeQueryKeys.has(key) && value && !target.has(key)) target.append(key, value);
     if (key === "returnTo" && value) {
       const safeDestination = safeReturnTo(value, "");
       if (safeDestination) target.append(key, safeDestination);

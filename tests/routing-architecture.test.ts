@@ -104,6 +104,15 @@ describe("frontend route architecture", () => {
       destination: "/discover?entity=company&market=private&sort=name",
       permanent: true,
     });
+    expect(
+      legacyRedirectFor(
+        "/markets/public",
+        new URLSearchParams("entity=product&market=private&q=apple"),
+      ),
+    ).toEqual({
+      destination: "/discover?entity=company&market=public&q=apple",
+      permanent: true,
+    });
     expect(legacyRedirectFor("/wallet/send", new URLSearchParams("asset=usdc&amount=50"))).toEqual({
       destination: "/account/wallet/send?asset=usdc",
       permanent: true,
