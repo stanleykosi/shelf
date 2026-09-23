@@ -162,9 +162,11 @@ function EntityTabs({ entity, onChange }: { entity: string; onChange: (value: st
   );
 }
 
-export function ConceptDiscoverScreen({ initialAvailability, initialCategory, initialEntity, initialMarket, initialQuery, initialSort }: { initialAvailability?: string; initialCategory?: string; initialEntity?: string; initialMarket?: string; initialQuery?: string; initialSort?: string }) {
+export function ConceptDiscoverScreen({ concept = "1", initialAvailability, initialCategory, initialEntity, initialMarket, initialQuery, initialSort }: { concept?: "1" | "2"; initialAvailability?: string; initialCategory?: string; initialEntity?: string; initialMarket?: string; initialQuery?: string; initialSort?: string }) {
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
+  const filterSheetRef = useRef<HTMLElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState(initialQuery ?? "");
   const [category, setCategory] = useState(initialCategory ?? "");
   const [entity, setEntity] = useState(initialEntity ?? "all");
@@ -188,20 +190,36 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
   useEffect(() => {
     if (!filtersOpen) return;
     const previousOverflow = document.body.style.overflow;
+    const trigger = filterButtonRef.current;
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setFiltersOpen(false);
+      if (event.key === "Tab") {
+        const controls = filterSheetRef.current?.querySelectorAll<HTMLElement>("button, select");
+        if (!controls?.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     }
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
+      trigger?.focus();
     };
   }, [filtersOpen]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams();
+      if (concept === "2") params.set("concept", "2");
       if (query.trim()) params.set("q", query.trim());
       if (category) params.set("category", category);
       if (entity !== "all") params.set("entity", entity);
@@ -211,7 +229,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
       router.replace((params.size ? "/discover?" + params : "/discover") as Route, { scroll: false });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [availability, category, entity, market, query, router, sort]);
+  }, [availability, category, concept, entity, market, query, router, sort]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const productResults = useMemo(() => {
@@ -270,7 +288,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
         <EntityTabs entity={entity} onChange={changeEntity} />
       </div>
       <div className="mobile-filter-command">
-        <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
+        <button ref={filterButtonRef} aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
       </div>
       {activeFilters.length ? <div className="active-filter-list" aria-label="Active filters">{activeFilters.map((filter) => <button key={filter.label} onClick={filter.clear} type="button">{filter.label}<X size={13} aria-hidden="true" /></button>)}</div> : null}
 
@@ -280,7 +298,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
           <FilterFields {...filterProps} />
         </aside>
 
-        <main className="result-workspace">
+        <div className="result-workspace">
           <div className="result-workspace-heading"><p>{normalizedQuery ? <>Results for <strong>“{query.trim()}”</strong></> : "Reviewed catalog"}</p><span>{resultCount} matches</span></div>
           {resultCount ? (
             <div className="entity-result-groups">
@@ -303,12 +321,12 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
           ) : (
             <div className="research-empty"><h2>No reviewed match</h2><p>Try another spelling or clear the current filters. Shelf will not infer a Company from an unverified name.</p><div><button onClick={clearAll} type="button">Clear filters</button><Link href="/scan">Scan a product</Link></div></div>
           )}
-        </main>
+        </div>
       </div>
 
       {filtersOpen ? (
         <div className="mobile-filter-layer" role="presentation" onMouseDown={() => setFiltersOpen(false)}>
-          <section aria-label="Discover filters" aria-modal="true" className="mobile-filter-sheet" id="mobile-discover-filters" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+          <section ref={filterSheetRef} aria-label="Discover filters" aria-modal="true" className="mobile-filter-sheet" id="mobile-discover-filters" onMouseDown={(event) => event.stopPropagation()} role="dialog">
             <header><strong>Filters</strong><button aria-label="Close filters" autoFocus onClick={() => setFiltersOpen(false)} type="button"><X size={20} aria-hidden="true" /></button></header>
             <FilterFields {...filterProps} />
             <footer><button className="sheet-reset" onClick={clearAll} type="button">Reset</button><button className="sheet-apply" onClick={() => setFiltersOpen(false)} type="button">Show {resultCount} results</button></footer>

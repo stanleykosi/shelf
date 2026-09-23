@@ -2932,6 +2932,10 @@ The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes
 
 # 24. Design Decision Log
 
+## Concept #2 comparison study — proposed 2026-09-23
+
+The user requested a second concept based on Capital and Rho for direct comparison with the current editorial implementation. This is an additional candidate, not approval to replace Concept 1. The same Home and Discover routes accept `concept=2`, and a comparison control preserves search/filter context. The visual study uses a dark opening, larger typography, mint actions, an interactive relationship explorer, and expressive Home motion with pause and reduced-motion support. Product philosophy, canonical routes, access rules and entity relationships remain unchanged. See `docs/CONCEPT_2.md` for scope, foundation and review artifacts.
+
 | ID | Decision | Reason | Areas Affected | Status |
 |---|---|---|---|---|
 | DD-001 | Shelf is recognition-first, not markets-first. | This is the distinctive validated product thesis. | Home, navigation, Discover, Markets | Accepted |
@@ -2958,6 +2962,7 @@ The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes
 | DD-022 | TradingView, Quartr, Public, and Ramp are specialized pattern libraries, not competing visual directions. | Preserves one coherent Shelf identity while borrowing density, evidence, investing, and operations patterns only where appropriate. | Discover; research evidence; later investing/portfolio; later account/admin | Accepted |
 | DD-023 | Concept #1.1 established the relationship trail, reviewed-imagery rule, quiet trust metadata, and mobile filter disclosure. | Its product ideas remain useful, but the first visual execution was rejected as prototype-like and is not a visual baseline. | Global shell, Home, Discover | Superseded |
 | DD-024 | Shelf's accepted visual direction is Premium Institutional Editorial Research. | A precise Linear-informed shell and Quartr-informed evidence hierarchy better express Shelf's serious recognition-first research model while retaining progressive explanation. | Global shell, Home, Discover; later visual phases | Accepted |
+| DD-025 | Compare a Capital/Rho-inspired Concept 2 against the preserved editorial Concept 1 before selecting a direction. | The user requested a more expressive enterprise homepage, including motion, and a reversible comparison. | Home, Discover and their shell | Proposed; awaiting visual selection |
 
 # 25. Recommended Refactor Sequence
 

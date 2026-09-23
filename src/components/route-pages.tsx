@@ -14,6 +14,7 @@ import {
   ConceptDiscoverScreen,
   ConceptHomeScreen,
 } from "@/components/screens/concept-discovery";
+import { ConceptTwoHome } from "@/components/screens/concept-two";
 import {
   EligibilityScreen,
   MagicCallbackScreen,
@@ -71,14 +72,16 @@ function withQuery(pathname: string, query: Query) {
   return params ? `${pathname}?${params}` : pathname;
 }
 
-export function HomePage() {
-  return <ConceptHomeScreen />;
+export async function HomePage({ searchParams }: { searchParams: AsyncQuery }) {
+  const query = await searchParams;
+  return first(query.concept) === "2" ? <ConceptTwoHome /> : <ConceptHomeScreen />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
   return (
     <ConceptDiscoverScreen
+      concept={first(query.concept) === "2" ? "2" : "1"}
       initialAvailability={first(query.availability)}
       initialCategory={first(query.category)}
       initialEntity={first(query.entity)}
