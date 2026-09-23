@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
 import { articles, brands, companies, companyById, productById, products } from "@/data/catalog";
@@ -163,8 +162,8 @@ function EntityTabs({ entity, onChange }: { entity: string; onChange: (value: st
 }
 
 export function ConceptDiscoverScreen({ initialAvailability, initialCategory, initialEntity, initialMarket, initialQuery, initialSort }: { initialAvailability?: string; initialCategory?: string; initialEntity?: string; initialMarket?: string; initialQuery?: string; initialSort?: string }) {
-  const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
+  const leavingDiscover = useRef(false);
   const [query, setQuery] = useState(initialQuery ?? "");
   const [category, setCategory] = useState(initialCategory ?? "");
   const [entity, setEntity] = useState(initialEntity ?? "all");
@@ -201,6 +200,7 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (leavingDiscover.current || new URLSearchParams(window.location.search).get("source") === "issuer") return;
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       if (category) params.set("category", category);
@@ -208,10 +208,10 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
       if (entity === "company" && market) params.set("market", market);
       if (entity === "company" && availability) params.set("availability", availability);
       if (sort) params.set("sort", sort);
-      router.replace((params.size ? "/discover?" + params : "/discover") as Route, { scroll: false });
+      window.history.replaceState(null, "", params.size ? `/discover?${params}` : "/discover");
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [availability, category, entity, market, query, router, sort]);
+  }, [availability, category, entity, market, query, sort]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const productResults = useMemo(() => {
@@ -263,7 +263,10 @@ export function ConceptDiscoverScreen({ initialAvailability, initialCategory, in
   const filterProps: FilterProps = { availability, category, entity, market, setAvailability, setCategory, setMarket, setSort, sort };
 
   return (
-    <div className="research-discover">
+    <div className="research-discover" onClickCapture={(event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest("a[href]")) leavingDiscover.current = true;
+    }}>
       <header className="discover-title-row"><div><h1>Discover</h1><p>Research Products, Brands, and Companies from a reviewed catalog.</p><Link className="quiet-link" href="/discover?source=issuer">Browse current issuer assets <ArrowRight size={15} aria-hidden="true" /></Link></div><span>{resultCount} results</span></header>
       <div className="discover-command-area">
         <SearchCommand inputRef={searchRef} onChange={setQuery} onClear={() => setQuery("")} value={query} />

@@ -2,9 +2,27 @@
 
 Updated: 2026-09-23
 
+## PR #3 and local discovery integration — local main
+
+PR #3's research-led Home and Discover screens are the default experience. The five reviewed
+product categories and canonical product/shelf journeys remain available there. The live issuer
+directory and consent-based product-owner search from U25/U26 remain available at
+`/discover?source=issuer`, linked from the default Discover screen. Brand URLs open that live
+product search, and non-instrument company URLs open its direct company search. This section
+supersedes the older U25 description of Home/Discover below; those entries describe the releases
+at the time, not the current combined route. Real trading and deposits remain disabled.
+The catalog filter URL uses Next.js-supported native history updates, and navigation out of
+Discover cancels pending filter updates so result links cannot be reversed by a delayed update.
+`npm run check` passed: ESLint, strict TypeScript, 98 Vitest tests in 15 files, and the
+Next.js 16.3.5 production build. All four local Playwright suites passed against that build
+and an isolated migrated PostgreSQL 16 database: 27 desktop/mobile checks passed and five
+project-specific checks were intentionally skipped. AI and issuer responses were intercepted
+where those browser tests required them. `git diff --check` passed. No real-money operation,
+paid AI request, or external deployment was performed by this integration.
+
 ## Review follow-up — category and product shelf restoration
 
-The reviewed five-category product collections are accessible from home and Discover. Canonical
+The reviewed five-category product collections are accessible through Discover. Canonical
 product pages again save reviewed product IDs to a guest session or member shelf, while current
 issuer searches remain separate from reviewed relationships. Legacy product IDs redirect to their
 canonical product pages, and legacy company IDs redirect through the canonical company URL before
@@ -187,12 +205,13 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-U25 has no pending local implementation or deployment step. When the existing guest AI quota
+After this combined tree is verified and pushed, confirm the resulting deployment separately;
+the local tests do not prove production readiness. When the existing guest AI quota
 window resets, make one consented production product search against the revised prompt and
 confirm its suggested owner and issuer match; do not create a new guest identity to evade the
 limit. If a new HTTP 500 appears, use its request ID and fresh Vercel runtime logs. Paid Jupiter
 build compatibility and funded execution remain separate approval gates. The frontend refactor
-is complete through Phases 0–2; Phase 3 awaits the planned visual/product concept. Only after
+now includes PR #3's visual/product concept. Only after
 separate owner approval for funding and live-money testing, execute the activation checklist
 without widening its limits.
 

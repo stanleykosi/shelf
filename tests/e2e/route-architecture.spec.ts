@@ -88,11 +88,12 @@ test("all five categories lead to reviewed products and a guest can save one", a
   for (const [category, product] of Object.entries(categories)) {
     await page.goto(`/discover?category=${category}`);
     await expect(page).toHaveURL(new RegExp(`/discover\\?category=${category}$`));
-    await expect(page.getByRole("link", { name: new RegExp(product) })).toBeVisible();
+    await expect(page.locator(".product-tile").filter({ hasText: product })).toBeVisible();
   }
 
   await page.goto("/discover?category=groceries");
-  await page.getByRole("link", { name: /Doritos snack/ }).click();
+  await page.locator(".product-tile").filter({ hasText: "Doritos snack" }).click();
+  await expect(page).toHaveURL(/\/products\/doritos-snack$/);
   await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();
   await page.getByRole("button", { name: "Save to shelf" }).click();
