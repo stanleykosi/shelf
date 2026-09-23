@@ -18,6 +18,7 @@ import type { MarketFeed } from "@/domain/market-data";
 import type { Brand, Category, Company, MarketHistoryPoint, RecognitionMatch } from "@/domain/types";
 import type { PreStocksListing } from "@/providers/prestocks";
 import type { XStocksListing } from "@/providers/xstocks";
+import type { IssuerListing } from "@/domain/issuer-assets";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { MarketHistoryChart } from "@/components/screens/markets";
@@ -47,8 +48,8 @@ export function DiscoverScreen() {
         title="Scan a product. Discover the company."
       >
         <p>
-          Trace familiar products to reviewed parent-company relationships, learn what the
-          connection means, and decide whether to save or explore it.
+          AI suggests the company behind a product. Shelf then looks for that company in the
+          current xStocks and PreStocks issuer feeds.
         </p>
       </PageIntro>
       <div className="hero-actions">
@@ -60,9 +61,11 @@ export function DiscoverScreen() {
         </CtaLink>
       </div>
       <section className="section">
-        <div className="chips" aria-label="Browse by category">
+        <h2>Browse product categories</h2>
+        <p className="muted">Reviewed product examples help you explore familiar brands. An issuer listing is checked separately.</p>
+        <div className="chips" aria-label="Product categories">
           {(Object.keys(categoryLabels) as Category[]).map((category) => (
-            <Link className="chip" href={`/discover?category=${category}`} key={category}>
+            <Link key={category} className="button secondary" href={`/discover?category=${category}`}>
               {categoryLabels[category]}
             </Link>
           ))}
@@ -74,6 +77,7 @@ export function DiscoverScreen() {
         <p className="muted">
           xStocks instruments track public equities. PreStocks instruments provide tokenized
           economic exposure to private companies and do not confer ordinary shareholder rights.
+          Product ownership suggested by AI is separate from either issuer’s token listing.
         </p>
         <div className="actions">
           <CtaLink id="market-compare-home" href="/discover?entity=company">
@@ -82,23 +86,6 @@ export function DiscoverScreen() {
           <CtaLink id="market-private-home" href="/discover?entity=company&market=private" secondary>
             Explore private companies
           </CtaLink>
-        </div>
-        <div className="grid">
-          {companies
-            .filter((company) => company.instrument)
-            .slice(0, 6)
-            .map((company) => (
-              <CompanyCard company={company} key={company.id} />
-            ))}
-        </div>
-      </section>
-      <section className="section">
-        <p className="eyebrow">A small, reviewed catalog</p>
-        <h2>Start with familiar products</h2>
-        <div className="grid">
-          {products.slice(0, 6).map((product) => (
-            <ProductCard key={product.id} productId={product.id} />
-          ))}
         </div>
       </section>
       <section className="section">
@@ -140,19 +127,20 @@ function ProductCard({ productId }: { productId: string }) {
   );
 }
 
-function CompanyCard({ company }: { company: Company }) {
-  const instrument = company.instrument;
+function IssuerCard({ listing }: { listing: IssuerListing }) {
+  const { provider, asset } = listing;
   return (
     <Card>
       <span className="badge">
-        {instrument?.assetClass === "pre_ipo_exposure" ? "Pre-IPO exposure" : "Public equity"}
+        {provider === "xstocks" ? "Public equity tracker · xStocks" : "Private exposure · PreStocks"}
       </span>
-      <h3>{company.name}</h3>
-      <p className="muted">
-        {instrument?.symbol} · issued through {instrument?.issuer}
-      </p>
-      <Link className="button ghost" href={`/companies/${company.slug}`}>
-        View company
+      <h3>{asset.name}</h3>
+      <p className="muted">{asset.symbol} · {provider === "xstocks"
+        ? asset.underlyingSymbol || "Underlying unavailable"
+        : asset.premiumLabel}</p>
+      <p className="muted">{asset.description || "Read the issuer page for instrument details."}</p>
+      <Link className="button ghost" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
+        View issuer asset
       </Link>
     </Card>
   );
@@ -160,7 +148,6 @@ function CompanyCard({ company }: { company: Company }) {
 
 export function SearchScreen({
   initialCategory,
-  initialEntity,
   initialMarket,
   initialQuery,
 }: {
@@ -169,117 +156,185 @@ export function SearchScreen({
   initialMarket?: string;
   initialQuery?: string;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState(initialQuery ?? "");
-  const [category, setCategory] = useState(initialCategory ?? "");
-  const [results, setResults] = useState(products);
-  const [companyResults, setCompanyResults] = useState(companies);
+  const [market, setMarket] = useState(initialMarket ?? "all");
+  const [category, setCategory] = useState<Category | "all">(
+    initialCategory && initialCategory in categoryLabels ? initialCategory as Category : "all",
+  );
+  const [feedResults, setFeedResults] = useState<IssuerListing[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [matches, setMatches] = useState<RecognitionMatch[]>([]);
+  const [unavailable, setUnavailable] = useState<string[]>([]);
+  const [stale, setStale] = useState<string[]>([]);
+  const [aiConsent, setAiConsent] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     const timer = window.setTimeout(async () => {
+      setLoading(true);
       try {
         const params = new URLSearchParams();
         if (query) params.set("q", query);
-        if (category) params.set("category", category);
-        const [productMatches, companyMatches] = await Promise.all([
-          apiRequest<typeof products>(`catalog/search?${params}`),
-          category
-            ? Promise.resolve([])
-            : apiRequest<Company[]>(
-                `catalog/companies?q=${encodeURIComponent(query)}${
-                  initialMarket ? `&provider=${initialMarket === "private" ? "prestocks" : "xstocks"}` : ""
-                }`,
-              ),
-        ]);
-        setResults(productMatches);
-        setCompanyResults(companyMatches);
+        params.set("offset", String(offset));
+        if (market !== "all") params.set("provider", market === "private" ? "prestocks" : "xstocks");
+        const response = await apiRequest<{ listings: IssuerListing[]; unavailable: string[]; stale: string[]; total: number }>(
+          `issuer/search?${params}`,
+        );
+        if (!active) return;
+        setFeedResults(response.listings);
+        setTotal(response.total);
+        setUnavailable(response.unavailable);
+        setStale(response.stale);
         setError(null);
-        if (initialEntity) params.set("entity", initialEntity);
-        if (initialMarket) params.set("market", initialMarket);
-        router.replace((params.size ? `/discover?${params}` : "/discover") as Route, {
-          scroll: false,
-        });
+        const routeParams = new URLSearchParams();
+        if (query) routeParams.set("q", query);
+        if (market !== "all") routeParams.set("market", market);
+        if (category !== "all") routeParams.set("category", category);
+        window.history.replaceState(
+          null,
+          "",
+          routeParams.size ? `/discover?${routeParams}` : "/discover",
+        );
       } catch (requestError) {
-        setError(requestError instanceof Error ? requestError.message : "Search failed");
+        if (active) setError(requestError instanceof Error ? requestError.message : "Issuer search failed");
+      } finally {
+        if (active) setLoading(false);
       }
     }, 300);
-    return () => window.clearTimeout(timer);
-  }, [query, category, initialEntity, initialMarket, router]);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [query, market, category, offset]);
 
   function clearFilters() {
     setQuery("");
-    setCategory("");
+    setMarket("all");
+    setCategory("all");
+    setMatches([]);
+    setOffset(0);
   }
+
+  async function findProductOwner() {
+    if (!query.trim() || !aiConsent) return;
+    setResolving(true);
+    setError(null);
+    try {
+      const result = await postJson<RecognitionMatch[]>("discovery/search", {
+        query: query.trim(),
+        aiProcessingConsentAccepted: true,
+        aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
+        acknowledgeAiProcessing: true,
+      });
+      setMatches(result);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message.replaceAll("_", " ") : "Ownership search failed");
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  const visibleProducts = products.filter((product) =>
+    (category === "all" || product.category === category) &&
+    (!query || [product.name, product.brand].some((value) => value.toLowerCase().includes(query.toLowerCase()))),
+  );
 
   return (
     <>
-      <PageIntro eyebrow="Explore" title="Find products, brands and companies">
+      <PageIntro eyebrow="Explore" title="Find a product or issuer">
         <p>
-          Search only returns reviewed catalog identities. A similar name never creates a ticker or
-          investment.
+          Browse current xStocks public assets and PreStocks private exposure. For a product or
+          brand, AI can suggest its likely owner, then Shelf checks both issuer feeds for a token.
         </p>
       </PageIntro>
       <div className="card stack">
-        <Field label="Product, brand or company" htmlFor="catalog-search">
+        <Field label="Product, brand or company" htmlFor="issuer-search">
           <input
-            id="catalog-search"
+            id="issuer-search"
             maxLength={120}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setOffset(0);
+              setMatches([]);
+            }}
           />
         </Field>
-        <Field label="Category" htmlFor="category-filter">
-          <select
-            id="category-filter"
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          >
-            <option value="">All categories</option>
-            {Object.entries(categoryLabels).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
-              </option>
+        <div className="chips" aria-label="Issuer market">
+          {(["all", "public", "private"] as const).map((option) => (
+            <button key={option} className={market === option ? "" : "secondary"}
+              onClick={() => { setMarket(option); setOffset(0); }}>{option === "all" ? "Both" : option}</button>
+          ))}
+        </div>
+        <Field label="Product category" htmlFor="product-category">
+          <select id="product-category" value={category} onChange={(event) => {
+            setCategory(event.target.value as Category | "all");
+            setOffset(0);
+          }}>
+            <option value="all">All categories</option>
+            {(Object.keys(categoryLabels) as Category[]).map((option) => (
+              <option key={option} value={option}>{categoryLabels[option]}</option>
             ))}
           </select>
         </Field>
-        <button className="secondary" data-cta="C04" onClick={clearFilters}>
-          Clear filters
-        </button>
+        <label className="notice">
+          <input type="checkbox" checked={aiConsent}
+            onChange={(event) => setAiConsent(event.target.checked)} />{" "}
+          I agree to send this search to OpenRouter to suggest the product’s likely owning company.
+          Shelf does not treat that ownership suggestion as verified.
+        </label>
+        <div className="actions">
+          <button disabled={!query.trim() || !aiConsent || resolving} onClick={findProductOwner}>
+            {resolving ? "Finding owner…" : "Find company behind product"}
+          </button>
+          <button className="secondary" data-cta="C04" onClick={clearFilters}>Clear filters</button>
+        </div>
         <ErrorMessage message={error} />
       </div>
-      {initialEntity !== "company" ? <section className="section">
-        {results.length ? (
-          <div className="grid">
-            {results.map((product) => (
-              <ProductCard key={product.id} productId={product.id} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="No reviewed match"
-            action={
-              <CtaLink id="C01" href="/scan">
-                Scan instead
-              </CtaLink>
-            }
-          >
-            Try another spelling or scan the package. Shelf will not invent an investment from an
-            unknown name.
-          </EmptyState>
-        )}
+      <section className="section">
+        <h2>{category === "all" ? "Reviewed product examples" : `${categoryLabels[category]} products`}</h2>
+        <p className="muted">These reviewed product relationships are browsing examples, not live issuer listings or proof that a token can be purchased.</p>
+        {visibleProducts.length ? <div className="grid">
+          {visibleProducts.map((product) => <ProductCard key={product.id} productId={product.id} />)}
+        </div> : <EmptyState title="No reviewed products">Try another category or search term.</EmptyState>}
+      </section>
+      {matches.length ? <section className="section">
+        <h2>AI owner suggestions</h2>
+        <p className="muted">Check the product-to-company relationship yourself. The issuer feed confirms only the listed token identity.</p>
+        <div className="grid">{matches.map((match) => (
+          <Card key={match.candidateId}>
+            <h3>{match.displayLabel}</h3>
+            <p>Likely owner: {match.ownerName ?? "Unknown"}</p>
+            {match.feedUnavailable ? <p className="notice">An issuer feed was unavailable, so this search may have missed a token.</p> : null}
+            {match.feedStale ? <p className="notice">Issuer data is stale. A purchase needs a fresh recheck.</p> : null}
+            {match.issuer && match.symbol ? (
+              <Link className="button" href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol)}` as Route}>
+                View {match.symbol} on {match.issuer === "xstocks" ? "xStocks" : "PreStocks"}
+              </Link>
+            ) : <p className="muted">No matching issuer token was found.</p>}
+          </Card>
+        ))}</div>
       </section> : null}
       <section className="section">
-        <h2>Companies and investment products</h2>
-        {companyResults.length ? (
-          <div className="grid">
-            {companyResults.map((company) => (
-              <CompanyCard company={company} key={company.id} />
-            ))}
-          </div>
-        ) : (
-          <p className="muted">No reviewed company or issuer instrument matches these filters.</p>
-        )}
+        <h2>Current issuer listings</h2>
+        {unavailable.length ? <p className="notice">{unavailable.join(" and ")} feed unavailable; results may be incomplete.</p> : null}
+        {stale.length ? <p className="notice">{stale.join(" and ")} data is stale. Open an asset to refresh before any purchase.</p> : null}
+        {loading ? <p className="muted">Loading issuer feeds…</p> : feedResults.length
+          ? <div className="grid">{feedResults.map((listing) => (
+              <IssuerCard listing={listing} key={listing.asset.companyId} />
+            ))}</div>
+          : <EmptyState title="No issuer result">Try another company name or use AI to find a product’s owner.</EmptyState>}
+        {total > 50 ? <div className="actions">
+          <button className="secondary" disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>
+          <span className="muted">{offset + 1}–{Math.min(offset + 50, total)} of {total}</span>
+          <button className="secondary" disabled={offset + 50 >= total}
+            onClick={() => setOffset(offset + 50)}>Next</button>
+        </div> : null}
       </section>
     </>
   );
@@ -404,9 +459,21 @@ export function ScanScreen() {
     try {
       let response: RecognitionMatch[];
       if (selectedMode === "barcode") {
-        response = await postJson("discovery/barcode", { gtin: barcode });
+        if (!aiConsent) throw new Error("AI processing consent is required.");
+        response = await postJson("discovery/barcode", {
+          gtin: barcode,
+          aiProcessingConsentAccepted: true,
+          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
+          acknowledgeAiProcessing: true,
+        });
       } else if (selectedMode === "link") {
-        response = await postJson("discovery/link", { url });
+        if (!aiConsent) throw new Error("AI processing consent is required.");
+        response = await postJson("discovery/link", {
+          url,
+          aiProcessingConsentAccepted: true,
+          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
+          acknowledgeAiProcessing: true,
+        });
       } else {
         if (!imageDataUrl) throw new Error("Choose or capture an image first.");
         if (!aiConsent) throw new Error("AI processing consent is required.");
@@ -496,16 +563,19 @@ export function ScanScreen() {
         )}
       </div>
       <Card className="section stack">
-        {["camera", "upload", "screenshot", "receipt"].includes(mode) ? (
+        {["camera", "barcode", "upload", "screenshot", "receipt", "link"].includes(mode) ? (
           <label className="notice">
             <input
               type="checkbox"
               checked={aiConsent}
               onChange={(event) => setAiConsent(event.target.checked)}
             />{" "}
-            I agree to send this image to OpenRouter for this recognition request. Shelf does not
-            retain the image, but OpenRouter and its selected model provider process it under their
-            privacy policies. I have removed unnecessary personal or payment details.
+            I agree to send this {mode === "link"
+              ? "product name from the approved link"
+              : mode === "barcode" ? "barcode to Open Food Facts and the returned product name" : "image"}
+            {" "}to OpenRouter for recognition and an ownership suggestion. Shelf does not retain
+            the image, but the provider processes submitted content under its privacy policies.
+            I have removed unnecessary personal or payment details.
           </label>
         ) : null}
         {mode === "camera" ? (
@@ -542,7 +612,7 @@ export function ScanScreen() {
           <Field
             label="Enter barcode"
             htmlFor="barcode"
-            hint="Leading zeros are preserved. Shelf validates reviewed matches before showing a company."
+            hint="Leading zeros are preserved. Shelf looks up a product name in public product databases, then asks AI for a likely owner."
           >
             <input
               id="barcode"
@@ -550,7 +620,7 @@ export function ScanScreen() {
               value={barcode}
               onChange={(event) => setBarcode(event.target.value.replace(/\D/g, ""))}
             />
-            <button data-cta="C09" onClick={() => recognize("barcode")}>
+            <button data-cta="C09" disabled={!aiConsent} onClick={() => recognize("barcode")}>
               Enter barcode
             </button>
           </Field>
@@ -597,7 +667,7 @@ export function ScanScreen() {
           <Field
             label="Approved product link"
             htmlFor="product-url"
-            hint="Version one supports the reviewed Apple iPhone path. Other sites can be scanned from a screenshot."
+            hint="Only the approved Apple iPhone path is supported. Other sites can be scanned from a screenshot."
           >
             <input
               id="product-url"
@@ -606,14 +676,14 @@ export function ScanScreen() {
               value={url}
               onChange={(event) => setUrl(event.target.value)}
             />
-            <button data-cta="C12" onClick={() => recognize("link")}>
+            <button data-cta="C12" disabled={!aiConsent} onClick={() => recognize("link")}>
               Find products
             </button>
           </Field>
         ) : null}
         {mode === "search" ? (
           <CtaLink id="C02" href="/discover?focus=search">
-            Search the catalog
+            Search current issuer feeds
           </CtaLink>
         ) : null}
         <ErrorMessage message={error} />
@@ -636,16 +706,35 @@ export function ScanResultsScreen() {
     return stored ? (JSON.parse(stored) as RecognitionMatch[]) : [];
   });
   const [selected, setSelected] = useState<string[]>([]);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function saveSelected() {
-    const productIds = matches
-      .filter((match) => selected.includes(match.candidateId))
-      .flatMap((match) => (match.productId ? [match.productId] : []));
-    const existing = JSON.parse(sessionStorage.getItem("shelf:guest-items") ?? "[]") as string[];
-    sessionStorage.setItem(
-      "shelf:guest-items",
-      JSON.stringify([...new Set([...existing, ...productIds])]),
-    );
+    const chosen = matches.filter((match) => selected.includes(match.candidateId));
+    const companyIds = [...new Set(chosen.flatMap((match) =>
+      match.companyId ? [match.companyId] : [],
+    ))];
+    if (!companyIds.length) {
+      setSaveError("No issuer asset was found. Search by company name to correct the match.");
+      return;
+    }
+    try {
+      const signedIn = await apiRequest("me").then(() => true).catch(() => false);
+      if (signedIn) {
+        for (const companyId of companyIds) {
+          await postJson("watchlist/items", { companyId });
+        }
+        setSaveMessage("Saved to your private watchlist.");
+      } else {
+        const existing = JSON.parse(sessionStorage.getItem("shelf:guest-issuer-assets") ?? "[]") as string[];
+        sessionStorage.setItem("shelf:guest-issuer-assets",
+          JSON.stringify([...new Set([...existing, ...companyIds])]));
+        setSaveMessage("Saved in this browser session. Sign in to keep it on your watchlist.");
+      }
+      setSaveError(null);
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : "Could not save this asset");
+    }
   }
 
   if (!matches.length) {
@@ -658,7 +747,7 @@ export function ScanResultsScreen() {
           </CtaLink>
         }
       >
-        Scan again or search the reviewed catalog.
+        Scan again or search the current issuer feeds.
       </EmptyState>
     );
   }
@@ -667,18 +756,35 @@ export function ScanResultsScreen() {
     <>
       <PageIntro eyebrow="Recognition result" title="Check the matches">
         <p>
-          Each product needs your confirmation. A product match and a supported investment are
-          separate facts.
+          AI suggested a product owner. Confirm that relationship yourself. xStocks and PreStocks
+          supply the token identity only; a fresh Jupiter route is checked later.
         </p>
       </PageIntro>
       <div className="grid">
         {matches.map((match) => (
           <Card key={match.candidateId}>
-            <span className="badge">{match.state}</span>
+            <span className="badge">{match.state === "matched" ? "Issuer token found" : "No issuer token found"}</span>
             <h3>{match.displayLabel}</h3>
             <p className="muted">
-              Confidence: {match.confidenceBand}. Confirm against the package.
+              Likely owner: {match.ownerName ?? "Unknown"}. AI ownership suggestion; check it
+              independently before investing.
             </p>
+            {match.productIdentitySource ? (
+              <p className="muted">
+                Product name from{" "}
+                <a href={match.productIdentitySource} target="_blank" rel="noreferrer">
+                  the public product database
+                </a>. Community data may be incomplete or incorrect.
+              </p>
+            ) : null}
+            {match.issuer && match.symbol ? (
+              <p className="muted">
+                {match.issuer === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}
+                {" "}· {match.symbol} · mint {match.mint}
+              </p>
+            ) : null}
+            {match.feedUnavailable ? <p className="notice">An issuer feed was unavailable, so this scan may have missed a token.</p> : null}
+            {match.feedStale ? <p className="notice">Issuer data is stale. A purchase requires a fresh recheck.</p> : null}
             <div className="actions">
               <button
                 data-cta="C13"
@@ -702,13 +808,13 @@ export function ScanResultsScreen() {
               >
                 Remove result
               </button>
-              {match.companyId ? (
+              {match.issuer && match.symbol ? (
                 <Link
                   className="button ghost"
                   data-cta="C16"
-                  href={`/companies/${companyById(match.companyId)?.slug ?? match.companyId}`}
+                  href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol)}` as Route}
                 >
-                  View company
+                  View issuer asset
                 </Link>
               ) : null}
             </div>
@@ -723,6 +829,8 @@ export function ScanResultsScreen() {
           View temporary saved items
         </Link>
       </div>
+      {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}
+      <ErrorMessage message={saveError} />
     </>
   );
 }
@@ -1021,6 +1129,10 @@ export function ShelfScreen() {
     return JSON.parse(sessionStorage.getItem("shelf:guest-items") ?? "[]") as string[];
   });
   const [summary, setSummary] = useState("");
+  const [guestIssuerIds, setGuestIssuerIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    return JSON.parse(sessionStorage.getItem("shelf:guest-issuer-assets") ?? "[]") as string[];
+  });
   const [name, setName] = useState("My shelf");
   const [version, setVersion] = useState(1);
   const [proposedOrder, setProposedOrder] = useState<string[]>([]);
@@ -1033,6 +1145,19 @@ export function ShelfScreen() {
     apiRequest("me")
       .then(async () => {
         setSignedIn(true);
+        const pendingIssuerIds = JSON.parse(
+          sessionStorage.getItem("shelf:guest-issuer-assets") ?? "[]",
+        ) as string[];
+        const failedIssuerIds: string[] = [];
+        for (const companyId of pendingIssuerIds) {
+          try {
+            await postJson("watchlist/items", { companyId });
+          } catch {
+            failedIssuerIds.push(companyId);
+          }
+        }
+        sessionStorage.setItem("shelf:guest-issuer-assets", JSON.stringify(failedIssuerIds));
+        setGuestIssuerIds(failedIssuerIds);
         const [companies, shelf] = await Promise.all([
           apiRequest<Company[]>("watchlist"),
           apiRequest<{ name: string; version: number; items: Array<{ id: string }> }>("shelf"),
@@ -1188,7 +1313,11 @@ export function ShelfScreen() {
                   <h3>{company.name}</h3>
                   <p className="muted">{company.instrument?.symbol}</p>
                   <div className="actions">
-                    <Link className="button" href={`/companies/${company.slug}`}>
+                    <Link className="button" href={(
+                      company.id.startsWith("issuer:") && company.instrument
+                        ? `/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}`
+                        : `/companies/${company.slug}`
+                    ) as Route}>
                       Research
                     </Link>
                     <button className="ghost" onClick={() => removeWatchedCompany(company.id)}>
@@ -1213,7 +1342,7 @@ export function ShelfScreen() {
         </section>
       ) : null}
       <section className="section grid">
-        {(guestIds.length ? guestIds : ["product-doritos-snack", "product-olay-skincare"]).map(
+        {guestIds.map(
           (id) => (
             <Card key={id}>
               <ProductCard productId={id} />
@@ -1224,6 +1353,27 @@ export function ShelfScreen() {
           ),
         )}
       </section>
+      {!signedIn && guestIssuerIds.length ? (
+        <section className="section">
+          <h2>Issuer assets saved this session</h2>
+          <div className="grid">
+            {guestIssuerIds.map((companyId) => {
+              const [, provider, symbol] = companyId.split(":");
+              return <Card key={companyId}>
+                <p>{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"} · {symbol}</p>
+                <div className="actions">
+                  <Link className="button" href={`/assets/${provider}/${encodeURIComponent(symbol)}` as Route}>Research</Link>
+                  <button className="ghost" onClick={() => {
+                    const next = guestIssuerIds.filter((id) => id !== companyId);
+                    setGuestIssuerIds(next);
+                    sessionStorage.setItem("shelf:guest-issuer-assets", JSON.stringify(next));
+                  }}>Remove</button>
+                </div>
+              </Card>;
+            })}
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

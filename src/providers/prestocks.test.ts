@@ -15,14 +15,14 @@ const validRow = {
 };
 
 describe("PreStocks providers", () => {
-  it("accepts only a reviewed symbol and exact mint pair", async () => {
+  it("uses every valid current PreStocks asset, including new symbols", async () => {
     const send: typeof fetch = async () => new Response(
         JSON.stringify([
           validRow,
           {
             ...validRow,
             symbol: "UNREVIEWED",
-            contract_address: "UnknownMint111111111111111111111111111111",
+            contract_address: "11111111111111111111111111111111",
           },
         ]),
         { status: 200 },
@@ -31,14 +31,15 @@ describe("PreStocks providers", () => {
 
     const listings = await provider.listings();
 
-    expect(listings).toHaveLength(1);
+    expect(listings).toHaveLength(2);
     expect(listings[0]).toMatchObject({
-      companyId: "company-openai",
+      companyId: "issuer:prestocks:OPENAI",
       symbol: "OPENAI",
       mint: validRow.contract_address,
       markPriceUsd: "996.02",
       premiumLabel: "10.93% premium",
     });
+    expect(listings[1].companyId).toBe("issuer:prestocks:UNREVIEWED");
   });
 
   it("rejects a configured endpoint outside the issuer host", () => {

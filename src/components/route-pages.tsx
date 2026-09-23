@@ -22,7 +22,6 @@ import {
 } from "@/components/screens/account";
 import {
   BasketScreen,
-  BuyScreen,
   HistoryScreen,
   HoldingScreen,
   OrderReviewScreen,
@@ -77,6 +76,7 @@ export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery 
   const query = await searchParams;
   return (
     <SearchScreen
+      key={`${first(query.category) ?? ""}|${first(query.market) ?? ""}|${first(query.q) ?? ""}`}
       initialCategory={first(query.category)}
       initialEntity={first(query.entity)}
       initialMarket={first(query.market)}
@@ -113,6 +113,9 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const company = companyBySlug(slug);
+  if (company?.instrument) {
+    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}` as Route);
+  }
   if (company) return <CompanyScreen companyId={company.id} />;
 
   const legacyCompany = companyById(slug);
@@ -204,8 +207,10 @@ export async function InvestmentPage({ params }: { params: AsyncParams<{ company
     if (legacyCompany) permanentRedirect(`/invest/${legacyCompany.slug}`);
     notFound();
   }
-  await requirePageUser(`/invest/${company.slug}`);
-  return <BuyScreen companyId={company.id} />;
+  if (company.instrument) {
+    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}/buy` as Route);
+  }
+  notFound();
 }
 
 export async function BasketPage({ searchParams }: { searchParams: AsyncQuery }) {

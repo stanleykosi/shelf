@@ -26,8 +26,10 @@ export interface VisionProvider {
     mediaType: "image/jpeg" | "image/png" | "image/webp",
     task: "photo" | "screenshot" | "receipt",
     policy: PrivacyPolicy,
-  ): Promise<{ names: string[]; usageMicrousd: number }>;
+  ): Promise<{ candidates: OwnershipCandidate[]; usageMicrousd: number }>;
 }
+
+export type OwnershipCandidate = { productName: string; companyNames: string[] };
 
 export interface EducationProvider {
   answer(

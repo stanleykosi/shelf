@@ -75,6 +75,7 @@ describe("frontend route architecture", () => {
       "/companies/pepsico",
       "/saved",
       "/share/token",
+      "/assets/xstocks/PEPx",
     ]) {
       expect(pageAccess(path)).toBe("public");
     }
@@ -86,6 +87,7 @@ describe("frontend route architecture", () => {
       "/invest/pepsico",
       "/orders/id/review",
       "/portfolio/activity/record-id",
+      "/assets/prestocks/SPACEX/buy",
       "/wallet",
       "/history",
     ]) {
@@ -157,6 +159,8 @@ describe("frontend route architecture", () => {
       "/portfolio/instrument-id",
       "/portfolio/instrument-id/sell",
       "/portfolio/activity/record-id",
+      "/assets/prestocks/SPACEX/buy",
+      "/assets/xstocks/PEPx",
     ]) {
       expect(safeReturnTo(destination)).toBe(destination);
     }
@@ -170,6 +174,9 @@ describe("frontend route architecture", () => {
       "/orders/order-id/review/extra",
       "/portfolio/instrument-id/unknown",
       "/portfolio/activity/record-id/extra",
+      "/assets/unknown/PEPx/buy",
+      "/assets/prestocks/%2Faccount/buy",
+      "/assets/prestocks/SPACEX/buy/extra",
     ]) {
       expect(safeReturnTo(destination)).toBe("/onboarding");
     }

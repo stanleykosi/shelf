@@ -188,7 +188,10 @@ try {
             "image/png",
             testCase.kind === "receipt" ? "receipt" : "screenshot",
             REQUIRED_AI_PRIVACY,
-          )
+          ).then((result) => ({
+            names: result.candidates.map((candidate) => candidate.productName),
+            usageMicrousd: result.usageMicrousd,
+          }))
         : await recognizeThroughShelf(benchmarkUrl!, image, testCase);
       const latencyMs = Math.round(performance.now() - startedAt);
       totalCostMicrousd += response.usageMicrousd;
@@ -287,13 +290,13 @@ async function recognizeThroughShelf(url: string, image: Buffer, testCase: Bench
     signal: AbortSignal.timeout(45_000),
   });
   const payload = (await response.json()) as {
-    data?: { names?: string[]; usageMicrousd?: number };
+    data?: Array<{ displayLabel: string }>;
     error?: { code?: string };
   };
   if (!response.ok) throw new Error(payload.error?.code ?? `HTTP_${response.status}`);
   return {
-    names: payload.data?.names ?? [],
-    usageMicrousd: payload.data?.usageMicrousd ?? 0,
+    names: payload.data?.map((candidate) => candidate.displayLabel) ?? [],
+    usageMicrousd: 0,
   };
 }
 

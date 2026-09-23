@@ -1,5 +1,20 @@
 # Catalog, issuer data, pricing and corporate actions
 
+## Active issuer-feed discovery (U24, 2026-09-23)
+
+Typed issuer browse reads all pages of the xStocks public assets endpoint and all valid Solana
+PreStocks rows. Image and product-name searches infer a likely owner with AI and match its name
+against those feeds. Product ownership is labeled as unverified; the issuer feed verifies only
+the token's reported symbol and mint. No presaved company or product row limits discovery.
+Barcode mode obtains a product-name clue from public Open Food/Beauty/Products Facts, then uses
+the same AI and issuer-join path; a missing barcode result stays unresolved.
+Before a selected asset becomes an order instrument, Shelf re-fetches the issuer listing,
+inspects the mint's token program and decimals through Helius, and persists that identity.
+Before Jupiter builds an exact-input route it re-fetches the issuer and requires the same mint.
+Issuer xChange atomic-swap support describes a separate primary-market path and does not gate
+Jupiter secondary-market liquidity; issuer trading halts and Jupiter's own route checks still
+fail closed. Existing catalog rows below remain for historical saved content, not active search.
+
 ## Verified relationship registry
 
 The registry—not a model—is the authority connecting a product to a company and an allowed instrument. Store product family/SKU, brand, relationship type, global parent and relevant regional facts separately.

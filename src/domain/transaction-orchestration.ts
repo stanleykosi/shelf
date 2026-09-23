@@ -1,4 +1,3 @@
-import { companyById } from "@/data/catalog";
 import { env } from "@/lib/env";
 import type { HeliusChainProvider } from "@/providers/live";
 import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
@@ -11,6 +10,7 @@ import {
 import {
   markLegConfirmed,
   markLegTerminal,
+  findCompany,
   ownedOrder,
   recordFinalizedLeg,
   replaceStoreState,
@@ -121,7 +121,7 @@ async function applyKnownStatus(
     };
   }
 
-  const company = leg.companyId ? companyById(leg.companyId) : undefined;
+  const company = leg.companyId ? findCompany(leg.companyId) : undefined;
   if (!leg.quote || !company?.instrument || !user.walletAddress) {
     throw new Error("RECONCILIATION_REQUIRED");
   }

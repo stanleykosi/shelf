@@ -14,7 +14,9 @@ describe("OpenRouterProvider", () => {
     const requests: Array<RequestInit | undefined> = [];
     const send: typeof fetch = async (_input, init) => {
       requests.push(init);
-      return responseWithContent(JSON.stringify({ names: ["iPhone"] }), 0.000001);
+      return responseWithContent(JSON.stringify({
+        candidates: [{ productName: "iPhone", companyNames: ["Apple"] }],
+      }), 0.000001);
     };
     const provider = new OpenRouterProvider({
       apiKey: "test-key",
@@ -93,7 +95,7 @@ describe("OpenRouterProvider", () => {
   it("retries one malformed response and includes both attempts in the cost", async () => {
     const responses = [
       responseWithContent("not json", 0.000002),
-      responseWithContent(JSON.stringify({ names: [] }), 0.000003),
+      responseWithContent(JSON.stringify({ candidates: [] }), 0.000003),
     ];
     let requestCount = 0;
     const send: typeof fetch = async () => responses[requestCount++];
@@ -111,7 +113,7 @@ describe("OpenRouterProvider", () => {
         "photo",
         REQUIRED_AI_PRIVACY,
       ),
-    ).resolves.toEqual({ names: [], usageMicrousd: 5 });
+    ).resolves.toEqual({ candidates: [], usageMicrousd: 5 });
     expect(requestCount).toBe(2);
   });
 
@@ -123,7 +125,9 @@ describe("OpenRouterProvider", () => {
       textModel: "test-text",
       fetch: async () => {
         requestCount += 1;
-        return responseWithContent(JSON.stringify({ names: [123] }), 0.000001);
+        return responseWithContent(JSON.stringify({
+          candidates: [{ productName: 123, companyNames: ["Apple"] }],
+        }), 0.000001);
       },
     });
 

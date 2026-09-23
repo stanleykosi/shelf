@@ -208,6 +208,7 @@ function PublicMarketSection({
               </p>
               <MarketCardActions
                 companyId={listing.companyId}
+                provider="xstocks"
                 symbol={listing.symbol}
                 watched={watched.includes(listing.companyId)}
                 onWatch={onWatch}
@@ -280,6 +281,7 @@ function PrivateMarketSection({
                 ) : null}
                 <MarketCardActions
                   companyId={listing.companyId}
+                  provider="prestocks"
                   symbol={listing.symbol}
                   watched={watched.includes(listing.companyId)}
                   onWatch={onWatch}
@@ -307,21 +309,23 @@ function PrivateMarketSection({
 
 function MarketCardActions({
   companyId,
+  provider,
   symbol,
   watched,
   onWatch,
 }: {
   companyId: string;
+  provider: "xstocks" | "prestocks";
   symbol: string;
   watched: boolean;
   onWatch: (companyId: string) => Promise<void>;
 }) {
   return (
     <div className="actions market-actions">
-      <Link className="button" href={`/invest/buy?companyId=${companyId}`}>
+      <Link className="button" href={`/assets/${provider}/${encodeURIComponent(symbol)}/buy` as Route}>
         Buy {symbol}
       </Link>
-      <Link className="button secondary" href={`/companies/${companyId}`}>
+      <Link className="button secondary" href={`/assets/${provider}/${encodeURIComponent(symbol)}` as Route}>
         Research
       </Link>
       <button className="ghost" disabled={watched} onClick={() => onWatch(companyId)}>

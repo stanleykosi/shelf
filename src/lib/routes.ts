@@ -83,6 +83,14 @@ function isKnownDynamicPath(pathname: string) {
   if (segments[0] !== "") return false;
 
   if (
+    segments[1] === "assets" &&
+    (segments.length === 4 || (segments.length === 5 && segments[4] === "buy")) &&
+    (segments[2] === "xstocks" || segments[2] === "prestocks") &&
+    isSafePathSegment(segments[3]) &&
+    /^[a-zA-Z0-9.-]{1,32}$/.test(segments[3] ?? "")
+  ) return true;
+
+  if (
     segments.length === 3 &&
     singleSegmentRoutes.has(segments[1] ?? "") &&
     isSafePathSegment(segments[2])
@@ -190,6 +198,7 @@ export function activePrimarySection(pathname: string): PrimarySection | null {
     pathname.startsWith("/products/") ||
     pathname.startsWith("/brands/") ||
     pathname.startsWith("/companies/") ||
+    pathname.startsWith("/assets/") ||
     pathname === "/learn" ||
     pathname.startsWith("/learn/") ||
     pathname === "/assistant"

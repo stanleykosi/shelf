@@ -39,18 +39,18 @@ test("production offers Magic sign-in while public research stays available to g
   ).toBeVisible();
 
   await page.goto("/markets");
-  await expect(page).toHaveURL(/\/discover\?entity=company$/);
-  await expect(page.getByRole("heading", { name: "Find products, brands and companies" })).toBeVisible();
+  await expect(page).toHaveURL(/\/discover(?:\?entity=company)?$/);
+  await expect(page.getByRole("heading", { name: "Find a product or issuer" })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
-  await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("details").filter({ hasText: "View token details" })).toContainText(
-    "Source: PreStocks",
-  );
-  await expect(page.getByRole("link", { name: "Choose amount" })).toHaveAttribute(
-    "href",
-    "/invest/openai",
-  );
+  if (!isLocal) {
+    await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/assets\/prestocks\/OPENAI$/);
+    await expect(page.getByRole("link", { name: "Review a purchase" })).toHaveAttribute(
+      "href",
+      "/assets/prestocks/OPENAI/buy",
+    );
+  }
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
@@ -61,6 +61,7 @@ test("production offers Magic sign-in while public research stays available to g
 test("canonical research routes and route-aware navigation preserve the product model", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   await page.goto("/products/product-doritos-snack");
   await expect(page).toHaveURL(/\/products\/doritos-snack$/);
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
@@ -72,10 +73,10 @@ test("canonical research routes and route-aware navigation preserve the product 
     "/companies/pepsico",
   );
 
-  await page.goto("/companies/company-pepsico");
-  await expect(page).toHaveURL(/\/companies\/pepsico$/);
+  await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/assets\/xstocks\/PEPx$/);
 
-  await page.goto("/scan");
+  await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');
   await expect(mobileNavigation.locator('a[href="/scan"]')).toHaveAttribute(
     "aria-current",

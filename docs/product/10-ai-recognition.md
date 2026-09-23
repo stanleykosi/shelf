@@ -1,5 +1,15 @@
 # AI, recognition and allocation specification
 
+## Active discovery decision (U24, 2026-09-23)
+
+For image scans, OpenRouter returns product names and likely current parent-company names in one
+strictly structured response. For typed product searches, the same ownership inference runs only
+after an explicit AI action and consent. These relationships are **unverified AI suggestions**.
+The deterministic backend joins company names to current xStocks and PreStocks listings; issuer
+symbol and mint are never accepted from AI. Users can correct a mismatch through issuer search.
+An unresolved product stays unresolved. The older reviewed-catalog recognition and relationship
+instructions below are historical guidance for retained records, not the active lookup flow.
+
 AI is a required product feature, not a decorative chatbot. Its authority is limited to proposed recognition, grounded explanation, organization and editable investment/ allocation ideas. It cannot sign, transfer, approve a company relationship, publish catalog changes or execute orders.
 
 ## Provider and privacy contract

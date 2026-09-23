@@ -5,6 +5,7 @@ Use this as the completion checklist in the application repository. References i
 | User choice | Product requirement | Main screen / API area | Acceptance |
 |---|---|---|---|
 | U01 newcomers + experienced | PR03, PR16, PR24 | S05/S06/S17; sources + details disclosures | T03,T22,T29,T35 |
+| U24 live issuer-feed discovery | PR01–PR04, PR09, PR16 | /issuer/search, /discovery/search, /discovery/image, /assets/*, /orders; AI owner suggestion → exact issuer mint → Helius inspection → Jupiter | issuer pagination, AI schema/privacy, name join, changed mint rejection, browser purchase path |
 | U02 English/global ambition | PR03, PR23 | S13 /eligibility/check, /capabilities | T03,T33 |
 | U03 private real-money prototype | PR07–PR15, PR22–PR26 | financial routes, invites, release gates | T06–T21,T30–T35; R0–R2 |
 | U04 mobile-first web | PR01, PR24 | S01–S27 responsive contract | T01,T29,T35 |
@@ -73,4 +74,3 @@ Generic close/back/cancel/accordion/permission-help controls inherit document03'
 - PR13/PR15 require raw-unit arithmetic, historical snapshots, lot attribution and valuation to agree.
 
 A feature is incomplete if one of these layers is only a placeholder. No requirement is satisfied merely by adding a button with its name.
-

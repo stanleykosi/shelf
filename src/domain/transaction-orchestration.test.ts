@@ -666,6 +666,43 @@ describe("transaction execution safety and recovery", () => {
     expect(user.cashRaw).toBe("10000000");
   });
 
+  it("reconciles all holdings sharing one mint before assigning external inventory", async () => {
+    const legacy = companyById("company-pepsico")!;
+    const instrument = legacy.instrument!;
+    const issuerId = "issuer:xstocks:PEPx";
+    state.issuerCompanies.set(issuerId, {
+      ...legacy, id: issuerId, slug: issuerId,
+      instrument: { ...instrument, id: issuerId },
+    });
+    try {
+      const user = userForMagicIdentity({
+        issuer: "did:magic:shared-mint-refresh",
+        walletAddress: Keypair.generate().publicKey.toBase58(),
+      });
+      user.holdings = [
+        { instrumentId: instrument.id, companyId: legacy.id, symbol: instrument.symbol,
+          rawAmount: "100", reservedRaw: "0", externalRaw: "0", decimals: 8,
+          multiplier: "1", totalCostUsdcRaw: "1000000" },
+        { instrumentId: issuerId, companyId: issuerId, symbol: instrument.symbol,
+          rawAmount: "200", reservedRaw: "0", externalRaw: "0", decimals: 8,
+          multiplier: "1", totalCostUsdcRaw: "2000000" },
+      ];
+      let mintBalance = "250";
+      const provider = chain({ balances: async () => ({
+        [SOLANA_MAINNET_USDC_MINT]: "0", [instrument.mint]: mintBalance,
+      }) });
+      await refreshVerifiedWalletBalances(provider, user);
+      expect(user.reconciliationRequiredAssets).toEqual(expect.arrayContaining([instrument.id, issuerId]));
+      expect(user.holdings.map((holding) => holding.externalRaw)).toEqual(["0", "0"]);
+      mintBalance = "350";
+      await refreshVerifiedWalletBalances(provider, user);
+      expect(user.reconciliationRequiredAssets).toEqual([]);
+      expect(user.holdings.reduce((sum, holding) => sum + BigInt(holding.externalRaw), 0n)).toBe(50n);
+    } finally {
+      state.issuerCompanies.delete(issuerId);
+    }
+  });
+
   it("persists one reconciliation error and continues to a later finalized signature", async () => {
     const first = seededSubmittedPreparation();
     const second = seededSubmittedPreparation();

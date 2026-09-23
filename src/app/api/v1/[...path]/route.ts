@@ -2,12 +2,8 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   articles,
-  companies,
-  companyById,
   corporateActions,
   productById,
-  products,
-  sources,
 } from "@/data/catalog";
 import {
   createOrder,
@@ -15,14 +11,13 @@ import {
   consumeMagicDidToken,
   deleteAccountData,
   equalAllocations,
+  findCompany,
   ownedOrder,
   quoteLegFromJupiter,
   requireFinancialAccess,
   readShare,
   reviewCatalogReport,
   revokeInvite,
-  searchCatalog,
-  searchCompanies,
   shelfView,
   state,
   stopOrder,
@@ -58,11 +53,21 @@ import type {
 } from "@/domain/identity";
 import type { MarketFeed } from "@/domain/market-data";
 import type { RecognitionMatch } from "@/domain/types";
+import {
+  companyFromIssuerListing,
+  corporateActionsForIssuerInstrument,
+  matchOwnershipCandidates,
+  reviewedCompanyForListing,
+  searchIssuerListings,
+  type IssuerListing,
+} from "@/domain/issuer-assets";
+import type { OwnershipCandidate } from "@/providers/contracts";
 import { readMarketHistory, runWithRuntimeState } from "@/db/runtime-store";
 import { LivePreStocksProvider } from "@/providers/prestocks";
 import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
-import { verifyCurrentIssuerInstrument } from "@/providers/issuer-verification";
+import { lookupBarcodeProduct } from "@/providers/product-identity";
+import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "@/providers/issuer-verification";
 import type { XStocksListing } from "@/providers/xstocks";
 import { MagicIdentityProvider } from "@/providers/magic";
 import { HeliusChainProvider, JupiterBuildProvider } from "@/providers/live";
@@ -84,6 +89,8 @@ import {
   walletSigningMessage,
 } from "@/lib/solana-signing";
 import { SystemProgram } from "@solana/web3.js";
+
+export const maxDuration = 60;
 
 const ai = env.OPENROUTER_API_KEY
   ? new OpenRouterProvider({
@@ -146,12 +153,92 @@ async function xStocksListings(): Promise<MarketFeed<XStocksListing>> {
   return cachedListings(xStocksCache, () => xStocks.listings(), "XSTOCKS_UNAVAILABLE");
 }
 
-function verifyIssuerForExecution(company: NonNullable<ReturnType<typeof companyById>>) {
+async function issuerListings(): Promise<{
+  listings: IssuerListing[];
+  unavailable: string[];
+  stale: string[];
+}> {
+  const [publicFeed, privateFeed] = await Promise.allSettled([
+    xStocksListings(),
+    preStocksListings(),
+  ]);
+  const listings: IssuerListing[] = [
+    ...(privateFeed.status === "fulfilled"
+      ? privateFeed.value.listings.map((asset) => ({ provider: "prestocks" as const, asset }))
+      : []),
+    ...(publicFeed.status === "fulfilled"
+      ? publicFeed.value.listings.map((asset) => ({ provider: "xstocks" as const, asset }))
+      : []),
+  ];
+  const unavailable = [
+    ...(publicFeed.status === "rejected" ? ["xStocks"] : []),
+    ...(privateFeed.status === "rejected" ? ["PreStocks"] : []),
+  ];
+  const stale = [
+    ...(publicFeed.status === "fulfilled" && publicFeed.value.state === "stale" ? ["xStocks"] : []),
+    ...(privateFeed.status === "fulfilled" && privateFeed.value.state === "stale" ? ["PreStocks"] : []),
+  ];
+  if (unavailable.length === 2) throw new Error("ISSUER_FEEDS_UNAVAILABLE");
+  return { listings, unavailable, stale };
+}
+
+async function registerIssuerCompany(companyId: string) {
+  if (!companyId.startsWith("issuer:")) return;
+  if (!chain) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  const [, provider, symbol] = companyId.split(":");
+  let listing: IssuerListing | undefined;
+  if (provider === "xstocks") {
+    const asset = await xStocks.listing(symbol);
+    if (asset?.companyId === companyId) listing = { provider: "xstocks", asset };
+  } else if (provider === "prestocks") {
+    const asset = (await preStocks.listings()).find((item) => item.companyId === companyId);
+    if (asset) listing = { provider: "prestocks", asset };
+  }
+  if (!listing) throw new Error("ISSUER_INSTRUMENT_UNAVAILABLE");
+  const previous = state.issuerCompanies.get(companyId);
+  if (previous?.instrument?.mint && previous.instrument.mint !== listing.asset.mint) {
+    throw new Error("ISSUER_INSTRUMENT_CHANGED");
+  }
+  const [mint] = await chain.inspectMints([listing.asset.mint]);
+  if (!mint?.exists) throw new Error("ISSUER_MINT_INVALID");
+  const company = companyFromIssuerListing(listing, mint);
+  state.issuerCompanies.set(companyId, company);
+}
+
+async function prepareOrderCompany(companyId: string) {
+  if (companyId.startsWith("issuer:")) {
+    await registerIssuerCompany(companyId);
+    return;
+  }
+  const company = findCompany(companyId);
+  if (!company?.instrument) throw new Error("ASSET_UNSUPPORTED");
+  if (!chain) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  await verifyLegacyOrderInstrument(company, { prestocks: preStocks, xstocks: xStocks },
+    (mints) => chain.inspectMints(mints));
+}
+
+async function exactIssuerAsset(provider: string, symbol: string) {
+  if (!/^[a-zA-Z0-9.-]{1,32}$/.test(symbol)) throw new Error("INVALID_INPUT");
+  let listing: IssuerListing | undefined;
+  if (provider === "xstocks") {
+    const asset = await xStocks.listing(symbol);
+    if (asset?.symbol.toLowerCase() === symbol.toLowerCase()) listing = { provider, asset };
+  } else if (provider === "prestocks") {
+    const asset = (await preStocks.listings()).find((item) =>
+      item.symbol.toLowerCase() === symbol.toLowerCase());
+    if (asset) listing = { provider, asset };
+  } else {
+    throw new Error("INVALID_INPUT");
+  }
+  return { listing: listing ?? null, lifecycle: listing ? reviewedCompanyForListing(listing)?.instrument?.lifecycle : undefined };
+}
+
+function verifyIssuerForExecution(company: NonNullable<ReturnType<typeof findCompany>>) {
   return verifyCurrentIssuerInstrument(company, { prestocks: preStocks, xstocks: xStocks });
 }
 
 async function marketHistory(companyId: string) {
-  const company = companyById(companyId);
+  const company = findCompany(companyId);
   if (!company?.instrument) throw new Error("NOT_FOUND");
 
   const observed = await readMarketHistory(company.instrument.mint);
@@ -481,7 +568,7 @@ async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: stri
   if (!user.walletAddress || !user.walletVerifiedAt || !isSolanaPublicKey(user.walletAddress)) {
     throw new Error("SOLANA_WALLET_UNAVAILABLE");
   }
-  const company = leg.companyId ? companyById(leg.companyId) : undefined;
+  const company = leg.companyId ? findCompany(leg.companyId) : undefined;
   if (!company?.instrument) throw new Error("ASSET_UNSUPPORTED");
   if (!env.SPONSOR_PUBLIC_KEY || !env.FEE_USDC_TOKEN_ACCOUNT) {
     throw new Error("QUOTE_CONFIGURATION_INVALID");
@@ -560,7 +647,7 @@ async function prepareWalletSignature(
   const leg = ownedOrder(user, orderId).legs.find((candidate) => candidate.id === legId);
   if (!leg) throw new Error("NOT_FOUND");
   if (leg.side === "buy" && state.pauses.buys) throw new Error("PURCHASES_PAUSED");
-  const company = leg.companyId ? companyById(leg.companyId) : undefined;
+  const company = leg.companyId ? findCompany(leg.companyId) : undefined;
   if (company) await verifyIssuerForExecution(company);
   await refreshWalletBalances(user);
   const prepared = transactionForWalletSignature(user, orderId, legId, reviewDigest);
@@ -576,24 +663,31 @@ async function reconcileOrder(user: ReturnType<typeof currentUser>, orderId: str
 async function getResponse(request: NextRequest, path: string[]) {
   const url = request.nextUrl;
 
-  if (pathIs(path, "catalog", "search")) {
-    return searchCatalog(
-      url.searchParams.get("q") ?? "",
-      url.searchParams.get("category") ?? undefined,
-    );
-  }
-  if (pathIs(path, "catalog", "companies")) {
-    return searchCompanies(
-      url.searchParams.get("q") ?? "",
-      url.searchParams.get("provider") ?? undefined,
-    );
-  }
   if (pathIs(path, "catalog", "prestocks")) return preStocksListings();
   if (pathIs(path, "catalog", "xstocks")) return xStocksListings();
+  if (path.length === 4 && path[0] === "issuer" && path[1] === "asset") {
+    return exactIssuerAsset(path[2], path[3]);
+  }
+  if (pathIs(path, "issuer", "search")) {
+    const query = url.searchParams.get("q")?.trim() ?? "";
+    if (query.length > 120) throw new Error("INVALID_INPUT");
+    const offset = Number(url.searchParams.get("offset") ?? "0");
+    const provider = url.searchParams.get("provider");
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10_000) {
+      throw new Error("INVALID_INPUT");
+    }
+    if (provider && provider !== "xstocks" && provider !== "prestocks") {
+      throw new Error("INVALID_INPUT");
+    }
+    const { listings, unavailable, stale } = await issuerListings();
+    const matches = searchIssuerListings(query, listings)
+      .filter((listing) => !provider || listing.provider === provider);
+    return { listings: matches.slice(offset, offset + 50), total: matches.length, unavailable, stale };
+  }
   // History reads are handled before the runtime-state transaction in GET.
   // Keeping the route out of other methods makes the database boundary explicit.
   if (path[0] === "products" && path[1]) return productById(path[1]);
-  if (path[0] === "companies" && path[1]) return companyById(path[1]);
+  if (path[0] === "companies" && path[1]) return findCompany(path[1]);
   if (pathIs(path, "learn")) return articles;
   if (path[0] === "learn" && path[1]) return articles.find((item) => item.slug === path[1]);
   if (path[0] === "shares" && path[1]) return readShare(path[1]);
@@ -630,7 +724,13 @@ async function getResponse(request: NextRequest, path: string[]) {
   }
   if (pathIs(path, "history")) return user.records;
   if (path[0] === "history" && path[1]) return user.records.find((item) => item.id === path[1]);
-  if (pathIs(path, "corporate-actions")) return corporateActions;
+  if (pathIs(path, "corporate-actions")) {
+    const instrumentId = url.searchParams.get("instrumentId");
+    if (!instrumentId) return corporateActions;
+    const company = findCompany(user.holdings.find((item) => item.instrumentId === instrumentId)?.companyId ?? "");
+    if (company?.instrument?.id !== instrumentId) return [];
+    return corporateActionsForIssuerInstrument(company);
+  }
   if (path[0] === "corporate-actions" && path[1]) {
     return corporateActions.find((item) => item.id === path[1]);
   }
@@ -751,21 +851,15 @@ async function getResponse(request: NextRequest, path: string[]) {
   throw new Error("NOT_FOUND");
 }
 
-function recognitionMatches(names: string[]): RecognitionMatch[] {
-  return names.map((name, index) => {
-    const product = searchCatalog(name)[0];
-    const company = product ? undefined : searchCompanies(name)[0];
-    return {
-      candidateId: `candidate-${index + 1}`,
-      displayLabel: name,
-      productId: product?.id ?? null,
-      companyId: product?.companyId ?? company?.id ?? null,
-      state: product || company ? "matched" : "unlisted",
-      confidenceBand: product || company ? "high" : "low",
-      sourceIds: product?.sourceIds ?? [],
-      requiresConfirmation: true,
-    };
-  });
+async function recognitionMatches(candidates: OwnershipCandidate[]): Promise<RecognitionMatch[]> {
+  const { listings, stale, unavailable } = await issuerListings();
+  return matchOwnershipCandidates(candidates, listings).map((match) => ({
+    ...match,
+    feedUnavailable: unavailable.length > 0,
+    feedStale: match.issuer === "xstocks"
+      ? stale.includes("xStocks")
+      : match.issuer === "prestocks" && stale.includes("PreStocks"),
+  }));
 }
 
 function imageBytesFromDataUrl(value: unknown) {
@@ -824,6 +918,7 @@ function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
   if (subjectRequestsToday >= subject.dailyLimit) throw new Error("AI_USER_LIMIT_REACHED");
 
   const reservation = {
+    id: randomUUID(),
     at: new Date(now).toISOString(),
     costMicrousd: AI_REQUEST_RESERVE_MICROUSD,
     subjectHash: subject.hash,
@@ -833,12 +928,20 @@ function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
 }
 
 function settleAiUsage(
-  reservation: { at: string; costMicrousd: number } | null,
+  reservation: { id: string } | null,
   costMicrousd?: number,
 ) {
-  if (!reservation) return;
-  if (costMicrousd === undefined) return;
-  reservation.costMicrousd = costMicrousd;
+  if (!reservation || costMicrousd === undefined) return;
+  const usage = state.aiUsage.find((entry) => entry.id === reservation.id);
+  if (usage) usage.costMicrousd = costMicrousd;
+}
+
+async function reserveDiscoveryAiBudget(request: NextRequest) {
+  return runWithRuntimeState(true, async () => reserveAiBudget(aiQuotaSubject(request)));
+}
+
+async function settleDiscoveryAiUsage(reservation: { id: string }, costMicrousd: number) {
+  await runWithRuntimeState(true, async () => settleAiUsage(reservation, costMicrousd));
 }
 
 async function discoveryResponse(
@@ -849,10 +952,45 @@ async function discoveryResponse(
   if (pathIs(path, "discovery", "barcode")) {
     const gtin = String(body.gtin ?? "");
     if (!isValidGtin(gtin)) throw new Error("INVALID_BARCODE");
-    return recognitionMatches([gtin]);
+    if (!hasCurrentAiProcessingConsent(body) || body.acknowledgeAiProcessing !== true) {
+      throw new Error("AI_CONSENT_REQUIRED");
+    }
+    const product = await lookupBarcodeProduct(gtin);
+    if (!product) return [{
+      candidateId: "barcode-unresolved",
+      displayLabel: `Barcode ${gtin}`,
+      productId: null,
+      companyId: null,
+      state: "unlisted",
+      confidenceBand: "low",
+      sourceIds: [],
+      requiresConfirmation: true,
+    }] satisfies RecognitionMatch[];
+    if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+    const reservation = await reserveDiscoveryAiBudget(request);
+    const result = await ai.resolveOwnership(
+      [product.brand, product.name].filter(Boolean).join(" "),
+      REQUIRED_AI_PRIVACY,
+    );
+    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
+    return (await recognitionMatches(result.candidates)).map((match) => ({
+      ...match,
+      productIdentitySource: product.sourceUrl,
+    }));
   }
-  if (pathIs(path, "discovery", "link")) {
-    return recognitionMatches([productNameForApprovedUrl(String(body.url))]);
+  if (pathIs(path, "discovery", "search") || pathIs(path, "discovery", "link")) {
+    if (!hasCurrentAiProcessingConsent(body) || body.acknowledgeAiProcessing !== true) {
+      throw new Error("AI_CONSENT_REQUIRED");
+    }
+    if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+    const query = path[1] === "link"
+      ? productNameForApprovedUrl(String(body.url))
+      : String(body.query ?? "").trim();
+    if (!query || query.length > 120) throw new Error("INVALID_INPUT");
+    const reservation = await reserveDiscoveryAiBudget(request);
+    const result = await ai.resolveOwnership(query, REQUIRED_AI_PRIVACY);
+    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
+    return recognitionMatches(result.candidates);
   }
   if (pathIs(path, "discovery", "image")) {
     if (!hasCurrentAiProcessingConsent(body)) throw new Error("AI_CONSENT_REQUIRED");
@@ -861,10 +999,10 @@ async function discoveryResponse(
     const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
     if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
     const image = imageBytesFromDataUrl(body.imageDataUrl);
-    const reservation = reserveAiBudget(aiQuotaSubject(request));
+    const reservation = await reserveDiscoveryAiBudget(request);
     const result = await ai.recognize(image.bytes, image.mediaType, mode, REQUIRED_AI_PRIVACY);
-    settleAiUsage(reservation, result.usageMicrousd);
-    return recognitionMatches(result.names);
+    await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
+    return recognitionMatches(result.candidates);
   }
   return undefined;
 }
@@ -875,31 +1013,25 @@ async function aiResponse(path: string[], body: Record<string, unknown>, userId:
   if (pathIs(path, "ai", "answer")) {
     const question = String(body.question ?? "").trim();
     if (!question || question.length > 1_000) throw new Error("INVALID_INPUT");
+    const currentAssets = await issuerListings()
+      .then(({ listings }) => searchIssuerListings(question, listings).slice(0, 8))
+      .catch(() => [] as IssuerListing[]);
+    const approvedFacts = [
+      ...articles.map((article) => ({
+        id: `article:${article.slug}`,
+        title: article.title,
+        claim: article.body.join(" ").slice(0, 1500),
+      })),
+      ...currentAssets.map(({ provider, asset }) => ({
+        id: asset.companyId,
+        title: `${asset.name} · ${provider}`,
+        claim: `${provider} currently lists ${asset.name} as ${asset.symbol} on Solana mint ${asset.mint}. ${asset.description}`,
+      })),
+    ];
     const reservation = reserveAiBudget({
       hash: `user:${userId}`,
       dailyLimit: MEMBER_AI_REQUESTS_PER_DAY,
     });
-    const approvedFacts = sources.map((source) => ({
-      id: source.id,
-      title: source.title,
-      claim: [
-        ...products
-          .filter((product) => product.sourceIds.includes(source.id))
-          .map((product) => {
-            const company = companyById(product.companyId);
-            return `${product.name} (${product.brand}) has reviewed relationship ${product.relationship} to ${company?.name ?? "unknown"} for ${product.region}.`;
-          }),
-        ...companies
-          .filter((company) =>
-            source.id === "src-xstocks"
-              ? company.instrument?.provider === "xstocks"
-              : source.id === "src-prestocks-api" || source.id === "src-prestocks-disclosures"
-                ? company.instrument?.provider === "prestocks"
-                : false,
-          )
-          .map((company) => `${company.name}: ${company.description}`),
-      ].join(" ") || `${source.publisher} is an approved Shelf source titled ${source.title}.`,
-    }));
     const result = await ai.answer(
       { question, approvedFacts },
       REQUIRED_AI_PRIVACY,
@@ -936,13 +1068,10 @@ async function aiResponse(path: string[], body: Record<string, unknown>, userId:
     }
     const requestedCompanyIds =
       body.companyIds === undefined
-        ? companies
-        .filter((company) => company.instrument?.capabilities.buy)
-        .slice(0, 5)
-            .map((company) => company.id)
+        ? state.users.get(userId)?.watchCompanyIds.slice(0, 5) ?? []
         : stringArray(body.companyIds);
     const companyIds = [...new Set(requestedCompanyIds)].filter((id) => {
-      return Boolean(companyById(id)?.instrument);
+      return Boolean(findCompany(id)?.instrument);
     });
     if (companyIds.length !== requestedCompanyIds.length || companyIds.length > 5) {
       throw new Error("INVALID_ALLOCATION");
@@ -1094,9 +1223,6 @@ async function postResponse(request: NextRequest, path: string[]) {
       },
     } satisfies AuthSessionResult;
   }
-
-  const discovery = await discoveryResponse(request, path, body);
-  if (discovery) return discovery;
 
   const user = currentUser(request);
   if (pathIs(path, "wallet", "signing-challenge")) {
@@ -1271,7 +1397,9 @@ async function postResponse(request: NextRequest, path: string[]) {
     );
   }
   if (pathIs(path, "watchlist", "items")) {
-    return updateWatchlist(user, String(body.companyId), true);
+    const companyId = String(body.companyId);
+    await registerIssuerCompany(companyId);
+    return updateWatchlist(user, companyId, true);
   }
   if (pathIs(path, "shelf", "share")) {
     return createShare(
@@ -1281,6 +1409,17 @@ async function postResponse(request: NextRequest, path: string[]) {
     );
   }
   if (pathIs(path, "orders")) {
+    if (body.type === "buy" && typeof body.companyId === "string") {
+      await prepareOrderCompany(body.companyId);
+    }
+    if (body.type === "basket" && Array.isArray(body.allocations)) {
+      const companyIds = body.allocations.flatMap((allocation) => {
+        if (!allocation || typeof allocation !== "object") return [];
+        const id = (allocation as { companyId?: unknown }).companyId;
+        return typeof id === "string" ? [id] : [];
+      });
+      for (const companyId of new Set(companyIds)) await prepareOrderCompany(companyId);
+    }
     if (body.type === "transfer") {
       requireFreshAuthorization(request, user.id, "transfer");
       await verifyTransferDestination(user, String(body.recipientAddress ?? ""));
@@ -1305,7 +1444,7 @@ async function postResponse(request: NextRequest, path: string[]) {
     const leg = ownedOrder(user, preparation.orderId).legs.find((candidate) => candidate.id === preparation.legId);
     if (!leg) throw new Error("NOT_FOUND");
     if (leg.side === "buy" && state.pauses.buys) throw new Error("PURCHASES_PAUSED");
-    const company = leg.companyId ? companyById(leg.companyId) : undefined;
+    const company = leg.companyId ? findCompany(leg.companyId) : undefined;
     if (company) await verifyIssuerForExecution(company);
     return acceptWalletSignature(user, path[1], String(body.signedTransactionBase64 ?? ""));
   }
@@ -1406,7 +1545,15 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
   try {
     const { path } = await context.params;
     if (path[0] === "markets" && path[1] === "history" && path[2]) {
-      return success(await marketHistory(path[2]));
+      return runWithRuntimeState(false, async () => success(await marketHistory(path[2])));
+    }
+    if (
+      pathIs(path, "issuer", "search") ||
+      (path.length === 4 && path[0] === "issuer" && path[1] === "asset") ||
+      pathIs(path, "catalog", "prestocks") ||
+      pathIs(path, "catalog", "xstocks")
+    ) {
+      return success(await getResponse(request, path));
     }
     const consumesAuthorization =
       pathIs(path, "account", "export") || pathIs(path, "exports", "activity");
@@ -1420,9 +1567,15 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
 
 export async function POST(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
   try {
+    const { path } = await context.params;
+    if (path[0] === "discovery") {
+      assertMutationRequest(request);
+      const result = await discoveryResponse(request, path, await jsonBody(request));
+      if (!result) throw new Error("NOT_FOUND");
+      return success(result, 201);
+    }
     return await runWithRuntimeState(true, async () => {
       assertMutationRequest(request);
-      const { path } = await context.params;
       const result = await postResponse(request, path);
       if (isPersistedFailure(result)) return failure(new Error(result.persistedError));
       if (isAuthSessionResult(result)) {

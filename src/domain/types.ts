@@ -75,6 +75,13 @@ export type RecognitionMatch = {
   displayLabel: string;
   productId: string | null;
   companyId: string | null;
+  ownerName?: string;
+  issuer?: "xstocks" | "prestocks";
+  symbol?: string;
+  mint?: string;
+  feedStale?: boolean;
+  feedUnavailable?: boolean;
+  productIdentitySource?: string;
   state: "matched" | "unlisted";
   confidenceBand: "high" | "low";
   sourceIds: string[];

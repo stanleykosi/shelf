@@ -1,8 +1,11 @@
 # Shelf
 
-Shelf connects familiar products and services to reviewed companies, then gives signed-in members a private shelf, watchlist, wallet view, portfolio, records, sharing, AI-assisted discovery, and deliberate investment workflows.
+Shelf uses AI to suggest the company behind a familiar product, then checks current xStocks and
+PreStocks issuer feeds for that company. The ownership suggestion is unverified; the token symbol
+and Solana mint come from the issuer. Signed-in members have a private shelf, watchlist, wallet
+view, portfolio, records, sharing and deliberate investment workflows.
 
-The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share.
+The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share. Barcode discovery uses public Open Food/Beauty/Products Facts for a product-name clue before the same AI and issuer lookup.
 
 Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data and transaction-reconciliation worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.
 
