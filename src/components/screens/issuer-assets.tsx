@@ -10,6 +10,7 @@ import type { Company } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
 import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
+import { IssuerLogo } from "@/components/issuer-logo";
 
 type Source = "xstocks" | "prestocks";
 
@@ -76,7 +77,10 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
         eyebrow={provider === "xstocks" ? "Public equity tracker · xStocks" : "Private company exposure · PreStocks"}
         title={asset.name}
       >
-        <p>{asset.description || "Issuer description unavailable."}</p>
+        <div className="issuer-detail-intro">
+          <IssuerLogo imageUrl={asset.logoUrl} large name={asset.name} source={provider} />
+          <p>{asset.description || "Issuer description unavailable."}</p>
+        </div>
       </PageIntro>
       <div className="grid">
         {lifecycle ? <Card className="stack">

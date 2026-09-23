@@ -99,6 +99,7 @@ describe("execution issuer verification", () => {
       asset: {
         companyId: "issuer:xstocks:AAPLx",
         name: "Apple",
+        logoUrl: "https://xstocks-metadata.backed.fi/logos/tokens/AAPLx.png",
         description: "Apple xStock",
         symbol: "AAPLx",
         underlyingSymbol: "AAPL",
@@ -121,6 +122,7 @@ describe("execution issuer verification", () => {
       matchedIssuerName: "Apple",
       issuer: "xstocks",
       mint: listing.asset.mint,
+      logoUrl: listing.asset.logoUrl,
       confidenceBand: "low",
     });
     expect(matchOwnershipCandidates(

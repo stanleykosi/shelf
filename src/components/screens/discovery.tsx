@@ -15,6 +15,7 @@ import type { Category, Company, RecognitionMatch } from "@/domain/types";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
+import { IssuerLogo } from "@/components/issuer-logo";
 import {
   Card,
   CtaLink,
@@ -643,8 +644,11 @@ export function ScanResultsScreen() {
                 {" "}· {match.symbol} · mint {match.mint}
               </p>
             ) : null}
-            {match.matchedIssuerName ? (
-              <p className="muted">Matched issuer listing: {match.matchedIssuerName}</p>
+            {match.issuer && match.matchedIssuerName ? (
+              <div className="scan-issuer-identity">
+                <IssuerLogo imageUrl={match.logoUrl} name={match.matchedIssuerName} source={match.issuer} />
+                <p className="muted">Matched issuer listing: {match.matchedIssuerName}</p>
+              </div>
             ) : null}
             {match.feedUnavailable ? <p className="notice">An issuer feed was unavailable, so this scan may have missed a token.</p> : null}
             {match.feedStale ? <p className="notice">Issuer data is stale. A purchase requires a fresh recheck.</p> : null}

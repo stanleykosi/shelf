@@ -2,6 +2,34 @@
 
 Updated: 2026-09-23
 
+## U28 issuer-provided logos — production
+
+The current xStocks asset response includes a `logo` URL and the PreStocks feed includes an
+`image` URL. Their adapters now expose optional `logoUrl` fields only after checking HTTPS,
+the provider-owned image host and its expected PNG path. PreStocks `www` URLs are normalized to
+its canonical host. Missing, malformed or failed images fall back to company initials. Direct
+issuer results, AI-matched product results, scan matches and issuer detail pages show the same
+source logo; no logo is treated as ownership evidence or kept in Shelf's catalog.
+
+Read-only provider checks found publicly fetchable DISx and OPENAI logos. Both passed through
+the local Next.js image optimizer as HTTP 200 PNGs; an unexpected query URL returned HTTP 400.
+Desktop/mobile screenshots showed the logo in the search card. The xStocks and PreStocks
+exact-asset API responses carried the validated URLs. ESLint, strict TypeScript, all 99 unit
+tests in 15 files and the final Next.js 16.3.5 production build passed. The final local
+`live-discovery.spec.ts` browser run passed all eight desktop/mobile checks. An earlier combined
+22-case run passed 16 checks, skipped five project-specific checks and exposed one older
+Discover test that depended on an unmocked live feed; its focused desktop/mobile rerun passed
+after the test received deterministic reviewed-issuer data. `git diff --check` passed. No
+trading or paid AI call was made for this image work.
+
+Vercel deployment `dpl_An5eDmgNq4RhTEiTgaZnsiNSCvcx` is Ready on
+`https://shelf-one-phi.vercel.app`. Production `/readyz` still reports PostgreSQL, Magic,
+OpenRouter, Jupiter and Helius with trade execution disabled. Exact xStocks DISx and PreStocks
+OPENAI asset APIs returned their validated `logoUrl` values. Both production optimized image
+requests returned HTTP 200 PNGs, and a real production Chromium search for Disney and OpenAI
+loaded each matching logo at a nonzero natural width. This release was deployed directly from
+the local working tree and still needs a remote Git push to survive future Git deployments.
+
 ## U27 unified live and reviewed Discover — production
 
 Home and Discover now use one company-or-product search. The server checks current xStocks and
@@ -27,8 +55,9 @@ HTTP 500; the same exact route suite passed against the isolated database. Issue
 responses were intercepted. Read-only local API checks found Disney → DISx and put Spiderman at
 the AI-consent step without calling OpenRouter.
 
-Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` is Ready on
-`https://shelf-one-phi.vercel.app`. Production `/readyz` reports Magic, OpenRouter, Jupiter,
+Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` was Ready on
+`https://shelf-one-phi.vercel.app` at the U27 release and is superseded by U28.
+Production `/readyz` reported Magic, OpenRouter, Jupiter,
 Helius and PostgreSQL with trade execution disabled. A production feed query returned The Walt
 Disney / DISx with the expected mint and no unavailable or stale feed. A Spiderman query without
 consent returned `consent_required`, with no paid AI call. Production reviewed-link data mapped
@@ -37,8 +66,8 @@ desktop/mobile production Chromium discovery checks passed with issuer and AI re
 intercepted. One previously authorized, consented production OpenRouter query for synthetic
 “Spiderman” returned “Spider-Man” with owner “The Walt Disney Company”; Shelf joined it to the
 current xStocks DISx mint `Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`, with no feed
-warnings. That call used AI only and made no trade. This release was deployed directly from the
-local working tree; it has not been pushed to the remote Git repository.
+warnings. That call used AI only and made no trade. This release was originally deployed
+directly from the local working tree; its U27 commit is now on `origin/main`.
 
 ## PR #3 and earlier local discovery integration — historical
 
@@ -192,9 +221,9 @@ post-fix ChatGPT requests. No trading, funding, or onchain write occurred.
 
 ## Current release
 
-Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
+Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_An5eDmgNq4RhTEiTgaZnsiNSCvcx` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
 
-The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, and U27 unified Discover. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
+The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, U27 unified Discover and U28 issuer-provided logos. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
 
 `/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. Read-only production issuer search returns AAPLx and OPENAI with their issuer Solana mints and no unavailable feeds. Anonymous `/api/v1/me` returns 401. A prior production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
 
@@ -243,7 +272,7 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Preserve U27 in remote Git before a future automatic Git deployment can replace the direct
+Preserve U28 in remote Git before a future automatic Git deployment can replace the direct
 Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
 another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
 fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate

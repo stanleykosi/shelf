@@ -32,6 +32,18 @@ test("Home teaches the entity path and starts discovery without a financial CTA"
 test("Discover distinguishes entity modes and preserves contextual Company filters", async ({
   page,
 }, testInfo) => {
+  await page.route("**/api/v1/issuer/reviewed", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: {
+      byCompany: { "company-openai": [{
+        provider: "prestocks",
+        asset: { companyId: "issuer:prestocks:OPENAI", name: "OpenAI", symbol: "OPENAI",
+          mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF" },
+      }] },
+      unavailable: [], stale: [],
+    } }),
+  }));
   await page.route("**/api/v1/discovery/query", (route) => route.fulfill({
     status: 201,
     contentType: "application/json",

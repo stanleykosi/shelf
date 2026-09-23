@@ -43,6 +43,8 @@ PLAYWRIGHT_BASE_URL=https://shelf-one-phi.vercel.app npm run test:browser
 
 Browser tests are read-only and use the installed Linux Chromium. They do not install or use Windows Chrome, Firefox, or WebKit.
 
+Live issuer results use optional logo images supplied by xStocks and PreStocks. Shelf accepts only their known HTTPS logo paths and shows initials when a provider omits an image or it fails to load. Logos do not establish product ownership.
+
 ## Repository map
 
 - `src/app` — App Router pages, health endpoints, and versioned API

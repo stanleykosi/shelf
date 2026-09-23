@@ -5,6 +5,7 @@ const validRow = {
   name: "OpenAI PreStocks",
   symbol: "OPENAI",
   description: "Pre-IPO exposure",
+  image: "https://www.prestocks.com/logos/openai.png",
   external_url: "https://www.prestocks.com/openai",
   contract_address: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
   markPrice: 996.02,
@@ -22,6 +23,7 @@ describe("PreStocks providers", () => {
           {
             ...validRow,
             symbol: "UNREVIEWED",
+            image: "https://example.invalid/logo.png",
             contract_address: "11111111111111111111111111111111",
           },
         ]),
@@ -36,10 +38,12 @@ describe("PreStocks providers", () => {
       companyId: "issuer:prestocks:OPENAI",
       symbol: "OPENAI",
       mint: validRow.contract_address,
+      logoUrl: "https://prestocks.com/logos/openai.png",
       markPriceUsd: "996.02",
       premiumLabel: "10.93% premium",
     });
     expect(listings[1].companyId).toBe("issuer:prestocks:UNREVIEWED");
+    expect(listings[1].logoUrl).toBeUndefined();
   });
 
   it("rejects a configured endpoint outside the issuer host", () => {

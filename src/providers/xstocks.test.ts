@@ -5,6 +5,7 @@ function asset(symbol: string, mint: string) {
   return {
     name: `${symbol} xStock`,
     symbol,
+    logo: `https://xstocks-metadata.backed.fi/logos/tokens/${symbol}.png`,
     underlying: { symbol: symbol.slice(0, -1) },
     isTradingHalted: false,
     trading: null,
@@ -17,7 +18,7 @@ describe("xStocks provider", () => {
     const pages = [
       { nodes: [asset("AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp")],
         page: { currentPage: 0, hasNextPage: true } },
-      { nodes: [asset("PEPx", "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF")],
+      { nodes: [{ ...asset("PEPx", "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF"), logo: "https://xstocks-metadata.backed.fi/other/PEPx.png" }],
         page: { currentPage: 1, hasNextPage: false } },
     ];
     const requestedPages: number[] = [];
@@ -34,6 +35,8 @@ describe("xStocks provider", () => {
       "issuer:xstocks:PEPx",
     ]);
     expect(listings[0].mint).toBe("XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp");
+    expect(listings[0].logoUrl).toBe("https://xstocks-metadata.backed.fi/logos/tokens/AAPLx.png");
+    expect(listings[1].logoUrl).toBeUndefined();
     expect(requestedPages).toEqual([0, 1, 2]);
   });
 

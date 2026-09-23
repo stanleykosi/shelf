@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "digitalassets.pepsico.com", pathname: "/transform/**" },
       { protocol: "https", hostname: "images.ctfassets.net", pathname: "/oggad6svuzkv/**" },
       { protocol: "https", hostname: "www.apple.com", pathname: "/v/iphone/**" },
+      { protocol: "https", hostname: "xstocks-metadata.backed.fi", port: "", pathname: "/logos/tokens/*.png", search: "" },
+      { protocol: "https", hostname: "prestocks.com", port: "", pathname: "/logos/*.png", search: "" },
     ],
   },
   typedRoutes: true,

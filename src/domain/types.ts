@@ -77,6 +77,7 @@ export type RecognitionMatch = {
   companyId: string | null;
   ownerName?: string;
   matchedIssuerName?: string;
+  logoUrl?: string;
   issuer?: "xstocks" | "prestocks";
   symbol?: string;
   mint?: string;

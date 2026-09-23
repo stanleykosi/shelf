@@ -2,11 +2,13 @@ import { PublicKey } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { premiumBps, premiumLabel } from "@/domain/market-data";
+import { issuerLogoUrl } from "./issuer-logo";
 
 const listingSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   description: z.string().default(""),
+  image: z.unknown().optional(),
   external_url: z.string().url(),
   contract_address: z.string(),
   markPrice: z.number().finite().nonnegative(),
@@ -20,6 +22,7 @@ export type PreStocksListing = {
   companyId: string;
   name: string;
   description: string;
+  logoUrl?: string;
   symbol: string;
   mint: string;
   issuerUrl: string;
@@ -74,6 +77,7 @@ export class LivePreStocksProvider {
         companyId: `issuer:prestocks:${row.symbol}`,
         name: row.name.replace(/\s+prestocks$/i, ""),
         description: row.description,
+        logoUrl: issuerLogoUrl(row.image, "prestocks"),
         symbol: row.symbol,
         mint: row.contract_address,
         issuerUrl: row.external_url,

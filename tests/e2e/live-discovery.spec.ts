@@ -7,6 +7,7 @@ test("one search checks live companies first, then resolves a product after AI c
       companyId: "issuer:xstocks:DISx",
       name: "The Walt Disney",
       symbol: "DISx",
+      logoUrl: "https://xstocks-metadata.backed.fi/logos/tokens/DISx.png",
       mint: "Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb",
     },
   };
@@ -28,6 +29,7 @@ test("one search checks live companies first, then resolves a product after AI c
           displayLabel: "Spider-Man",
           ownerName: "Disney",
           matchedIssuerName: "The Walt Disney",
+          logoUrl: disney.asset.logoUrl,
           companyId: disney.asset.companyId,
           issuer: "xstocks",
           symbol: "DISx",
@@ -56,6 +58,8 @@ test("one search checks live companies first, then resolves a product after AI c
   await expect(page).toHaveURL(/\/discover\?q=Disney$/);
   const search = page.getByPlaceholder("Search a company or product");
   await expect(page.getByRole("heading", { name: "The Walt Disney" })).toBeVisible();
+  await expect(page.locator(".live-issuer-card .issuer-logo img"))
+    .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
   await expect(page.getByRole("link", { name: /View DISx issuer asset/ }))
     .toHaveAttribute("href", "/assets/xstocks/DISx");
 
@@ -64,6 +68,8 @@ test("one search checks live companies first, then resolves a product after AI c
   await expect(page.getByRole("heading", { name: "No company listing matched" })).toBeVisible();
   await page.getByLabel(/If no company matches, send this search to OpenRouter/).check();
   await expect(page.getByText("AI suggested owner: Disney")).toBeVisible();
+  await expect(page.locator(".live-issuer-card .issuer-logo img"))
+    .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
   await expect(page.getByRole("link", { name: /View DISx issuer asset/ }))
     .toHaveAttribute("href", "/assets/xstocks/DISx");
 
@@ -129,6 +135,7 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
           displayLabel: "ChatGPT",
           ownerName: "OpenAI Group PBC",
           matchedIssuerName: "OpenAI",
+          logoUrl: "https://prestocks.com/logos/openai.png",
           companyId: "issuer:prestocks:OPENAI",
           issuer: "prestocks",
           symbol: "OPENAI",
@@ -145,6 +152,8 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
   await expect(page.getByRole("heading", { name: "No company listing matched" })).toBeVisible();
   await page.getByLabel(/If no company matches, send this search to OpenRouter/).check();
   await expect(page.getByText("AI suggested owner: OpenAI Group PBC")).toBeVisible();
+  await expect(page.locator(".live-issuer-card .issuer-logo img"))
+    .toHaveAttribute("src", /prestocks\.com/);
   await expect(page.getByRole("link", { name: /View OPENAI issuer asset/ }))
     .toHaveAttribute("href", "/assets/prestocks/OPENAI");
 });
@@ -165,6 +174,8 @@ test("image upload requires consent and shows the AI owner beside the issuer tok
         productId: null,
         companyId: "issuer:xstocks:AAPLx",
         ownerName: "Apple",
+        matchedIssuerName: "Apple",
+        logoUrl: "https://xstocks-metadata.backed.fi/logos/tokens/AAPLx.png",
         issuer: "xstocks",
         symbol: "AAPLx",
         mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
@@ -192,5 +203,7 @@ test("image upload requires consent and shows the AI owner beside the issuer tok
   await expect(page).toHaveURL(/\/scan\/results$/, { timeout: 20_000 });
   await expect(page.getByText(/Likely owner: Apple/)).toBeVisible();
   await expect(page.getByText(/Public · xStocks · AAPLx · mint/)).toBeVisible();
+  await expect(page.locator(".scan-issuer-identity .issuer-logo img"))
+    .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
   expect(submittedImage).toBe(true);
 });

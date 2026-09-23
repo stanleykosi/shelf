@@ -1,10 +1,12 @@
 import { PublicKey } from "@solana/web3.js";
 import { z } from "zod";
+import { issuerLogoUrl } from "./issuer-logo";
 
 const assetSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
   description: z.string().default(""),
+  logo: z.unknown().optional(),
   underlyingSymbol: z.string().optional(),
   underlying: z.object({ symbol: z.string() }).nullable().optional(),
   isTradingHalted: z.boolean(),
@@ -31,6 +33,7 @@ export type XStocksListing = {
   companyId: string;
   name: string;
   description: string;
+  logoUrl?: string;
   symbol: string;
   underlyingSymbol: string;
   mint: string;
@@ -59,6 +62,7 @@ function listingForAsset(
     companyId: `issuer:xstocks:${asset.symbol}`,
     name: asset.name.replace(/\s+xstock$/i, ""),
     description: asset.description,
+    logoUrl: issuerLogoUrl(asset.logo, "xstocks"),
     symbol: asset.symbol,
     underlyingSymbol: asset.underlying?.symbol || asset.underlyingSymbol || "",
     mint: solana.address,

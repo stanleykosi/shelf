@@ -9,6 +9,7 @@ import type { Category } from "@/domain/types";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
 import { postJson } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
+import { IssuerLogo } from "@/components/issuer-logo";
 import {
   BrandRow,
   ProductTile,
@@ -168,8 +169,13 @@ function LiveIssuerResult({ listing }: { listing: IssuerListing }) {
   const { provider, asset } = listing;
   return (
     <article className="live-issuer-card">
-      <p className="eyebrow">{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}</p>
-      <h3>{asset.name}</h3>
+      <div className="live-issuer-identity">
+        <IssuerLogo imageUrl={asset.logoUrl} name={asset.name} source={provider} />
+        <div>
+          <p className="eyebrow">{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}</p>
+          <h3>{asset.name}</h3>
+        </div>
+      </div>
       <p>{asset.symbol} · Issuer mint <code className="breakable-code">{asset.mint}</code></p>
       <Link href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
         View {asset.symbol} issuer asset <ArrowRight size={15} aria-hidden="true" />
@@ -223,8 +229,13 @@ function LiveSearchResults({
           <div className="live-issuer-grid">
             {matchedAssets.map((match) => (
               <article className="live-issuer-card" key={match.candidateId}>
-                <p className="eyebrow">AI suggested owner: {match.ownerName}</p>
-                <h3>{match.matchedIssuerName ?? match.ownerName}</h3>
+                <div className="live-issuer-identity">
+                  <IssuerLogo imageUrl={match.logoUrl} name={match.matchedIssuerName ?? match.ownerName ?? "Issuer"} source={match.issuer!} />
+                  <div>
+                    <p className="eyebrow">AI suggested owner: {match.ownerName}</p>
+                    <h3>{match.matchedIssuerName ?? match.ownerName}</h3>
+                  </div>
+                </div>
                 <p>{match.issuer === "xstocks" ? "Public · xStocks" : "Private · PreStocks"} · {match.symbol}</p>
                 <p>Issuer mint <code className="breakable-code">{match.mint}</code></p>
                 <Link href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol!)}` as Route}>

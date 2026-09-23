@@ -121,6 +121,7 @@ export function matchOwnershipCandidates(
       companyId: asset.companyId,
       ownerName: candidate.companyNames[0],
       matchedIssuerName: asset.name,
+      logoUrl: asset.logoUrl,
       issuer: provider,
       symbol: asset.symbol,
       mint: asset.mint,

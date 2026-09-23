@@ -110,6 +110,8 @@ Required UI:
 
 Catalog images come only from approved licensed sources with attribution records or deliberately authored neutral illustrations supplied by the team. No retaining user images to fill the catalog. Text-only product cards are acceptable where rights are unknown.
 
+Live issuer result logos come only from the current xStocks `logo` and PreStocks `image` feed fields. Accept HTTPS URLs on those providers' known logo hosts and paths; show text initials when a URL is absent or fails. A logo helps identify a listing but does not verify product ownership, issuer affiliation, or trading eligibility. Do not store copies in Shelf's catalog or treat the logo as relationship evidence.
+
 Launch editorial articles:
 
 1. A brand is not always a separate company.
