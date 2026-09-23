@@ -16,9 +16,10 @@ test("Home teaches the entity path and starts discovery without a financial CTA"
     page.getByRole("heading", { name: "See the company behind what you know." }),
   ).toBeVisible();
   await expect(page.getByRole("search")).toBeVisible();
-  await expect(page.getByText("01 · Product")).toBeVisible();
-  await expect(page.getByText("02 · Brand")).toBeVisible();
-  await expect(page.getByText("03 · Company")).toBeVisible();
+  await expect(page.getByText("Relationship explorer")).toBeVisible();
+  await expect(page.getByText("Product", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Brand", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Company", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Scan a product" })).toBeVisible();
   await expect(page.getByRole("link", { name: /buy|choose amount/i })).toHaveCount(0);
 
@@ -34,19 +35,22 @@ test("Discover distinguishes entity modes and preserves contextual Company filte
   await page.goto("/discover");
 
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
-  await expect(page.getByText("Product, Brand, and Company are shown as separate entity types."))
+  await expect(page.getByText("Research Products, Brands, and Companies from a reviewed catalog."))
     .toBeVisible();
 
   await page.getByRole("button", { name: "Companies", exact: true }).click();
   await expect(page).toHaveURL(/\/discover\?entity=company$/);
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("dialog").getByLabel("Market status").selectOption("private");
+    await page.getByRole("dialog").getByRole("button", { name: /Show .* results/ }).click();
+  } else {
+    await page.getByLabel("Market status").selectOption("private");
   }
-  await page.getByLabel("Market context").selectOption("private");
   await expect(page).toHaveURL(/entity=company&market=private/);
-  await expect(page.getByText("Private company").first()).toBeVisible();
+  await expect(page.locator(".research-table td").getByText("Private", { exact: true }).first()).toBeVisible();
 
-  await page.getByPlaceholder("Search a Product, Brand, or Company").fill("OpenAI");
+  await page.getByPlaceholder("Search products, brands, or companies").fill("OpenAI");
   await expect(page).toHaveURL(/q=OpenAI/);
   await expect(page.getByRole("link", { name: /OpenAI/ })).toBeVisible();
 
@@ -92,10 +96,11 @@ test("mobile Discover keeps entity modes visible and discloses lower-priority fi
   await expect(page.getByLabel("Category")).not.toBeVisible();
 
   await page.getByRole("button", { name: /^Filters/ }).click();
-  await page.getByLabel("Category").selectOption("groceries");
+  const filterDialog = page.getByRole("dialog");
+  await filterDialog.getByLabel("Category").selectOption("groceries");
   await expect(page).toHaveURL(/category=groceries/);
   await expect(page.getByLabel("1 active filters")).toBeVisible();
-  await page.getByRole("button", { name: "Done" }).click();
+  await filterDialog.getByRole("button", { name: /Show .* results/ }).click();
   await expect(page.getByLabel("Category")).not.toBeVisible();
 });
 
@@ -103,16 +108,16 @@ for (const route of ["/", "/discover"] as const) {
   test("mobile bottom navigation clears final content on " + route, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile-only clearance assertion");
     await page.goto(route);
-    const finalContent = route === "/" ? page.locator(".learn-strip") : page.locator(".catalog-note");
+    const finalContent = route === "/" ? page.locator(".learning-section") : page.locator(".entity-result-groups");
     await finalContent.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
     const clearance = await page.evaluate((selector) => {
       const content = document.querySelector(selector);
-      const navigation = document.querySelector(".bottom-nav");
+      const navigation = document.querySelector(".mobile-navigation");
       if (!content || !navigation) return -1;
       return navigation.getBoundingClientRect().top - content.getBoundingClientRect().bottom;
-    }, route === "/" ? ".learn-strip" : ".catalog-note");
+    }, route === "/" ? ".learning-section" : ".entity-result-groups");
     expect(clearance).toBeGreaterThanOrEqual(0);
   });
 }

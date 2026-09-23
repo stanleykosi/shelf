@@ -2900,7 +2900,7 @@ Evaluated for the global shell, Home, Discover, global Search, and emerging enti
 
 Reference hierarchy for the refactor: this guide and Shelf's product/entity truth first; Simply Wall St is the primary product-design philosophy; TradingView is a secondary dense-research pattern library; Quartr is a secondary evidence/source pattern library; Public is a later investing/portfolio reference; Ramp is a later account/operations reference. These are not alternate visual directions.
 
-### Concept #1.1 refinement record — accepted 2026-09-23
+### Concept #1.1 refinement record — superseded 2026-09-23
 
 This refinement is limited to the global shell, Home, and Discover. It preserves the accepted routes, information architecture, recognition-first proposition, Product/Brand/Company separation, and research-before-exposure boundary.
 
@@ -2911,6 +2911,24 @@ This refinement is limited to the global shell, Home, and Discover. It preserves
 - Mobile keeps All/Product/Brand/Company visible while Category, Sort, Market, and Availability live behind a labeled filter control with active-count feedback. Filter state remains URL-backed.
 - Mobile typography uses comfortably readable metadata and action labels; the fixed navigation reserves bottom clearance so final content can scroll completely above it.
 - The repeated Shelf signature is a restrained green evidence line, distinct entity identities, and the connected relationship trail—not a copied Snowflake, crypto motif, glass treatment, or decorative gradient.
+
+The product decisions in this record remain valid, but its first visual execution was rejected as prototype-like: too many micro-labels, tinted rounded containers, repeated list/card patterns, explanatory copy, borders, and small metadata. It is not a visual baseline.
+
+### Concept #1.2 visual direction — accepted 2026-09-23
+
+Shelf's accepted visual direction is **Premium Institutional Editorial Research**. The Simply Wall St-inspired philosophy remains: explain complex research through progressive disclosure and visual comprehension. Linear informs the quiet shell, alignment, density, and control placement. Quartr informs evidence hierarchy, company identity, and professional research presentation. Shelf combines none of their branding.
+
+For the global shell, Home, and Discover:
+
+- Typography, page grid, whitespace, and rules carry hierarchy; structural sections are not rounded cards.
+- The palette is white/off-white, graphite, neutral grey, and a restrained forest-green accent used for action, selection, verification, and identity.
+- The Relationship Explorer is one research object with a connected Product → Brand → Company path and a compact evidence ledger—not three cards.
+- Home is a working research entry: command search, secondary Scan, familiar Product gallery, Company research table, methodology block, and compact learning list.
+- Discover is a database workspace: search and entity tabs, desktop filter rail, mobile filter sheet, visual Product grid, structured Brand rows, and Company research table.
+- Search mode prioritizes matching entities and omits unrelated discovery promotion.
+- Motion is limited to 120–180ms interaction feedback and sheet elevation, with a fade-only reduced-motion variant.
+
+The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes, access behavior, entity meaning, and Phase 0–2 contracts do not change.
 
 # 24. Design Decision Log
 
@@ -2938,7 +2956,8 @@ This refinement is limited to the global shell, Home, and Discover. It preserves
 | DD-020 | Each rendered state exposes at most one primary action, even when the page's action changes by capability or transaction state. | Prevents research, recovery, and money actions from competing. | All page specs and states | Accepted |
 | DD-021 | Simply Wall St is Shelf's primary product-design philosophy for the refactor, translated through Shelf's recognition-first entity model and own brand. | Its progressive, visual explanation of complex research supports Shelf's goal without requiring a stock-first interface or copied expression. | Shell, Home, Discover, later entity research | Accepted |
 | DD-022 | TradingView, Quartr, Public, and Ramp are specialized pattern libraries, not competing visual directions. | Preserves one coherent Shelf identity while borrowing density, evidence, investing, and operations patterns only where appropriate. | Discover; research evidence; later investing/portfolio; later account/admin | Accepted |
-| DD-023 | Concept #1.1 establishes the relationship trail, reviewed-imagery rule, quiet trust metadata, and mobile filter disclosure as Shelf's reusable discovery language. | Raises familiarity and scanability without changing routes, entity meaning, or the approved Concept #1 direction. | Global shell, Home, Discover; later reusable entity previews | Accepted |
+| DD-023 | Concept #1.1 established the relationship trail, reviewed-imagery rule, quiet trust metadata, and mobile filter disclosure. | Its product ideas remain useful, but the first visual execution was rejected as prototype-like and is not a visual baseline. | Global shell, Home, Discover | Superseded |
+| DD-024 | Shelf's accepted visual direction is Premium Institutional Editorial Research. | A precise Linear-informed shell and Quartr-informed evidence hierarchy better express Shelf's serious recognition-first research model while retaining progressive explanation. | Global shell, Home, Discover; later visual phases | Accepted |
 
 # 25. Recommended Refactor Sequence
 
