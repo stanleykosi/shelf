@@ -17,6 +17,7 @@ import {
   equalAllocations,
   ownedOrder,
   quoteLegFromJupiter,
+  requireFinancialAccess,
   readShare,
   reviewCatalogReport,
   revokeInvite,
@@ -31,6 +32,9 @@ import {
   validateTransferDestinationAddress,
   watchlistView,
 } from "@/domain/store";
+import { acceptWalletSignature, storeExecutionPreparation, transactionForWalletSignature } from "@/domain/execution";
+import { broadcastStoredPreparation, reconcileOrderPreparations } from "@/domain/transaction-orchestration";
+import { hasPendingChainWork, refreshVerifiedWalletBalances } from "@/domain/wallet-refresh";
 import type {
   AllocationDraft,
   CatalogReport,
@@ -56,10 +60,15 @@ import { readMarketHistory, runWithRuntimeState } from "@/db/runtime-store";
 import { LivePreStocksProvider } from "@/providers/prestocks";
 import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
+import { verifyCurrentIssuerInstrument } from "@/providers/issuer-verification";
 import type { XStocksListing } from "@/providers/xstocks";
 import { MagicIdentityProvider } from "@/providers/magic";
-import { JupiterBuildProvider } from "@/providers/live";
-import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
+import { HeliusChainProvider, JupiterBuildProvider } from "@/providers/live";
+import {
+  SOLANA_MAINNET_USDC_MINT,
+  SOLANA_TOKEN_2022_PROGRAM_ID,
+  SOLANA_TOKEN_PROGRAM_ID,
+} from "@/providers/solana-constants";
 import {
   createSessionToken,
   readSessionToken,
@@ -92,6 +101,14 @@ const magicIdentity = env.MAGIC_SECRET_KEY
 const jupiter = env.JUPITER_API_KEY
   ? new JupiterBuildProvider({ apiKey: env.JUPITER_API_KEY })
   : undefined;
+const chain =
+  env.SOLANA_RPC_URL && env.SOLANA_GENESIS_HASH
+    ? new HeliusChainProvider({
+        rpcUrl: env.SOLANA_RPC_URL,
+        expectedNetwork: env.SOLANA_NETWORK,
+        expectedGenesisHash: env.SOLANA_GENESIS_HASH,
+      })
+    : undefined;
 type ListingCache<Listing> = {
   value?: { listings: Listing[]; fetchedAt: number };
 };
@@ -125,6 +142,10 @@ async function preStocksListings(): Promise<MarketFeed<PreStocksListing>> {
 
 async function xStocksListings(): Promise<MarketFeed<XStocksListing>> {
   return cachedListings(xStocksCache, () => xStocks.listings(), "XSTOCKS_UNAVAILABLE");
+}
+
+function verifyIssuerForExecution(company: NonNullable<ReturnType<typeof companyById>>) {
+  return verifyCurrentIssuerInstrument(company, { prestocks: preStocks, xstocks: xStocks });
 }
 
 async function marketHistory(companyId: string) {
@@ -233,6 +254,8 @@ const statusByError: Record<string, number> = {
   VERSION_CONFLICT: 409,
   PREVIOUS_LEG_UNRESOLVED: 409,
   QUOTE_EXPIRED: 409,
+  PRICE_IMPACT_EXCEEDED: 422,
+  PENDING_FINANCIAL_OPERATION: 409,
   QUOTE_REQUIRED: 409,
   INVALID_AMOUNT: 422,
   INVALID_ALLOCATION: 422,
@@ -270,6 +293,7 @@ const statusByError: Record<string, number> = {
   SUBMISSIONS_PAUSED: 503,
   PRESTOCKS_UNAVAILABLE: 503,
   XSTOCKS_UNAVAILABLE: 503,
+  ISSUER_INSTRUMENT_UNAVAILABLE: 503,
   SIGNING_UNAVAILABLE: 503,
   TRADE_EXECUTION_DISABLED: 503,
   QUOTE_CONFIGURATION_INVALID: 503,
@@ -279,9 +303,27 @@ const statusByError: Record<string, number> = {
   JUPITER_TERMS_CHANGED: 409,
   JUPITER_TIP_FORBIDDEN: 502,
   JUPITER_PROGRAM_NOT_ALLOWED: 502,
+  JUPITER_TOKEN_INSTRUCTION_FORBIDDEN: 502,
   JUPITER_SIGNERS_CHANGED: 502,
   JUPITER_FEE_ACCOUNT_MISSING: 502,
   JUPITER_BLOCKHASH_INVALID: 502,
+  PREPARATION_REQUIRED: 409,
+  PREPARATION_STATE_INVALID: 409,
+  DATA_ENCRYPTION_KEY_INVALID: 503,
+  SPONSOR_SECRET_KEY_INVALID: 503,
+  SPONSOR_KEY_MISMATCH: 503,
+  SPONSOR_POLICY_INVALID: 422,
+  SPONSOR_SYSTEM_TRANSFER_FORBIDDEN: 422,
+  SPONSOR_BUDGET_EXHAUSTED: 429,
+  SPONSOR_TRANSACTION_LIMIT_EXCEEDED: 422,
+  SPONSOR_RESERVATION_INVALID: 409,
+  WALLET_OPERATION_IN_PROGRESS: 409,
+  CHAIN_PROVIDER_UNAVAILABLE: 503,
+  TRANSACTION_SIMULATION_FAILED: 409,
+  SIGNATURE_CHANGED: 409,
+  SETTLEMENT_MISMATCH: 409,
+  FINALIZED_TRANSACTION_INVALID: 409,
+  TRANSACTION_NOT_AVAILABLE: 409,
   AI_PROVIDER_UNAVAILABLE: 503,
   AI_PRIVACY_UNAVAILABLE: 503,
   AI_INVALID_RESPONSE: 502,
@@ -426,12 +468,14 @@ function pathIs(path: string[], ...segments: string[]) {
 }
 
 async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: string, legId: string) {
+  requireFinancialAccess(user);
   if (!jupiter) throw new Error("QUOTE_PROVIDER_UNAVAILABLE");
 
   const order = ownedOrder(user, orderId);
   const leg = order.legs.find((item) => item.id === legId);
   if (!leg) throw new Error("NOT_FOUND");
   if (leg.side === "transfer") throw new Error("TRADE_EXECUTION_DISABLED");
+  if (leg.side === "buy" && state.pauses.buys) throw new Error("PURCHASES_PAUSED");
   if (!user.walletAddress || !user.walletVerifiedAt || !isSolanaPublicKey(user.walletAddress)) {
     throw new Error("SOLANA_WALLET_UNAVAILABLE");
   }
@@ -440,6 +484,19 @@ async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: stri
   if (!env.SPONSOR_PUBLIC_KEY || !env.FEE_USDC_TOKEN_ACCOUNT) {
     throw new Error("QUOTE_CONFIGURATION_INVALID");
   }
+
+  if (hasPendingChainWork(user.id)) throw new Error("WALLET_OPERATION_IN_PROGRESS");
+  await refreshWalletBalances(user);
+  if (leg.instrumentId && user.reconciliationRequiredAssets.includes(leg.instrumentId)) {
+    throw new Error("RECONCILIATION_REQUIRED");
+  }
+  if (leg.side === "buy" && BigInt(user.cashRaw) < BigInt(leg.requestedInputRaw)) {
+    throw new Error("INSUFFICIENT_USDC");
+  }
+
+  // Recheck the exact issuer mint immediately before asking Jupiter for executable terms.
+  // This prevents an obsolete registry entry from silently becoming a different asset purchase.
+  await verifyIssuerForExecution(company);
 
   const isBuy = leg.side === "buy";
   const build = await jupiter.buildValidatedExactInput({
@@ -450,9 +507,14 @@ async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: stri
     payer: env.SPONSOR_PUBLIC_KEY,
     feeAccount: env.FEE_USDC_TOKEN_ACCOUNT,
     feeBps: env.APP_FEE_BPS,
+    tokenProgramsByMint: {
+      [SOLANA_MAINNET_USDC_MINT]: SOLANA_TOKEN_PROGRAM_ID,
+      [company.instrument.mint]: company.instrument.tokenProgram === "token-2022"
+        ? SOLANA_TOKEN_2022_PROGRAM_ID : SOLANA_TOKEN_PROGRAM_ID,
+    },
   });
 
-  return quoteLegFromJupiter(user, orderId, legId, {
+  const quote = quoteLegFromJupiter(user, orderId, legId, {
     outputRaw: build.outputRaw,
     minOutputRaw: build.minOutputRaw,
     priceImpactBps: build.priceImpactBps,
@@ -461,6 +523,52 @@ async function quoteOrderLeg(user: ReturnType<typeof currentUser>, orderId: stri
     transactionMessageHash: build.messageHash,
     feeBps: env.APP_FEE_BPS,
   });
+  const preparation = storeExecutionPreparation(user, orderId, legId, {
+    transactionBase64: build.transactionBase64,
+    messageHash: build.messageHash,
+    expectedSigners: build.requiredSigners,
+    lastValidBlockHeight: build.lastValidBlockHeight,
+  });
+  if (env.ENABLE_REAL_TRADING && preparation) {
+    quote.executionAvailable = true;
+    delete quote.executionBlockReason;
+  }
+  return quote;
+}
+
+async function refreshWalletBalances(user: ReturnType<typeof currentUser>) {
+  if (!chain) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  return refreshVerifiedWalletBalances(chain, user);
+}
+
+async function broadcastPreparation(user: ReturnType<typeof currentUser>, preparationId: string) {
+  if (!chain) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  return broadcastStoredPreparation(chain, user, preparationId);
+}
+
+async function prepareWalletSignature(
+  user: ReturnType<typeof currentUser>,
+  orderId: string,
+  legId: string,
+  reviewDigest: string,
+) {
+  requireFinancialAccess(user);
+  if (!chain) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  if (hasPendingChainWork(user.id)) throw new Error("WALLET_OPERATION_IN_PROGRESS");
+  const leg = ownedOrder(user, orderId).legs.find((candidate) => candidate.id === legId);
+  if (!leg) throw new Error("NOT_FOUND");
+  if (leg.side === "buy" && state.pauses.buys) throw new Error("PURCHASES_PAUSED");
+  const company = leg.companyId ? companyById(leg.companyId) : undefined;
+  if (company) await verifyIssuerForExecution(company);
+  await refreshWalletBalances(user);
+  const prepared = transactionForWalletSignature(user, orderId, legId, reviewDigest);
+  if ((await chain.blockHeight()) > prepared.lastValidBlockHeight) throw new Error("QUOTE_EXPIRED");
+  return prepared;
+}
+
+async function reconcileOrder(user: ReturnType<typeof currentUser>, orderId: string) {
+  if (!chain || !env.FEE_USDC_TOKEN_ACCOUNT) throw new Error("CHAIN_PROVIDER_UNAVAILABLE");
+  return reconcileOrderPreparations(chain, user, orderId);
 }
 
 async function getResponse(request: NextRequest, path: string[]) {
@@ -502,6 +610,7 @@ async function getResponse(request: NextRequest, path: string[]) {
       network: env.SOLANA_NETWORK,
       cashRaw: user.cashRaw,
       reservedRaw: "0",
+      reconciliationRequiredAssets: user.reconciliationRequiredAssets,
       externalInventory: user.holdings.filter((item) => BigInt(item.externalRaw) > 0n),
     } satisfies WalletSummary & { externalInventory: typeof user.holdings };
   }
@@ -600,7 +709,17 @@ async function getResponse(request: NextRequest, path: string[]) {
   if (pathIs(path, "admin", "budgets")) {
     requireOwner(request);
     const aiSpentMicrousd = state.aiUsage.reduce((total, entry) => total + entry.costMicrousd, 0);
-    return { sponsorSpentLamports: "0", aiSpentMicrousd };
+    const sponsorSpentLamports = state.sponsorReservations
+      .filter((item) => item.status === "settled")
+      .reduce((total, item) => total + BigInt(item.actualLamports ?? "0"), 0n);
+    const sponsorReservedLamports = state.sponsorReservations
+      .filter((item) => item.status === "reserved")
+      .reduce((total, item) => total + BigInt(item.reservedLamports), 0n);
+    return {
+      sponsorSpentLamports: sponsorSpentLamports.toString(),
+      sponsorReservedLamports: sponsorReservedLamports.toString(),
+      aiSpentMicrousd,
+    };
   }
   if (pathIs(path, "admin", "orders")) {
     requireOwner(request);
@@ -918,7 +1037,7 @@ async function postResponse(request: NextRequest, path: string[]) {
     if (new Date(identity.issuedAt) < new Date(challenge.createdAt)) throw new Error("AUTH_INVALID");
     const browserWalletAddress = String(body.walletAddress ?? "");
     if (!isSolanaPublicKey(browserWalletAddress)) throw new Error("SOLANA_WALLET_INVALID");
-    const adminWallet = await magicIdentity.getSolanaWallet(identity.issuer);
+    const adminWallet = await magicIdentity.getSolanaWallet(identity.issuer, browserWalletAddress);
     if (adminWallet.address !== browserWalletAddress) {
       throw new Error("WALLET_BINDING_MISMATCH");
     }
@@ -1169,6 +1288,31 @@ async function postResponse(request: NextRequest, path: string[]) {
   if (path.length === 5 && path[0] === "orders" && path[2] === "legs" && path[4] === "quote") {
     return quoteOrderLeg(user, path[1], path[3]);
   }
+  if (path.length === 5 && path[0] === "orders" && path[2] === "legs" && path[4] === "prepare") {
+    return prepareWalletSignature(
+      user,
+      path[1],
+      path[3],
+      String(body.reviewDigest ?? ""),
+    );
+  }
+  if (path.length === 3 && path[0] === "preparations" && path[2] === "signature") {
+    requireFinancialAccess(user);
+    const preparation = state.preparations.get(path[1]);
+    if (!preparation || preparation.userId !== user.id) throw new Error("NOT_FOUND");
+    const leg = ownedOrder(user, preparation.orderId).legs.find((candidate) => candidate.id === preparation.legId);
+    if (!leg) throw new Error("NOT_FOUND");
+    if (leg.side === "buy" && state.pauses.buys) throw new Error("PURCHASES_PAUSED");
+    const company = leg.companyId ? companyById(leg.companyId) : undefined;
+    if (company) await verifyIssuerForExecution(company);
+    return acceptWalletSignature(user, path[1], String(body.signedTransactionBase64 ?? ""));
+  }
+  if (path.length === 3 && path[0] === "preparations" && path[2] === "broadcast") {
+    return broadcastPreparation(user, path[1]);
+  }
+  if (path.length === 3 && path[0] === "orders" && path[2] === "status") {
+    return reconcileOrder(user, path[1]);
+  }
   if (path.length === 3 && path[0] === "orders" && path[2] === "stop") {
     return stopOrder(user, path[1]);
   }
@@ -1180,7 +1324,7 @@ async function postResponse(request: NextRequest, path: string[]) {
       reasonCode: "POLICY_REVIEW_PENDING",
     };
   }
-  if (pathIs(path, "wallet", "refresh")) throw new Error("WALLET_REFRESH_UNAVAILABLE");
+  if (pathIs(path, "wallet", "refresh")) return refreshWalletBalances(user);
   if (pathIs(path, "account", "deletion")) {
     requireFreshAuthorization(request, user.id, "account_deletion");
     if (!body.acknowledgeChainPermanence || !body.acknowledgeWalletIndependence) {

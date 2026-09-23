@@ -62,6 +62,7 @@ export type UserState = {
   cashRaw: string;
   holdings: Holding[];
   records: FinancialRecord[];
+  reconciliationRequiredAssets: string[];
 };
 
 export type Share = {
@@ -140,6 +141,8 @@ export type StoreState = {
   sessions: Map<string, SessionRecord>;
   freshAuthorizations: Map<string, FreshAuthorization>;
   allocationDrafts: Map<string, AllocationDraft>;
+  preparations: Map<string, ExecutionPreparation>;
+  sponsorReservations: SponsorReservation[];
   consents: ConsentRecord[];
   catalogReports: CatalogReport[];
   invites: Array<{
@@ -159,6 +162,50 @@ export type StoreState = {
   aiUsage: Array<{ at: string; costMicrousd: number; subjectHash?: string }>;
 };
 
+export type ExecutionPreparation = {
+  id: string;
+  userId: string;
+  orderId: string;
+  legId: string;
+  reviewDigest: string;
+  messageHash: string;
+  encryptedUnsignedTransaction: string;
+  encryptedSignedTransaction?: string;
+  expectedSigners: string[];
+  expiresAt: string;
+  lastValidBlockHeight: number;
+  status:
+    | "prepared"
+    | "awaiting_signature"
+    | "signed"
+    | "submitted"
+    | "confirmed"
+    | "outcome_unknown"
+    | "finalized"
+    | "failed"
+    | "cancelled"
+    | "expired";
+  signature?: string;
+  broadcastAttemptedAt?: string;
+  networkFeeLamports?: string;
+  sponsorDebitLamports?: string;
+  terminalErrorCode?: string;
+  lastReconciliationCheckAt?: string;
+  reconciliationFailure?: { code: string; attempts: number; lastAt: string };
+};
+
+export type SponsorReservation = {
+  preparationId: string;
+  userId: string;
+  utcDate: string;
+  reservedLamports: string;
+  status: "reserved" | "settled" | "released";
+  actualLamports?: string;
+  networkFeeLamports?: string;
+  executionUtcDate?: string;
+  releaseReason?: string;
+};
+
 const initialState: StoreState = {
   users: new Map(),
   orders: new Map(),
@@ -170,6 +217,8 @@ const initialState: StoreState = {
   sessions: new Map(),
   freshAuthorizations: new Map(),
   allocationDrafts: new Map(),
+  preparations: new Map(),
+  sponsorReservations: [],
   consents: [],
   catalogReports: [],
   invites: [],
@@ -243,6 +292,11 @@ export function consumeMagicDidToken(
 }
 
 export function deleteAccountData(user: UserState) {
+  const unresolved = [...state.preparations.values()].some((preparation) =>
+    preparation.userId === user.id &&
+    ["signed", "submitted", "confirmed", "outcome_unknown"].includes(preparation.status),
+  );
+  if (unresolved) throw new Error("PENDING_FINANCIAL_OPERATION");
   const deletionReference = createHash("sha256").update(`${user.id}:${randomUUID()}`).digest("hex");
   if (user.records.length > 0) {
     state.retainedFinancialRecords.push({
@@ -259,6 +313,12 @@ export function deleteAccountData(user: UserState) {
   }
   state.consents = state.consents.filter((consent) => consent.userId !== user.id);
   state.lots = state.lots.filter((lot) => lot.userId !== user.id);
+  for (const [id, preparation] of state.preparations) {
+    if (preparation.userId === user.id) state.preparations.delete(id);
+  }
+  for (const reservation of state.sponsorReservations) {
+    if (reservation.userId === user.id) reservation.userId = deletionReference;
+  }
   for (const [orderId, order] of state.orders) {
     if (order.userId === user.id) state.orders.delete(orderId);
   }
@@ -342,6 +402,7 @@ export function userForMagicIdentity(identity: {
     cashRaw: "0",
     holdings: [],
     records: [],
+    reconciliationRequiredAssets: [],
   };
   state.users.set(id, user);
   return user;
@@ -502,6 +563,9 @@ function basketLegs(body: BasketOrderInput): OrderLeg[] {
 
 function sellLeg(user: UserState, body: SellOrderInput): OrderLeg {
   const instrumentId = body.instrumentId;
+  if (user.reconciliationRequiredAssets.includes(instrumentId)) {
+    throw new Error("RECONCILIATION_REQUIRED");
+  }
   const holding = user.holdings.find((item) => item.instrumentId === instrumentId);
   if (!holding) throw new Error("INSUFFICIENT_ASSET");
 
@@ -519,6 +583,9 @@ function sellLeg(user: UserState, body: SellOrderInput): OrderLeg {
 
 function transferLeg(user: UserState, body: TransferOrderInput): OrderLeg {
   const assetId = body.assetId;
+  if (assetId !== "usdc" && user.reconciliationRequiredAssets.includes(assetId)) {
+    throw new Error("RECONCILIATION_REQUIRED");
+  }
   const recipientAddress = body.recipientAddress;
   validateTransferDestinationAddress(user, recipientAddress);
   return {
@@ -551,6 +618,36 @@ export function validateTransferDestinationAddress(
   ]);
   if (forbiddenMints.has(recipient.toBase58())) throw new Error("RECIPIENT_ACCOUNT_UNSAFE");
   return recipient;
+}
+
+export function reconcileInstrumentBalance(
+  user: UserState,
+  instrumentId: string,
+  totalRaw: string,
+): void {
+  const holding = user.holdings.find((candidate) => candidate.instrumentId === instrumentId);
+  const total = BigInt(totalRaw);
+  const tracked = BigInt(holding?.rawAmount ?? "0") + BigInt(holding?.reservedRaw ?? "0");
+  if (total < tracked) {
+    if (!user.reconciliationRequiredAssets.includes(instrumentId)) {
+      user.reconciliationRequiredAssets.push(instrumentId);
+      state.audits.push({
+        action: "wallet:reconciliation_required",
+        actorId: user.id,
+        reference: instrumentId,
+        reason: `Finalized balance ${total} is below tracked and reserved inventory ${tracked}`,
+        at: new Date().toISOString(),
+      });
+    }
+    if (holding) holding.externalRaw = "0";
+    return;
+  }
+
+  user.reconciliationRequiredAssets = user.reconciliationRequiredAssets.filter(
+    (assetId) => assetId !== instrumentId,
+  );
+  const external = total - tracked;
+  if (holding) holding.externalRaw = external.toString();
 }
 
 function orderLegs(
@@ -610,7 +707,7 @@ export function createOrder(user: UserState, unvalidatedBody: unknown): Order {
     return previous;
   }
 
-  if (!user.invited || !user.eligible) throw new Error("ELIGIBILITY_DENIED");
+  requireFinancialAccess(user);
   if ((type === "buy" || type === "basket") && state.pauses.buys) {
     throw new Error("PURCHASES_PAUSED");
   }
@@ -645,11 +742,46 @@ export function ownedOrder(user: UserState, orderId: string): Order {
   return order;
 }
 
+export function requireFinancialAccess(user: UserState): void {
+  if (!user.invited || !user.eligible) throw new Error("ELIGIBILITY_DENIED");
+}
+
+export function expireUnsignedPreparations(userId: string, now = Date.now()): void {
+  for (const preparation of state.preparations.values()) {
+    if (
+      preparation.userId !== userId ||
+      !["prepared", "awaiting_signature"].includes(preparation.status) ||
+      preparation.signature || preparation.encryptedSignedTransaction ||
+      !Number.isFinite(Date.parse(preparation.expiresAt)) ||
+      Date.parse(preparation.expiresAt) > now
+    ) continue;
+
+    const previousStatus = preparation.status;
+    preparation.status = "expired";
+    const order = state.orders.get(preparation.orderId);
+    const leg = order?.legs.find((candidate) => candidate.id === preparation.legId);
+    if (order?.userId === userId && order.status !== "stopped" && leg?.status === previousStatus) {
+      leg.status = "draft";
+      order.status = "awaiting_user";
+      order.version += 1;
+    }
+  }
+}
+
 function quoteableLeg(user: UserState, orderId: string, legId: string) {
   const order = ownedOrder(user, orderId);
+  expireUnsignedPreparations(user.id);
   const leg = order.legs.find((item) => item.id === legId);
   if (!leg) throw new Error("NOT_FOUND");
-  if (leg.status !== "draft" && leg.status !== "quoted") {
+  if (order.status === "stopped") throw new Error("LEG_NOT_QUOTEABLE");
+  const latestPreparation = [...state.preparations.values()].reverse().find((preparation) =>
+    preparation.userId === user.id && preparation.orderId === orderId && preparation.legId === legId,
+  );
+  const retryableFailure = ["failed", "expired"].includes(leg.status) &&
+    Boolean(latestPreparation?.signature) &&
+    ((latestPreparation?.status === "failed" && latestPreparation.terminalErrorCode === "CHAIN_TRANSACTION_FAILED") ||
+      (latestPreparation?.status === "expired" && latestPreparation.terminalErrorCode === "BLOCKHASH_EXPIRED_UNSEEN"));
+  if (leg.status !== "draft" && leg.status !== "quoted" && !retryableFailure) {
     throw new Error("LEG_NOT_QUOTEABLE");
   }
 
@@ -683,6 +815,9 @@ export function quoteLegFromJupiter(
     feeBps: number;
   },
 ): Quote {
+  if (!Number.isFinite(input.priceImpactBps) || input.priceImpactBps < 0 || input.priceImpactBps > 100) {
+    throw new Error("PRICE_IMPACT_EXCEEDED");
+  }
   const { order, leg } = quoteableLeg(user, orderId, legId);
   if (leg.side === "transfer") throw new Error("ASSET_UNSUPPORTED");
 
@@ -690,7 +825,7 @@ export function quoteLegFromJupiter(
   const output = BigInt(input.outputRaw);
   const fee =
     leg.side === "buy"
-      ? feeFor(BigInt(leg.requestedInputRaw))
+      ? feeFor(BigInt(leg.requestedInputRaw), feeBps)
       : (output * BigInt(feeBps)) / BigInt(10_000 - feeBps);
   const reviewText = [
     leg.id,
@@ -724,21 +859,22 @@ export function quoteLegFromJupiter(
   return saveQuote(order, leg, quote);
 }
 
-function recordBuy(user: UserState, leg: OrderLeg): void {
-  const spend = BigInt(leg.requestedInputRaw);
+function recordBuy(user: UserState, leg: OrderLeg, input: FinalizedLegInput): void {
+  const spend = BigInt(input.actualInputRaw);
+  const received = BigInt(input.actualOutputRaw);
   if (BigInt(user.cashRaw) < spend) throw new Error("INSUFFICIENT_USDC");
   user.cashRaw = (BigInt(user.cashRaw) - spend).toString();
   state.lots.push({
     userId: user.id,
     instrumentId: leg.instrumentId!,
-    remainingRaw: leg.quote!.estimatedOutputRaw,
+    remainingRaw: received.toString(),
     costRemainingUsdcRaw: spend.toString(),
   });
 
   const holding = user.holdings.find((item) => item.instrumentId === leg.instrumentId);
   if (holding) {
     holding.rawAmount = (
-      BigInt(holding.rawAmount) + BigInt(leg.quote!.estimatedOutputRaw)
+      BigInt(holding.rawAmount) + received
     ).toString();
     holding.totalCostUsdcRaw = (BigInt(holding.totalCostUsdcRaw) + spend).toString();
     return;
@@ -749,7 +885,7 @@ function recordBuy(user: UserState, leg: OrderLeg): void {
     instrumentId: leg.instrumentId!,
     companyId: leg.companyId!,
     symbol: company!.instrument!.symbol,
-    rawAmount: leg.quote!.estimatedOutputRaw,
+    rawAmount: received.toString(),
     reservedRaw: "0",
     externalRaw: "0",
     decimals: company!.instrument!.decimals,
@@ -784,9 +920,9 @@ function disposeTrackedLots(user: UserState, instrumentId: string, rawAmount: bi
   return attributedCost;
 }
 
-function recordSell(user: UserState, leg: OrderLeg): void {
+function recordSell(user: UserState, leg: OrderLeg, input: FinalizedLegInput): void {
   const holding = user.holdings.find((item) => item.instrumentId === leg.instrumentId);
-  const amount = BigInt(leg.requestedInputRaw);
+  const amount = BigInt(input.actualInputRaw);
   if (!holding || BigInt(holding.rawAmount) < amount) throw new Error("INSUFFICIENT_ASSET");
 
   const attributedCost = disposeTrackedLots(user, holding.instrumentId, amount);
@@ -794,8 +930,7 @@ function recordSell(user: UserState, leg: OrderLeg): void {
   if (attributedCost > 0n) {
     holding.totalCostUsdcRaw = (BigInt(holding.totalCostUsdcRaw) - attributedCost).toString();
   }
-  const net = BigInt(leg.quote!.estimatedOutputRaw) - BigInt(leg.quote!.feeRaw);
-  user.cashRaw = (BigInt(user.cashRaw) + net).toString();
+  user.cashRaw = (BigInt(user.cashRaw) + BigInt(input.actualOutputRaw)).toString();
 }
 
 function recordTransfer(user: UserState, leg: OrderLeg): void {
@@ -820,12 +955,12 @@ function recordTransfer(user: UserState, leg: OrderLeg): void {
   holding[field] = (available - amount).toString();
 }
 
-function addRecord(user: UserState, leg: OrderLeg): void {
+function addRecord(user: UserState, leg: OrderLeg, input: FinalizedLegInput): void {
   const usdcRaw =
     leg.side === "buy"
-      ? `-${leg.requestedInputRaw}`
+      ? `-${input.actualInputRaw}`
       : leg.side === "sell"
-        ? leg.quote!.estimatedOutputRaw
+        ? input.actualOutputRaw
         : "0";
 
   const record: FinancialRecord = {
@@ -834,20 +969,28 @@ function addRecord(user: UserState, leg: OrderLeg): void {
     status: "finalized",
     recordedAt: new Date().toISOString(),
     asset: leg.instrumentId ?? "USDC",
-    rawAmount: leg.requestedInputRaw,
+    rawAmount: leg.side === "buy" ? input.actualOutputRaw : input.actualInputRaw,
     usdcRaw,
-    feeRaw: leg.quote!.feeRaw,
+    feeRaw: input.actualFeeRaw,
     signature: leg.signature,
     multiplier: "1",
   };
   user.records.unshift(record);
 }
 
+type FinalizedLegInput = {
+  reviewDigest: string;
+  signature: string;
+  actualInputRaw: string;
+  actualOutputRaw: string;
+  actualFeeRaw: string;
+};
+
 export function recordFinalizedLeg(
   user: UserState,
   orderId: string,
   legId: string,
-  input: { reviewDigest: string; signature: string },
+  input: FinalizedLegInput,
 ): Order {
   const order = ownedOrder(user, orderId);
   const leg = order.legs.find((item) => item.id === legId);
@@ -855,16 +998,25 @@ export function recordFinalizedLeg(
   if (leg.status === "finalized") return order;
   if (leg.quote.reviewDigest !== input.reviewDigest) throw new Error("REVIEW_CHANGED");
   if (!input.signature.trim()) throw new Error("SIGNATURE_INVALID");
-  if (new Date(leg.quote.expiresAt).getTime() < Date.now()) throw new Error("QUOTE_EXPIRED");
-  if (state.pauses.submissions) throw new Error("SUBMISSIONS_PAUSED");
+  if (input.actualInputRaw !== leg.requestedInputRaw) throw new Error("SETTLEMENT_MISMATCH");
+  if (BigInt(input.actualOutputRaw) < BigInt(leg.quote.minimumOutputRaw)) {
+    throw new Error("SETTLEMENT_MISMATCH");
+  }
+  const actualFee = BigInt(input.actualFeeRaw);
+  const feeBasis = leg.side === "sell"
+    ? BigInt(input.actualOutputRaw) + actualFee
+    : BigInt(input.actualInputRaw);
+  if (actualFee < 0n || actualFee !== feeFor(feeBasis, leg.quote.feeBps)) {
+    throw new Error("SETTLEMENT_MISMATCH");
+  }
 
-  if (leg.side === "buy") recordBuy(user, leg);
-  if (leg.side === "sell") recordSell(user, leg);
+  if (leg.side === "buy") recordBuy(user, leg, input);
+  if (leg.side === "sell") recordSell(user, leg, input);
   if (leg.side === "transfer") recordTransfer(user, leg);
 
   leg.status = "finalized";
   leg.signature = input.signature;
-  addRecord(user, leg);
+  addRecord(user, leg, input);
 
   const allFinalized = order.legs.every((item) => item.status === "finalized");
   order.status = allFinalized ? "complete" : "partially_complete";
@@ -872,12 +1024,74 @@ export function recordFinalizedLeg(
   return order;
 }
 
+export function markLegConfirmed(
+  user: UserState,
+  orderId: string,
+  legId: string,
+  signature: string,
+): Order {
+  const order = ownedOrder(user, orderId);
+  const leg = order.legs.find((item) => item.id === legId);
+  if (!leg || !["signed", "submitted", "confirmed", "outcome_unknown"].includes(leg.status)) {
+    throw new Error("PREPARATION_STATE_INVALID");
+  }
+  leg.status = "confirmed";
+  leg.signature = signature;
+  order.status = "in_progress";
+  order.version += 1;
+  return order;
+}
+
+export function markLegTerminal(
+  user: UserState,
+  orderId: string,
+  legId: string,
+  status: "failed" | "expired",
+  signature?: string,
+): Order {
+  const order = ownedOrder(user, orderId);
+  const leg = order.legs.find((item) => item.id === legId);
+  if (!leg) throw new Error("NOT_FOUND");
+  if (leg.status === "finalized") return order;
+  leg.status = status;
+  if (signature) leg.signature = signature;
+
+  const finalized = order.legs.filter((item) => item.status === "finalized").length;
+  const terminal = order.legs.every((item) =>
+    ["finalized", "failed", "expired", "cancelled"].includes(item.status),
+  );
+  order.status = finalized > 0 && terminal ? "partially_complete" : "failed";
+  order.version += 1;
+  return order;
+}
+
 export function stopOrder(user: UserState, orderId: string): Order {
   const order = ownedOrder(user, orderId);
   order.legs.forEach((leg) => {
-    if (leg.status !== "finalized") leg.status = "cancelled";
+    if (["draft", "quoted", "prepared", "awaiting_signature"].includes(leg.status)) {
+      leg.status = "cancelled";
+      for (const preparation of state.preparations.values()) {
+        if (
+          preparation.orderId === order.id &&
+          preparation.legId === leg.id &&
+          ["prepared", "awaiting_signature"].includes(preparation.status)
+        ) {
+          preparation.status = "cancelled";
+          const reservation = state.sponsorReservations.find(
+            (item) => item.preparationId === preparation.id && item.status === "reserved",
+          );
+          if (reservation) {
+            reservation.status = "released";
+            reservation.releaseReason = "order_stopped_before_submission";
+          }
+        }
+      }
+    }
   });
-  order.status = "stopped";
+  order.status = order.legs.some((leg) =>
+    ["signed", "submitted", "confirmed", "outcome_unknown"].includes(leg.status))
+    ? "outcome_unknown"
+    : "stopped";
   order.version += 1;
   return order;
 }

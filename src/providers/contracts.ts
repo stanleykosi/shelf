@@ -12,7 +12,10 @@ export interface IdentityProvider {
     issuedAt: string;
     expiresAt: string;
   }>;
-  getSolanaWallet(issuer: string): Promise<{ address: string; network: string }>;
+  getSolanaWallet(
+    issuer: string,
+    expectedAddress: string,
+  ): Promise<{ address: string; network: string }>;
   freshAuthEvidence(token: string): Promise<{ verifiedAt: string }>;
   revokeSessions(issuer: string): Promise<void>;
 }
@@ -57,6 +60,7 @@ export type ExactInputQuoteRequest = {
   payer: string;
   feeAccount: string;
   feeBps: number;
+  tokenProgramsByMint?: Record<string, string>;
 };
 
 type ExactInputQuote = {
@@ -73,8 +77,12 @@ export interface QuoteProvider {
 export interface ChainProvider {
   networkIdentity(): Promise<{ network: string; genesisHash: string }>;
   balances(address: string): Promise<Record<string, string>>;
+  blockHeight(commitment?: "confirmed" | "finalized"): Promise<number>;
+  simulate(bytes: Uint8Array): Promise<{ unitsConsumed: number | null }>;
   broadcast(bytes: Uint8Array): Promise<{ signature: string }>;
-  signatureStatus(signature: string): Promise<"not_found" | "confirmed" | "finalized" | "failed">;
+  signatureStatus(signature: string): Promise<
+    "not_found" | "processed" | "confirmed" | "finalized" | "pending_failure" | "failed"
+  >;
 }
 
 export interface SponsorSigner {

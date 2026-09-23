@@ -29,6 +29,7 @@ import {
   signOutMagicBrowser,
   startMagicGoogleLogin,
 } from "@/providers/magic-browser";
+import { walletRefreshMessage } from "./wallet-refresh-message";
 
 async function createLoginChallenge(returnPath: string): Promise<LoginChallenge> {
   return postJson<LoginChallenge>("auth/challenges", {
@@ -298,6 +299,7 @@ export function EligibilityScreen() {
 
 export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
   const [message, setMessage] = useState("");
+  const [refreshPending, setRefreshPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wallet, setWallet] = useState<WalletSummary>();
   const address = wallet?.address ?? "Wallet unavailable";
@@ -312,8 +314,13 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
 
   async function refreshBalance() {
     try {
-      await postJson("wallet/refresh", {});
-      setMessage("Balance refresh queued. Deposits remain disabled until live-money activation.");
+      const refreshed = await postJson<
+        Pick<WalletSummary, "cashRaw" | "reconciliationRequiredAssets"> &
+          { pendingReconciliation: boolean }
+      >("wallet/refresh", {});
+      setWallet((current) => current ? { ...current, ...refreshed } : current);
+      setRefreshPending(refreshed.pendingReconciliation);
+      setMessage(walletRefreshMessage(refreshed.pendingReconciliation));
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "WALLET_REFRESH_UNAVAILABLE");
@@ -323,8 +330,10 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
   async function copyAddress() {
     try {
       await navigator.clipboard.writeText(address);
+      setRefreshPending(false);
       setMessage("Magic wallet address copied.");
     } catch {
+      setRefreshPending(false);
       setMessage("Clipboard permission was blocked. Select and copy the address manually.");
     }
   }
@@ -372,7 +381,9 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
             </CtaLink>
           </div>
           <ErrorMessage message={error} />
-          {message ? <ResultMessage>{message}</ResultMessage> : null}
+          {message ? refreshPending
+            ? <div className="notice" role="status" aria-live="polite">{message}</div>
+            : <ResultMessage>{message}</ResultMessage> : null}
         </Card>
       </>
     );
@@ -409,8 +420,16 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
           Refresh balance
         </button>
       </div>
+      {wallet?.reconciliationRequiredAssets.length ? (
+        <div className="notice" role="alert">
+          One or more asset balances need reconciliation. Shelf is showing the last known tracked
+          amounts and has blocked spending those assets until their finalized history is resolved.
+        </div>
+      ) : null}
       <ErrorMessage message={error} />
-      {message ? <ResultMessage>{message}</ResultMessage> : null}
+      {message ? refreshPending
+        ? <div className="notice" role="status" aria-live="polite">{message}</div>
+        : <ResultMessage>{message}</ResultMessage> : null}
     </>
   );
 }

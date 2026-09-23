@@ -31,6 +31,7 @@
     "@magic-ext/solana": "30.12.0",
     "@magic-sdk/admin": "2.8.2",
     "@solana/web3.js": "1.99.0",
+    "bs58": "6.0.0",
     "buffer": "6.0.3",
     "decimal.js": "10.6.0",
     "drizzle-orm": "0.45.2",
@@ -41,6 +42,7 @@
     "postgres": "3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "tweetnacl": "1.0.3",
     "zod": "4.6.5"
   },
   "devDependencies": {

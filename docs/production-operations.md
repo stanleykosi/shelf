@@ -1,10 +1,12 @@
 # Production operations
 
-Shelf is deployed as one Next.js application on Vercel. Railway provides PostgreSQL and a scheduled Bun worker. No separate HTTP backend is required.
+Shelf is deployed as one Next.js application on Vercel. Railway provides PostgreSQL and a scheduled Node worker. No separate HTTP backend is required.
 
 Production configuration uses Magic, OpenRouter with `z-ai/glm-5.3-flash`, the PreStocks and xStocks issuer APIs, Jupiter, Helius, and PostgreSQL. `ENABLE_REAL_TRADING`, `ENABLE_DEPOSITS`, and `ENABLE_AI_ALLOCATION_SUGGESTIONS` remain false. Secrets belong only in Vercel or Railway secret storage.
 
-The Railway worker runs every five minutes. It validates reviewed xStocks symbol/mint pairs and stores PreStocks issuer-mark and token-reference observations. It records only work it actually performed.
+The Railway worker runs every five minutes. It validates reviewed xStocks symbol/mint pairs, stores PreStocks issuer-mark and token-reference observations, and calls the narrowly authenticated Vercel reconciliation endpoint. When trading is disabled, reconciliation still checks persisted signatures and records finalized outcomes; it cannot broadcast. Each authenticated request processes at most one preparation, with a three-second timeout per chain RPC and a 24-second worker request deadline. The worker renews a 40-second lease and can issue two bounded reconciliation requests per scheduled run; unchecked items are selected oldest-check-first on later runs. It rebroadcasts identical stored bytes only when signature history is unseen and finalizes records from finalized Helius facts. A non-final signature error remains unresolved, retains its sponsor reservation and wallet lock, and is not treated as a failed trade until finality.
+
+Vercel stores `SPONSOR_SECRET_KEY`, `DATA_ENCRYPTION_KEY`, and `WORKER_SHARED_SECRET`. Railway stores the same `WORKER_SHARED_SECRET` and the production `APP_ORIGIN`. Rotate the worker secret on both platforms together. Never rotate `DATA_ENCRYPTION_KEY` while encrypted preparations remain unresolved.
 
 ## Release
 

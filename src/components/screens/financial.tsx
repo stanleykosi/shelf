@@ -8,6 +8,7 @@ import { formatRaw, parseTokenAmount, parseUsdc } from "@/domain/money";
 import type { FinancialRecord, Holding, Order, Quote } from "@/domain/types";
 import { apiRequest, freshApiRequest, freshPostJson, postJson } from "@/lib/api-client";
 import { financialRecordsCsv } from "@/lib/csv";
+import { signMagicSolanaTransaction } from "@/providers/magic-browser";
 import {
   Card,
   CtaLink,
@@ -53,8 +54,10 @@ export function BuyScreen({ companyId = "company-pepsico" }: { companyId?: strin
         title={`Choose an amount for ${company.name}`}
       >
         <p>
-          The amount is your maximum total USDC debit, including Shelf’s 0.50% fee. Nothing is
-          purchased until you review and approve.
+          {company.instrument?.provider === "prestocks"
+            ? "PreStocks supplies the reviewed private-company token identity and reference data. Jupiter supplies the live USDC swap route."
+            : "xStocks supplies the reviewed public-company token identity. Jupiter supplies the live USDC swap route."}{" "}
+          Nothing is purchased until you review and approve.
         </p>
       </PageIntro>
       <Card className="stack">
@@ -71,8 +74,29 @@ export function BuyScreen({ companyId = "company-pepsico" }: { companyId?: strin
             quote determines executable secondary-market terms.
           </p>
         )}
+        {company.instrument ? (
+          <dl className="facts">
+            <div>
+              <dt>Instrument source</dt>
+              <dd>{company.instrument.provider === "prestocks" ? "PreStocks" : "xStocks"}</dd>
+            </div>
+            <div>
+              <dt>Token</dt>
+              <dd>{company.instrument.symbol}</dd>
+            </div>
+            <div>
+              <dt>Mint</dt>
+              <dd className="address">{company.instrument.mint}</dd>
+            </div>
+            <div>
+              <dt>Execution route</dt>
+              <dd>Jupiter · exact-input USDC</dd>
+            </div>
+          </dl>
+        ) : null}
         <p>
-          Funding remains disabled until the live-money activation run.
+          The amount is your maximum total USDC debit, including Shelf’s 0.50% fee. Funding remains
+          disabled until the live-money activation run.
         </p>
         <Field
           label="Amount in USDC"
@@ -467,6 +491,7 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
 
   useEffect(() => {
     apiRequest<Order>(`orders/${orderId}`)
@@ -492,6 +517,33 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
   async function cancelOrder() {
     await postJson(`orders/${orderId}/stop`, {});
     router.push("/portfolio");
+  }
+
+  async function approveOrder() {
+    if (!order || !quote) return;
+    const nextLeg = order.legs.find((leg) => leg.status !== "finalized");
+    if (!nextLeg) return;
+    setApproving(true);
+    try {
+      const preparation = await postJson<{
+        preparationId: string;
+        transactionBase64: string;
+      }>(`orders/${order.id}/legs/${nextLeg.id}/prepare`, {
+        reviewDigest: quote.reviewDigest,
+      });
+      const signedTransactionBase64 = await signMagicSolanaTransaction(
+        preparation.transactionBase64,
+      );
+      await postJson(`preparations/${preparation.preparationId}/signature`, {
+        signedTransactionBase64,
+      });
+      await postJson(`preparations/${preparation.preparationId}/broadcast`, {});
+      router.push(`/orders/${order.id}`);
+    } catch (requestError) {
+      if (messageFrom(requestError).includes("QUOTE_EXPIRED")) setQuote(null);
+      setError(messageFrom(requestError));
+      setApproving(false);
+    }
   }
 
   if (!order)
@@ -552,12 +604,18 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
               Get fresh quote
             </button>
           ) : (
-            <button data-cta={actionId} disabled={!quote.executionAvailable}>
-              {order.type === "sell"
-                ? "Approve sale"
-                : order.type === "transfer"
-                  ? "Approve transfer"
-                  : "Approve purchase"}
+            <button
+              data-cta={actionId}
+              disabled={!quote.executionAvailable || approving}
+              onClick={approveOrder}
+            >
+              {approving
+                ? "Waiting for wallet…"
+                : order.type === "sell"
+                  ? "Approve sale"
+                  : order.type === "transfer"
+                    ? "Approve transfer"
+                    : "Approve purchase"}
             </button>
           )}
           <button className="secondary" data-cta="C65" onClick={() => history.back()}>
@@ -579,7 +637,11 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
 
   async function loadOrder() {
     try {
-      setOrder(await apiRequest<Order>(`orders/${orderId}`));
+      const current = await postJson<{ status: string; order: Order }>(
+        `orders/${orderId}/status`,
+        {},
+      );
+      setOrder(current.order);
       setError(null);
     } catch (requestError) {
       setError(messageFrom(requestError));
@@ -601,13 +663,20 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
         Shelf is loading the persisted order.
       </EmptyState>
     );
-  const nextLeg = order.legs.find((leg) => leg.status !== "finalized");
+  const nextLeg = order.legs.find((leg) => leg.status !== "finalized" && leg.status !== "cancelled");
+  const canReviewNext = nextLeg && ["draft", "quoted"].includes(nextLeg.status);
+  const canRetry = nextLeg && ["failed", "expired"].includes(nextLeg.status);
+  const hasUnsignedLeg = order.legs.some((leg) =>
+    ["draft", "quoted", "prepared", "awaiting_signature"].includes(leg.status));
 
   return (
     <>
       <PageIntro
         eyebrow="Order status"
-        title={order.status === "complete" ? "Complete" : "Partly completed"}
+        title={order.status === "complete" ? "Complete" :
+          order.status === "outcome_unknown" ? "Transaction outcome pending" :
+          order.status === "failed" ? "Transaction failed" :
+          order.status === "stopped" ? "Order stopped" : "Partly completed"}
       >
         <p>
           Finalized chain facts are recorded once after reconciliation.
@@ -638,15 +707,15 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
         <button className="secondary" data-cta="C69" onClick={loadOrder}>
           Check status
         </button>
-        {nextLeg ? (
+        {canReviewNext ? (
           <CtaLink id="C70" href={`/orders/${order.id}/review`}>
             Review next purchase
           </CtaLink>
         ) : null}
-        <button className="secondary" data-cta="C71" disabled={!nextLeg} onClick={stopRemaining}>
+        <button className="secondary" data-cta="C71" disabled={!hasUnsignedLeg} onClick={stopRemaining}>
           Stop remaining purchases
         </button>
-        {nextLeg ? (
+        {canRetry ? (
           <CtaLink id="C72" href={`/orders/${order.id}/review`} secondary>
             Retry remaining purchase
           </CtaLink>

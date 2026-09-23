@@ -1,4 +1,5 @@
 import { Magic, WalletType } from "@magic-sdk/admin";
+import type { MagicUserMetadata } from "@magic-sdk/admin";
 import type { IdentityProvider } from "./contracts";
 import { isSolanaPublicKey } from "@/lib/solana-signing";
 
@@ -7,6 +8,20 @@ type MagicIdentityOptions = {
   appId?: string;
   network: string;
 };
+
+export function verifiedSolanaAddress(
+  metadata: Pick<MagicUserMetadata, "publicAddress" | "wallets">,
+  expectedAddress: string,
+) {
+  const nestedAddresses = (metadata.wallets ?? [])
+    .filter((wallet) => wallet.walletType?.toUpperCase() === WalletType.SOLANA)
+    .map((wallet) => wallet.publicAddress);
+  const validAddresses = [metadata.publicAddress, ...nestedAddresses].filter(isSolanaPublicKey);
+
+  if (validAddresses.length === 0) throw new Error("SOLANA_WALLET_INVALID");
+  if (!validAddresses.includes(expectedAddress)) throw new Error("WALLET_BINDING_MISMATCH");
+  return expectedAddress;
+}
 
 export class MagicIdentityProvider implements IdentityProvider {
   private readonly magic: Promise<Magic>;
@@ -34,13 +49,10 @@ export class MagicIdentityProvider implements IdentityProvider {
     };
   }
 
-  async getSolanaWallet(issuer: string) {
+  async getSolanaWallet(issuer: string, expectedAddress: string) {
     const magic = await this.magic;
     const metadata = await magic.users.getMetadataByIssuerAndWallet(issuer, WalletType.SOLANA);
-    const address = metadata.publicAddress;
-    if (typeof address !== "string" || !isSolanaPublicKey(address)) {
-      throw new Error("SOLANA_WALLET_INVALID");
-    }
+    const address = verifiedSolanaAddress(metadata, expectedAddress);
     return { address, network: this.options.network };
   }
 

@@ -4,12 +4,14 @@ import {
   createOrder,
   deleteAccountData,
   quoteLegFromJupiter,
+  reconcileInstrumentBalance,
   recordFinalizedLeg,
   reviewCatalogReport,
   revokeInvite,
   state,
   stopOrder,
   userForMagicIdentity,
+  type ExecutionPreparation,
 } from "./store";
 import { Keypair } from "@solana/web3.js";
 
@@ -32,10 +34,13 @@ describe("production order accounting", () => {
     state.catalogReports = [];
     state.audits = [];
     state.authTokenUses.clear();
+    state.preparations.clear();
+    state.sponsorReservations = [];
     state.sessions.clear();
     state.retainedFinancialRecords = [];
     state.pauses.buys = false;
     state.pauses.submissions = false;
+    user.reconciliationRequiredAssets = [];
   });
 
   it("returns the original order for a repeated client intent", () => {
@@ -110,6 +115,50 @@ describe("production order accounting", () => {
       "LEG_NOT_QUOTEABLE",
     );
     expect(order.legs[0].status).toBe("cancelled");
+  });
+
+  it("does not reopen a proven failed leg after the order is explicitly stopped", () => {
+    const order = createOrder(user, {
+      type: "buy", companyId: "company-pepsico", amountUsdcRaw: "10000000",
+    });
+    const leg = order.legs[0];
+    leg.status = "failed";
+    state.preparations.set("proven-failure", {
+      id: "proven-failure", userId: user.id, orderId: order.id, legId: leg.id,
+      reviewDigest: "review", messageHash: "message", encryptedUnsignedTransaction: "ciphertext",
+      expectedSigners: [], expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      lastValidBlockHeight: 1, status: "failed", signature: "signature",
+      terminalErrorCode: "CHAIN_TRANSACTION_FAILED",
+    });
+    stopOrder(user, order.id);
+    expect(() => quoteLegFromJupiter(user, order.id, leg.id, {
+      outputRaw: "2500000", minOutputRaw: "2487500", priceImpactBps: 8,
+      routeDigest: "route", routeLabels: [], transactionMessageHash: "message", feeBps: 50,
+    })).toThrow("LEG_NOT_QUOTEABLE");
+  });
+
+  it("blocks spending when finalized inventory is below tracked inventory", () => {
+    user.holdings = [{
+      instrumentId: "instrument-pepx",
+      companyId: "company-pepsico",
+      symbol: "PEPx",
+      rawAmount: "100",
+      reservedRaw: "10",
+      externalRaw: "25",
+      decimals: 8,
+      multiplier: "1",
+      totalCostUsdcRaw: "5000000",
+    }];
+
+    reconcileInstrumentBalance(user, "instrument-pepx", "90");
+
+    expect(user.reconciliationRequiredAssets).toContain("instrument-pepx");
+    expect(user.holdings[0].externalRaw).toBe("0");
+    expect(() => createOrder(user, {
+      type: "sell",
+      instrumentId: "instrument-pepx",
+      amountRaw: "1",
+    })).toThrow("RECONCILIATION_REQUIRED");
   });
 
   it("rejects DID token replay even under a different challenge", () => {
@@ -200,6 +249,66 @@ describe("production order accounting", () => {
     expect(JSON.stringify(state.retainedFinancialRecords[0])).not.toContain("delete@example.com");
   });
 
+  it("blocks deletion while an on-chain outcome is unresolved, then removes terminal preparations", () => {
+    const member = userForMagicIdentity({
+      issuer: "did:magic:pending-deletion",
+      walletAddress: Keypair.generate().publicKey.toBase58(),
+    });
+    const preparation: ExecutionPreparation = {
+      id: "pending-deletion-preparation", userId: member.id, orderId: "order", legId: "leg",
+      reviewDigest: "digest", messageHash: "hash", encryptedUnsignedTransaction: "ciphertext",
+      expectedSigners: [], expiresAt: "2030-01-01T00:00:00.000Z", lastValidBlockHeight: 1,
+      status: "submitted", signature: "chain-signature",
+    };
+    state.preparations.set(preparation.id, preparation);
+    expect(() => deleteAccountData(member)).toThrow("PENDING_FINANCIAL_OPERATION");
+    expect(state.users.has(member.id)).toBe(true);
+    preparation.status = "finalized";
+    deleteAccountData(member);
+    expect(state.preparations.has(preparation.id)).toBe(false);
+  });
+
+  it("cancels an unsigned preparation during account deletion", () => {
+    const member = userForMagicIdentity({
+      issuer: "did:magic:unsigned-deletion",
+      walletAddress: Keypair.generate().publicKey.toBase58(),
+    });
+    state.preparations.set("unsigned-deletion-preparation", {
+      id: "unsigned-deletion-preparation", userId: member.id, orderId: "order", legId: "leg",
+      reviewDigest: "digest", messageHash: "hash", encryptedUnsignedTransaction: "ciphertext",
+      expectedSigners: [], expiresAt: "2030-01-01T00:00:00.000Z", lastValidBlockHeight: 1,
+      status: "awaiting_signature",
+    });
+    deleteAccountData(member);
+    expect(state.preparations.has("unsigned-deletion-preparation")).toBe(false);
+    expect(state.users.has(member.id)).toBe(false);
+  });
+
+  it("derives a sell fee from the actual finalized gross output, not its quote estimate", () => {
+    user.holdings = [{
+      instrumentId: "instrument-pepx", companyId: "company-pepsico", symbol: "PEPx",
+      rawAmount: "100000000", reservedRaw: "0", externalRaw: "0", decimals: 8,
+      multiplier: "1", totalCostUsdcRaw: "5000000",
+    }];
+    state.lots.push({
+      userId: user.id, instrumentId: "instrument-pepx",
+      remainingRaw: "100000000", costRemainingUsdcRaw: "5000000",
+    });
+    const order = createOrder(user, { type: "sell", instrumentId: "instrument-pepx", amountRaw: "100000000" });
+    const quote = quoteLegFromJupiter(user, order.id, order.legs[0].id, {
+      outputRaw: "8955000", minOutputRaw: "8900000", priceImpactBps: 5,
+      routeDigest: "sell-route", routeLabels: [], transactionMessageHash: "sell-message", feeBps: 50,
+    });
+    expect(quote.feeRaw).toBe("45000");
+    recordFinalizedLeg(user, order.id, order.legs[0].id, {
+      reviewDigest: quote.reviewDigest, signature: "finalized-sell", actualInputRaw: "100000000",
+      actualOutputRaw: "9950000", actualFeeRaw: "50000",
+    });
+    expect(order.legs[0].status).toBe("finalized");
+    expect(user.cashRaw).toBe("59950000");
+    expect(user.holdings[0].rawAmount).toBe("0");
+  });
+
   it("records confirmed chain data once and keeps the real signature", () => {
     const order = createOrder(user, {
       type: "buy",
@@ -216,7 +325,13 @@ describe("production order accounting", () => {
       feeBps: 50,
     });
     const signature = "5sL7confirmedSolanaSignature";
-    const input = { reviewDigest: quote.reviewDigest, signature };
+    const input = {
+      reviewDigest: quote.reviewDigest,
+      signature,
+      actualInputRaw: "10000000",
+      actualOutputRaw: "2500000",
+      actualFeeRaw: "50000",
+    };
     recordFinalizedLeg(user, order.id, order.legs[0].id, input);
     recordFinalizedLeg(user, order.id, order.legs[0].id, input);
     expect(user.cashRaw).toBe("40000000");

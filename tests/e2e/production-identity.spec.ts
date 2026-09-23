@@ -38,6 +38,10 @@ test("production offers Magic sign-in while public research stays available to g
   await page.goto("/markets");
   await expect(page.getByRole("heading", { name: "xStocks" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "PreStocks" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Buy OPENAI" })).toHaveAttribute(
+    "href",
+    "/invest/buy?companyId=company-openai",
+  );
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
   await page.goto("/shelf");

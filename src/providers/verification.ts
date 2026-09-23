@@ -5,6 +5,7 @@ import {
   SOLANA_MAINNET_GENESIS_HASH,
   SOLANA_MAINNET_USDC_MINT,
   SOLANA_TOKEN_2022_PROGRAM_ID,
+  SOLANA_TOKEN_PROGRAM_ID,
 } from "./solana-constants";
 
 type MarketProviderConfig = {
@@ -114,11 +115,18 @@ export async function verifyJupiterBuildConfiguration(config: JupiterBuildVerifi
   const routes = [];
   for (const [index, route] of routeRequests.entries()) {
     if (index > 0) await waitForJupiterRateLimit();
+    const stockMint = route.inputMint === SOLANA_MAINNET_USDC_MINT
+      ? route.outputMint
+      : route.inputMint;
     const build = await jupiter.buildValidatedExactInput({
       ...input,
       inputMint: route.inputMint,
       outputMint: route.outputMint,
       rawAmount: route.rawAmount,
+      tokenProgramsByMint: {
+        [SOLANA_MAINNET_USDC_MINT]: SOLANA_TOKEN_PROGRAM_ID,
+        [stockMint]: SOLANA_TOKEN_2022_PROGRAM_ID,
+      },
     });
     routes.push({
       symbol: route.symbol,
