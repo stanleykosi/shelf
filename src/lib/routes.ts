@@ -49,16 +49,55 @@ const knownStaticPaths = new Set([
   "/admin/audit",
 ]);
 
-const knownDynamicPrefixes = [
-  "/products/",
-  "/brands/",
-  "/companies/",
-  "/learn/",
-  "/share/",
-  "/invest/",
-  "/orders/",
-  "/portfolio/",
-];
+const singleSegmentRoutes = new Set([
+  "products",
+  "brands",
+  "companies",
+  "learn",
+  "share",
+  "invest",
+  "orders",
+  "portfolio",
+]);
+
+function isSafePathSegment(segment: string | undefined) {
+  if (!segment) return false;
+
+  try {
+    const decoded = decodeURIComponent(segment);
+    return (
+      decoded.length > 0 &&
+      decoded !== "." &&
+      decoded !== ".." &&
+      !decoded.includes("/") &&
+      !decoded.includes("\\") &&
+      !/[\u0000-\u001f]/.test(decoded)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isKnownDynamicPath(pathname: string) {
+  const segments = pathname.split("/");
+  if (segments[0] !== "") return false;
+
+  if (
+    segments.length === 3 &&
+    singleSegmentRoutes.has(segments[1] ?? "") &&
+    isSafePathSegment(segments[2])
+  ) {
+    return true;
+  }
+
+  if (segments.length !== 4 || !isSafePathSegment(segments[2])) return false;
+
+  return (
+    (segments[1] === "orders" && segments[3] === "review") ||
+    (segments[1] === "portfolio" && segments[3] === "sell") ||
+    (segments[1] === "portfolio" && segments[2] === "activity" && isSafePathSegment(segments[3]))
+  );
+}
 
 function withSafeQuery(pathname: string, source: URLSearchParams, initial?: URLSearchParams) {
   const target = initial ?? new URLSearchParams();
@@ -114,10 +153,7 @@ export function legacyRedirectFor(
 }
 
 export function isKnownAppPath(pathname: string) {
-  return (
-    knownStaticPaths.has(pathname) ||
-    knownDynamicPrefixes.some((prefix) => pathname.startsWith(prefix))
-  );
+  return knownStaticPaths.has(pathname) || isKnownDynamicPath(pathname);
 }
 
 export function safeReturnTo(value: string | undefined, fallback = "/onboarding") {
