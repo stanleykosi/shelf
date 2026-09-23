@@ -1,5 +1,31 @@
+import type { AccountSummary, StepUpChallenge } from "@/domain/identity";
+import {
+  reauthenticateWithMagicEmail,
+  reauthenticateWithMagicGoogle,
+} from "@/providers/magic-browser";
+
 type ApiEnvelope<T> = { data: T };
 type ApiError = { error?: { code?: string; message?: string } };
+
+type Reauthenticators = {
+  email(email: string, challengeId: string): Promise<string>;
+  google(challengeId: string, email?: string): Promise<string>;
+};
+
+export async function reauthenticateForSession(
+  challenge: StepUpChallenge,
+  account: AccountSummary,
+  authenticators: Reauthenticators,
+): Promise<string> {
+  if (account.authMethod && account.authMethod !== challenge.authMethod) {
+    throw new Error("REAUTHENTICATION_METHOD_CHANGED");
+  }
+  if (challenge.authMethod === "google") {
+    return authenticators.google(challenge.challengeId, account.email);
+  }
+  if (!account.email) throw new Error("REAUTHENTICATION_EMAIL_UNAVAILABLE");
+  return authenticators.email(account.email, challenge.challengeId);
+}
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api/v1/${path}`, {
@@ -33,17 +59,22 @@ async function freshAuthorization(
   purpose: string,
   headers: Record<string, string> = {},
 ): Promise<string> {
-  const challenge = await apiRequest<{ challengeId: string }>("auth/step-up-challenge", {
+  const challenge = await apiRequest<StepUpChallenge>("auth/step-up-challenge", {
     method: "POST",
     headers,
     body: JSON.stringify({ purpose, returnPath: window.location.pathname }),
+  });
+  const account = await apiRequest<AccountSummary>("me");
+  const didToken = await reauthenticateForSession(challenge, account, {
+    email: reauthenticateWithMagicEmail,
+    google: reauthenticateWithMagicGoogle,
   });
   const authorization = await apiRequest<{ stepUpToken: string }>("auth/step-up", {
     method: "POST",
     headers,
     body: JSON.stringify({
       challengeId: challenge.challengeId,
-      didToken: await freshMagicToken(),
+      didToken,
       purpose,
     }),
   });
@@ -77,4 +108,3 @@ export async function postAdminJson<T>(path: string, body: unknown): Promise<T> 
     body: JSON.stringify(body),
   });
 }
-import { freshMagicToken } from "@/providers/magic-browser";

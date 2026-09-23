@@ -1,6 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { PublicKey } from "@solana/web3.js";
 import { companies, companyById, productById, products } from "@/data/catalog";
+import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
 import { feeFor, splitBudget } from "./money";
 import type {
   FinancialRecord,
@@ -11,12 +13,30 @@ import type {
   Quote,
   UserRole,
 } from "./types";
+import type { AuthenticationMethod } from "./identity";
 
 export type AuthChallenge = {
   consumed: boolean;
+  createdAt: string;
   expiresAt: string;
   purpose: string;
+  userId?: string;
+  authMethod?: AuthenticationMethod;
   walletAddress?: string;
+};
+
+export type AuthTokenUse = {
+  challengeId: string;
+  issuerDigest: string;
+  usedAt: string;
+  expiresAt: string;
+};
+
+export type SessionRecord = {
+  userId: string;
+  authMethod: AuthenticationMethod;
+  expiresAt: string;
+  revokedAt?: string;
 };
 
 export type FreshAuthorization = {
@@ -116,6 +136,8 @@ export type StoreState = {
   intentHashes: Map<string, string>;
   shares: Map<string, Share>;
   authChallenges: Map<string, AuthChallenge>;
+  authTokenUses: Map<string, AuthTokenUse>;
+  sessions: Map<string, SessionRecord>;
   freshAuthorizations: Map<string, FreshAuthorization>;
   allocationDrafts: Map<string, AllocationDraft>;
   consents: ConsentRecord[];
@@ -127,6 +149,11 @@ export type StoreState = {
     createdAt: string;
   }>;
   lots: AcquisitionLot[];
+  retainedFinancialRecords: Array<{
+    deletionReference: string;
+    records: FinancialRecord[];
+    retainedAt: string;
+  }>;
   pauses: { buys: boolean; submissions: boolean; suggestions: boolean };
   audits: AuditEvent[];
   aiUsage: Array<{ at: string; costMicrousd: number; subjectHash?: string }>;
@@ -139,12 +166,15 @@ const initialState: StoreState = {
   intentHashes: new Map(),
   shares: new Map(),
   authChallenges: new Map(),
+  authTokenUses: new Map(),
+  sessions: new Map(),
   freshAuthorizations: new Map(),
   allocationDrafts: new Map(),
   consents: [],
   catalogReports: [],
   invites: [],
   lots: [],
+  retainedFinancialRecords: [],
   pauses: { buys: false, submissions: false, suggestions: false },
   audits: [],
   aiUsage: [],
@@ -183,6 +213,87 @@ export function reviewCatalogReport(
   return report;
 }
 
+export function revokeInvite(inviteId: string) {
+  const invite = state.invites.find((candidate) => candidate.id === inviteId);
+  if (!invite) throw new Error("NOT_FOUND");
+  invite.status = "revoked";
+  for (const member of state.users.values()) {
+    if (member.email?.toLowerCase() === invite.email) member.invited = false;
+  }
+  return { status: invite.status, inviteId };
+}
+
+export function consumeMagicDidToken(
+  token: string,
+  challengeId: string,
+  identity: { issuer: string; expiresAt: string },
+) {
+  const now = new Date();
+  for (const [existingDigest, use] of state.authTokenUses) {
+    if (new Date(use.expiresAt) <= now) state.authTokenUses.delete(existingDigest);
+  }
+  const digest = createHash("sha256").update(token).digest("hex");
+  if (state.authTokenUses.has(digest)) throw new Error("AUTH_REPLAYED");
+  state.authTokenUses.set(digest, {
+    challengeId,
+    issuerDigest: createHash("sha256").update(identity.issuer).digest("hex"),
+    usedAt: now.toISOString(),
+    expiresAt: identity.expiresAt,
+  });
+}
+
+export function deleteAccountData(user: UserState) {
+  const deletionReference = createHash("sha256").update(`${user.id}:${randomUUID()}`).digest("hex");
+  if (user.records.length > 0) {
+    state.retainedFinancialRecords.push({
+      deletionReference,
+      records: structuredClone(user.records),
+      retainedAt: new Date().toISOString(),
+    });
+  }
+  for (const [shareId, share] of state.shares) {
+    if (share.userId === user.id) state.shares.delete(shareId);
+  }
+  for (const [id, draft] of state.allocationDrafts) {
+    if (draft.userId === user.id) state.allocationDrafts.delete(id);
+  }
+  state.consents = state.consents.filter((consent) => consent.userId !== user.id);
+  state.lots = state.lots.filter((lot) => lot.userId !== user.id);
+  for (const [orderId, order] of state.orders) {
+    if (order.userId === user.id) state.orders.delete(orderId);
+  }
+  for (const [intentKey, orderId] of state.intents) {
+    if (!state.orders.has(orderId)) {
+      state.intents.delete(intentKey);
+      state.intentHashes.delete(intentKey);
+    }
+  }
+  for (const [sessionId, session] of state.sessions) {
+    if (session.userId === user.id) state.sessions.delete(sessionId);
+  }
+  for (const [challengeId, challenge] of state.authChallenges) {
+    if (challenge.userId === user.id) state.authChallenges.delete(challengeId);
+  }
+  state.freshAuthorizations.forEach((authorization, tokenHash) => {
+    if (authorization.userId === user.id) state.freshAuthorizations.delete(tokenHash);
+  });
+  state.invites = state.invites.filter((invite) => invite.email !== user.email?.toLowerCase());
+  for (const audit of state.audits) {
+    if (audit.actorId === user.id) {
+      audit.actorId = undefined;
+      audit.reference ??= deletionReference;
+    }
+  }
+  state.users.delete(user.id);
+  state.audits.push({
+    action: "account_deleted",
+    reference: deletionReference,
+    retained: ["financial_records_without_account_identity", "audit_events"],
+    at: new Date().toISOString(),
+  });
+  return deletionReference;
+}
+
 export function userForMagicIdentity(identity: {
   issuer: string;
   email?: string;
@@ -194,11 +305,19 @@ export function userForMagicIdentity(identity: {
     (candidate) => candidate.magicIssuer === identity.issuer,
   );
   if (existing) {
+    if (existing.walletAddress && existing.walletAddress !== identity.walletAddress) {
+      existing.eligible = false;
+      state.audits.push({
+        action: "wallet:binding_mismatch",
+        actorId: existing.id,
+        at: new Date().toISOString(),
+        reason: "Magic returned a different authoritative Solana wallet",
+      });
+      throw new Error("WALLET_BINDING_MISMATCH");
+    }
     existing.email = identity.email;
-    const canBindWallet =
-      !existing.walletAddress || existing.walletAddress === identity.walletAddress;
-    if (canBindWallet) existing.walletAddress = identity.walletAddress;
-    if (canBindWallet && identity.walletVerifiedAt) {
+    existing.walletAddress = identity.walletAddress;
+    if (identity.walletVerifiedAt) {
       existing.walletVerifiedAt = identity.walletVerifiedAt;
     }
     existing.role = identity.ownerIssuer === identity.issuer ? "owner" : "member";
@@ -401,9 +520,7 @@ function sellLeg(user: UserState, body: SellOrderInput): OrderLeg {
 function transferLeg(user: UserState, body: TransferOrderInput): OrderLeg {
   const assetId = body.assetId;
   const recipientAddress = body.recipientAddress;
-  if (recipientAddress.length < 32) {
-    throw new Error("RECIPIENT_INVALID");
-  }
+  validateTransferDestinationAddress(user, recipientAddress);
   return {
     id: randomUUID(),
     position: 0,
@@ -414,6 +531,26 @@ function transferLeg(user: UserState, body: TransferOrderInput): OrderLeg {
     recipientAddress,
     status: "draft",
   };
+}
+
+export function validateTransferDestinationAddress(
+  user: Pick<UserState, "walletAddress">,
+  recipientAddress: string,
+): PublicKey {
+  let recipient: PublicKey;
+  try {
+    recipient = new PublicKey(recipientAddress);
+  } catch {
+    throw new Error("RECIPIENT_INVALID");
+  }
+  if (!PublicKey.isOnCurve(recipient.toBytes())) throw new Error("RECIPIENT_INVALID");
+  if (recipient.toBase58() === user.walletAddress) throw new Error("RECIPIENT_SELF");
+  const forbiddenMints = new Set([
+    SOLANA_MAINNET_USDC_MINT,
+    ...companies.flatMap((company) => company.instrument?.mint ?? []),
+  ]);
+  if (forbiddenMints.has(recipient.toBase58())) throw new Error("RECIPIENT_ACCOUNT_UNSAFE");
+  return recipient;
 }
 
 function orderLegs(
@@ -512,6 +649,9 @@ function quoteableLeg(user: UserState, orderId: string, legId: string) {
   const order = ownedOrder(user, orderId);
   const leg = order.legs.find((item) => item.id === legId);
   if (!leg) throw new Error("NOT_FOUND");
+  if (leg.status !== "draft" && leg.status !== "quoted") {
+    throw new Error("LEG_NOT_QUOTEABLE");
+  }
 
   const previousLegIsUnresolved = order.legs.some((item) => {
     return item.position < leg.position && item.status !== "finalized";

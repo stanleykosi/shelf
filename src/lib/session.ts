@@ -3,7 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const SESSION_COOKIE_NAME = "shelf_session";
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
-type SessionClaims = {
+export type SessionClaims = {
+  sessionId: string;
   userId: string;
   issuer: string;
   sessionVersion: number;
@@ -16,6 +17,8 @@ function isSessionClaims(value: unknown): value is SessionClaims {
       typeof value === "object" &&
       "userId" in value &&
       typeof value.userId === "string" &&
+      "sessionId" in value &&
+      typeof value.sessionId === "string" &&
       "issuer" in value &&
       typeof value.issuer === "string" &&
       "sessionVersion" in value &&
@@ -66,6 +69,7 @@ export function readSessionToken(
     const expiresAt = Date.parse(claims.expiresAt);
     if (
       !claims.userId ||
+      !claims.sessionId ||
       !claims.issuer ||
       !Number.isInteger(claims.sessionVersion) ||
       !Number.isFinite(expiresAt) ||

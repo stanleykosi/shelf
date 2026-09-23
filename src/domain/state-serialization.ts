@@ -18,6 +18,8 @@ export type StoredState = Omit<
   | "intentHashes"
   | "shares"
   | "authChallenges"
+  | "authTokenUses"
+  | "sessions"
   | "freshAuthorizations"
   | "allocationDrafts"
 > & {
@@ -27,6 +29,10 @@ export type StoredState = Omit<
   intentHashes: StoredMap<string>;
   shares: StoredMap<Share>;
   authChallenges: StoredMap<AuthChallenge>;
+  authTokenUses: StoreState["authTokenUses"] extends Map<string, infer Value>
+    ? StoredMap<Value>
+    : never;
+  sessions: StoreState["sessions"] extends Map<string, infer Value> ? StoredMap<Value> : never;
   freshAuthorizations: StoredMap<FreshAuthorization>;
   allocationDrafts: StoredMap<AllocationDraft>;
 };
@@ -40,6 +46,8 @@ export function serializeState(state: StoreState): StoredState {
     intentHashes: [...state.intentHashes],
     shares: [...state.shares],
     authChallenges: [...state.authChallenges],
+    authTokenUses: [...state.authTokenUses],
+    sessions: [...state.sessions],
     freshAuthorizations: [...state.freshAuthorizations],
     allocationDrafts: [...state.allocationDrafts],
   };
@@ -48,12 +56,15 @@ export function serializeState(state: StoreState): StoredState {
 export function deserializeState(stored: StoredState): StoreState {
   const restored: StoreState = {
     ...stored,
+    retainedFinancialRecords: stored.retainedFinancialRecords ?? [],
     users: new Map(stored.users),
     orders: new Map(stored.orders),
     intents: new Map(stored.intents),
     intentHashes: new Map(stored.intentHashes),
     shares: new Map(stored.shares),
     authChallenges: new Map(stored.authChallenges),
+    authTokenUses: new Map(stored.authTokenUses ?? []),
+    sessions: new Map(stored.sessions ?? []),
     freshAuthorizations: new Map(stored.freshAuthorizations),
     allocationDrafts: new Map(stored.allocationDrafts),
   };

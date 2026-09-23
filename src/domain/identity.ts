@@ -1,3 +1,5 @@
+export type AuthenticationMethod = "email" | "google";
+
 export type LoginChallenge = {
   challengeId: string;
   expiresAt: string;
@@ -5,11 +7,18 @@ export type LoginChallenge = {
   oauthRedirectUri?: string;
 };
 
+export type StepUpChallenge = {
+  challengeId: string;
+  expiresAt: string;
+  authMethod: AuthenticationMethod;
+};
+
 export type AccountSummary = {
   email?: string;
   walletAddress?: string;
   ownerBindingId?: string;
   identityProvider: "magic";
+  authMethod?: AuthenticationMethod;
 };
 
 export type WalletSummary = {

@@ -369,7 +369,7 @@ export function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -409,12 +409,13 @@ export function ScanScreen() {
         response = await postJson("discovery/link", { url });
       } else {
         if (!imageDataUrl) throw new Error("Choose or capture an image first.");
-        if (!aiProcessingConsent) throw new Error("AI processing consent is required.");
+        if (!aiConsent) throw new Error("AI processing consent is required.");
         response = await postJson("discovery/image", {
           mode: selectedMode === "camera" || selectedMode === "upload" ? "photo" : selectedMode,
           imageDataUrl,
-          aiProcessingConsentAccepted: true,
-          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
+          aiProcessingConsentAccepted: aiConsent,
+          aiProcessingConsentVersion: aiConsent ? AI_PROCESSING_CONSENT_VERSION : "",
+          acknowledgeAiProcessing: aiConsent,
         });
       }
       sessionStorage.setItem("shelf:scan-results", JSON.stringify(response));
@@ -496,14 +497,15 @@ export function ScanScreen() {
       </div>
       <Card className="section stack">
         {["camera", "upload", "screenshot", "receipt"].includes(mode) ? (
-          <label>
+          <label className="notice">
             <input
               type="checkbox"
-              checked={aiProcessingConsent}
-              onChange={(event) => setAiProcessingConsent(event.target.checked)}
+              checked={aiConsent}
+              onChange={(event) => setAiConsent(event.target.checked)}
             />{" "}
-            I agree to send this image to Shelf&apos;s disclosed AI provider for this recognition
-            request. Shelf does not retain the image or raw extracted text.
+            I agree to send this image to OpenRouter for this recognition request. Shelf does not
+            retain the image, but OpenRouter and its selected model provider process it under their
+            privacy policies. I have removed unnecessary personal or payment details.
           </label>
         ) : null}
         {mode === "camera" ? (
@@ -528,7 +530,7 @@ export function ScanScreen() {
               </button>
               <button
                 data-cta="C08"
-                disabled={!imageDataUrl || !aiProcessingConsent}
+                disabled={!imageDataUrl || !aiConsent}
                 onClick={() => recognize("photo")}
               >
                 Use photo
@@ -583,7 +585,7 @@ export function ScanScreen() {
             ) : null}
             <button
               data-cta={mode === "receipt" ? "C11" : "C10"}
-              disabled={!imageDataUrl || !aiProcessingConsent}
+              disabled={!imageDataUrl || !aiConsent}
               onClick={() => recognize(mode)}
             >
               {" "}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { companies, companyById, corporateActions } from "@/data/catalog";
-import { formatRaw, parseUsdc } from "@/domain/money";
+import { formatRaw, parseTokenAmount, parseUsdc } from "@/domain/money";
 import type { FinancialRecord, Holding, Order, Quote } from "@/domain/types";
 import { apiRequest, freshApiRequest, freshPostJson, postJson } from "@/lib/api-client";
 import { financialRecordsCsv } from "@/lib/csv";
@@ -272,6 +272,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState("1");
   const [error, setError] = useState<string | null>(null);
+  const instrument = companies.find((company) => company.instrument?.id === instrumentId)?.instrument;
 
   async function createSale(sellAll = false) {
     try {
@@ -279,7 +280,9 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
         clientIntentId: crypto.randomUUID(),
         type: "sell",
         instrumentId,
-        ...(sellAll ? { sellAll: true } : { amountRaw: parseUsdc(quantity).toString() }),
+        ...(sellAll
+          ? { sellAll: true }
+          : { amountRaw: parseTokenAmount(quantity, instrument?.decimals ?? 0).toString() }),
       });
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {
@@ -329,13 +332,18 @@ export function TransferScreen() {
   async function approveTransfer() {
     try {
       if (recipient.length < 32) throw new Error("RECIPIENT_INVALID");
+      const decimals =
+        assetId === "usdc"
+          ? 6
+          : companies.find((company) => company.instrument?.id === assetId)?.instrument?.decimals;
+      if (decimals === undefined) throw new Error("ASSET_UNSUPPORTED");
       const order = await freshPostJson<Order>("orders", "transfer", {
         clientIntentId: crypto.randomUUID(),
         type: "transfer",
         assetId,
         inventoryScope: assetId === "usdc" ? "cash" : "tracked",
         recipientAddress: recipient,
-        amountRaw: parseUsdc(amount).toString(),
+        amountRaw: parseTokenAmount(amount, decimals).toString(),
       });
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {

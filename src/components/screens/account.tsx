@@ -60,7 +60,7 @@ export function SignInScreen({
     try {
       const challenge = await createLoginChallenge(returnPath);
       if (method === "email") {
-        const didToken = await signInWithMagicEmail(email);
+        const didToken = await signInWithMagicEmail(email, challenge.challengeId);
         await createShelfSession(challenge.challengeId, didToken, method);
         router.push(challenge.returnPath as Route);
         return;
@@ -135,7 +135,7 @@ export function MagicCallbackScreen() {
         const stored = sessionStorage.getItem("shelf:magic-login");
         if (!stored) throw new Error("LOGIN_CHALLENGE_MISSING");
         const challenge = JSON.parse(stored) as LoginChallenge;
-        const didToken = await finishMagicGoogleLogin();
+        const didToken = await finishMagicGoogleLogin(challenge.challengeId);
         await createShelfSession(challenge.challengeId, didToken, "google");
         sessionStorage.removeItem("shelf:magic-login");
         router.replace(challenge.returnPath as Route);
