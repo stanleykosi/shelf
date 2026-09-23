@@ -2,7 +2,7 @@
 
 Updated: 2026-09-23
 
-## PR #3 and local discovery integration — local main
+## PR #3 and local discovery integration — main
 
 PR #3's research-led Home and Discover screens are the default experience. The five reviewed
 product categories and canonical product/shelf journeys remain available there. The live issuer
@@ -17,8 +17,10 @@ Discover cancels pending filter updates so result links cannot be reversed by a 
 Next.js 16.3.5 production build. All four local Playwright suites passed against that build
 and an isolated migrated PostgreSQL 16 database: 27 desktop/mobile checks passed and five
 project-specific checks were intentionally skipped. AI and issuer responses were intercepted
-where those browser tests required them. `git diff --check` passed. No real-money operation,
-paid AI request, or external deployment was performed by this integration.
+where those browser tests required them. `git diff --check` passed. The verified commits were
+pushed non-force to `origin/main` on top of PR #3. No real-money operation, paid AI request,
+manual deployment, or production activation was performed; any automatic deployment from the
+push still needs separate confirmation.
 
 ## Review follow-up — category and product shelf restoration
 
@@ -205,8 +207,8 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-After this combined tree is verified and pushed, confirm the resulting deployment separately;
-the local tests do not prove production readiness. When the existing guest AI quota
+Confirm any resulting automatic deployment separately; the local tests do not prove production
+readiness. When the existing guest AI quota
 window resets, make one consented production product search against the revised prompt and
 confirm its suggested owner and issuer match; do not create a new guest identity to evade the
 limit. If a new HTTP 500 appears, use its request ID and fresh Vercel runtime logs. Paid Jupiter
