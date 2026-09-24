@@ -500,6 +500,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
 
 export function SettingsScreen({ supportContact }: { supportContact?: string }) {
   const router = useRouter();
+  const [section, setSection] = useState<"Profile" | "Privacy" | "Security" | "Sessions">("Profile");
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checkingSignature, setCheckingSignature] = useState(false);
@@ -637,20 +638,22 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
   }
 
   return (
-    <>
-      <PageIntro eyebrow="Account" title="Identity, privacy & security.">
-        <p>
-          Shelf data is private by default. Standard Solana activity remains public, and deleting
-          Shelf does not destroy a provider-managed wallet.
-        </p>
-      </PageIntro>
-      <div className="research-rows">
+    <div className="platform-canvas settings-workspace">
+      <header className="settings-masthead"><h1>Account</h1><p>Your identity. Your controls.</p></header>
+      <div className="settings-body">
+      <nav className="settings-navigation" aria-label="Account categories">
+        {(["Profile", "Privacy", "Security", "Sessions"] as const).map((item) => <button key={item} aria-pressed={section === item} disabled={pendingAction || checkingSignature || Boolean(signingChallenge)} onClick={() => setSection(item)}>{item}<span aria-hidden="true">↗</span></button>)}
+        <Link href="/account/wallet">Wallet <span aria-hidden="true">↗</span></Link>
+      </nav>
+      <div className="settings-content">
+      <div hidden={section !== "Profile"}>
         <Card>
+          <p className="platform-label">Your Shelf identity</p>
           <h2>Profile</h2>
           <p>
             {account ? `Magic identity · ${account.email ?? "Email unavailable"}` : error ? "Account details unavailable" : "Loading account details…"}
           </p>
-          {account?.walletAddress ? <p className="breakable-code">{account.walletAddress}</p> : null}
+          {account?.walletAddress ? <div className="settings-wallet-identity"><span>Linked Solana wallet</span><p className="breakable-code">{account.walletAddress}</p></div> : null}
           <CtaLink id="account-wallet" href="/account/wallet" secondary>Manage Wallet</CtaLink>
           {account?.ownerBindingId ? (
             <details>
@@ -670,14 +673,26 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
           ) : null}
           <p className="muted">Wallet replacement and identity merging are unavailable.</p>
         </Card>
+      </div>
+      <div hidden={section !== "Privacy"}>
         <Card>
+          <p className="platform-label">Privacy & retention</p>
           <h2>Data controls</h2>
           <p>Images, raw receipt text and chat transcripts are not retained by Shelf.</p>
           <p className="muted">Export requires fresh authentication. Financial records subject to retention are separate from research data.</p>
           <button data-cta="C95" disabled={pendingAction || !account} onClick={() => void runAccountAction(downloadExport)}>Export my data</button>
         </Card>
+        <details className="settings-deletion"><summary>Delete Shelf account</summary><div className="stack">
+          <p>Deletion removes eligible Shelf profile data. Required financial records are retained. It does not delete your Magic wallet or public blockchain activity.</p>
+          <label><input type="checkbox" checked={acknowledgeDeletion} onChange={(event) => setAcknowledgeDeletion(event.target.checked)} /> I understand that public blockchain activity and required records remain.</label>
+          <label><input type="checkbox" checked={acknowledgeWallet} onChange={(event) => setAcknowledgeWallet(event.target.checked)} /> I understand that my wallet is independent and will not be deleted.</label>
+          <button className="secondary" data-cta="C96" disabled={pendingAction || !account || !acknowledgeDeletion || !acknowledgeWallet} onClick={() => void runAccountAction(requestDeletion)}>Authenticate and delete Shelf account</button>
+        </div></details>
+      </div>
+      <div hidden={section !== "Security"}>
         {account?.identityProvider === "magic" ? (
           <Card>
+            <p className="platform-label">Security / proof of control</p>
             <h2>Wallet signing</h2>
             <p>
               Confirm that Magic can sign with your linked Solana wallet. This check is never
@@ -715,9 +730,9 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
               </button>
             )}
           </Card>
-        ) : null}
+        ) : <p>Wallet signing checks require your linked Magic identity. {account ? "This account does not have an available signing check." : "Account details are still loading."}</p>}
       </div>
-      <section className="research-section"><h2>Sessions & support</h2><p>Signing out all sessions requires fresh authentication. Your linked wallet remains independent of your Shelf session.</p><div className="actions">
+      <section hidden={section !== "Sessions"} className="settings-sessions"><p className="platform-label">Access & recovery</p><h2>Sessions & support</h2><p>Signing out all sessions requires fresh authentication. Your linked wallet remains independent of your Shelf session.</p><div className="actions">
         <button className="secondary" data-cta="C97" disabled={pendingAction} onClick={() => void runAccountAction(signOut)}>
           Sign out
         </button>
@@ -728,15 +743,12 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
           Get support
         </SupportAction>
       </div></section>
-      <section className="research-section"><details><summary>Delete Shelf account</summary><div className="stack">
-        <p>Deletion removes eligible Shelf profile data. Required financial records are retained. It does not delete your Magic wallet or public blockchain activity.</p>
-        <label><input type="checkbox" checked={acknowledgeDeletion} onChange={(event) => setAcknowledgeDeletion(event.target.checked)} /> I understand that public blockchain activity and required records remain.</label>
-        <label><input type="checkbox" checked={acknowledgeWallet} onChange={(event) => setAcknowledgeWallet(event.target.checked)} /> I understand that my wallet is independent and will not be deleted.</label>
-        <button className="secondary" data-cta="C96" disabled={pendingAction || !account || !acknowledgeDeletion || !acknowledgeWallet} onClick={() => void runAccountAction(requestDeletion)}>Authenticate and delete Shelf account</button>
-      </div></details></section>
       {pendingAction ? <p role="status">Completing account action…</p> : null}
       {message ? <ResultMessage>{message}</ResultMessage> : null}
       <ErrorMessage message={error} />
-    </>
+      <footer className="settings-footer"><span>Shelf data is private by default.</span><p>Standard Solana activity remains public. Your provider-managed wallet is independent of your Shelf account.</p></footer>
+      </div>
+      </div>
+    </div>
   );
 }

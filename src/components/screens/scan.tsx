@@ -172,8 +172,8 @@ function ScanWorkspace({ mode }: { mode: Method }) {
   const visual = ["camera", "upload", "screenshot", "receipt"].includes(mode);
   const title = image ? "Check your image" : mode === "receipt" ? "Read a receipt" : mode === "barcode" ? "Find by barcode" : mode === "link" ? "Use an approved link" : mode === "search" ? "Search the reviewed catalog" : "Start with what you see";
 
-  return <div className="scan-page scan-intake">
-    <header className="scan-page-heading"><p className="scan-context">Scan / Product identification</p><h1>Identify a product</h1><p>Use your camera, upload an image, or search manually.</p></header>
+  return <div className="scan-page scan-intake platform-scan">
+    <header className="scan-page-heading"><h1>Identify a product</h1><p>From something familiar to the company behind it.</p></header>
     <nav className="scan-mobile-shortcuts" aria-label="Quick identification methods">
       <button className="scan-secondary" disabled={busy} aria-pressed={mode === "camera"} onClick={() => selectMethod("camera")}><Camera size={17} aria-hidden="true" />Camera</button>
       <button className="scan-secondary" disabled={busy} aria-pressed={mode === "upload" || mode === "screenshot"} onClick={() => selectMethod("upload")}><Upload size={17} aria-hidden="true" />Upload</button>
@@ -181,7 +181,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
     </nav>
     <div className="scan-workspace">
       <section className="scan-input" aria-labelledby="scan-input-title">
-        <div className="scan-section-heading"><h2 id="scan-input-title">{title}</h2></div>
+        <div className="scan-section-heading"><h2 id="scan-input-title">{title}</h2><span className="scan-stage-label">{image ? "Preview / on your device" : "Product identification"}</span></div>
         {visual || mode === "barcode" ? <>
           <div className={"scan-media" + (camera === "active" || camera === "requesting" ? " is-camera" : "") + (image ? " has-preview" : "")}
             onDragOver={(event) => { event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (visual) void chooseImage(event.dataTransfer.files[0]); }}>
@@ -219,7 +219,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
         {busy ? <div className="scan-actions"><button className="scan-secondary" onClick={() => requestRef.current?.abort()}>Cancel identification</button><small>Cancellation is best effort once processing has started.</small></div> : (image && visual) || mode === "barcode" || mode === "link" ? <button className="scan-primary scan-identify" aria-describedby="scan-consent-state" data-cta={mode === "barcode" ? "C09" : mode === "link" ? "C12" : mode === "receipt" ? "C11" : "C08"} disabled={offline || preparing || !consent || (mode === "barcode" && !barcode) || (mode === "link" && !url.trim())} onClick={identify}>{mode === "barcode" || mode === "link" ? "Find product" : "Identify products"}<ArrowRight size={18} aria-hidden="true" /></button> : null}
       </section>
       <aside className="scan-methods" aria-label="Identification methods">
-        <h2>Your starting point</h2>
+        <h2>Choose an input</h2>
         <div className="scan-method-list">{[{ id: "camera", name: "Camera", note: "Identify what’s in front of you", icon: Camera }, { id: "upload", name: "Upload image", note: "Photos and screenshots", icon: Upload }, { id: "search", name: "Search manually", note: "Find a reviewed Product by name", icon: Search }].map(({ id, name, note, icon: Icon }) => <button key={id} disabled={busy} aria-pressed={mode === id || (id === "upload" && mode === "screenshot")} onClick={() => selectMethod(id as Method)}><Icon size={20} aria-hidden="true" /><span><strong>{name}</strong><small>{note}</small></span><ArrowRight size={16} aria-hidden="true" /></button>)}</div>
         <details className="scan-other" open={["barcode", "receipt", "link"].includes(mode) || undefined}><summary>Other ways</summary><div className="scan-method-list">{[{ id: "barcode", name: "Barcode", note: "Scan or enter the digits", icon: Barcode }, { id: "receipt", name: "Receipt", note: "Product lines, without private details", icon: ReceiptText }, { id: "link", name: "Approved link", note: "A supported product page", icon: LinkIcon }].map(({ id, name, note, icon: Icon }) => <button key={id} disabled={busy} aria-pressed={mode === id} onClick={() => selectMethod(id as Method)}><Icon size={20} aria-hidden="true" /><span><strong>{name}</strong><small>{note}</small></span></button>)}</div></details>
       </aside>

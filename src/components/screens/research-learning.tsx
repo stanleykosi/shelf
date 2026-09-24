@@ -12,6 +12,7 @@ import {
 } from "@/data/catalog";
 import { apiRequest, authenticationIsRequired } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
+import { WorkspaceFrame } from "@/components/platform-composition";
 import {
   CtaLink,
   EmptyState,
@@ -165,7 +166,15 @@ export function AssistantScreen() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
   const request = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 819px)");
+    const update = () => setSourcesOpen(!mobile.matches);
+    update();
+    mobile.addEventListener("change", update);
+    return () => mobile.removeEventListener("change", update);
+  }, []);
   useEffect(() => {
     let active = true;
     apiRequest("me")
@@ -240,16 +249,38 @@ export function AssistantScreen() {
     }
   }
   return (
-    <>
-      <PageIntro eyebrow="Shelf research" title="Research Assistant">
-        <p>
-          Ask about products, companies and exposure. Responses can be
-          incorrect; verify the sources. The Assistant cannot place orders or
-          sign transactions.
-        </p>
-      </PageIntro>
-      <div className="research-split">
-        <section className="research-section stack">
+    <WorkspaceFrame kind="assistant">
+      <header className="assistant-masthead"><h1>Research Assistant</h1><p>Questions lead to understanding.</p></header>
+      <div className="assistant-desk">
+        <div className="assistant-response-canvas" aria-busy={busy}>
+          <p className="platform-label">Shelf / Research notebook</p>
+          {answer ? <section aria-labelledby="research-answer">
+            <h2 id="research-answer">Research response</h2>
+            <p className="assistant-answer-copy">{answer.answer}</p>
+            {answer.uncertainty?.length ? <ul className="assistant-uncertainty">{answer.uncertainty.map((note) => <li key={note}>{note}</li>)}</ul> : null}
+            {!answer.sourceIds?.length ? <p>No source references were returned. Treat this answer as unverified.</p> : null}
+          </section> : <div className="assistant-start">
+            <h2>{busy ? "Following your question." : <>An everyday question.<br /><span>A clearer perspective.</span></>}</h2>
+            <p>{busy ? "Preparing a response. Verify its sources before relying on it." : "Explore the relationship between a product, the company behind it and a separate investment instrument."}</p>
+            {!busy ? <div className="assistant-prompts"><span>Start a line of research</span>{["How are brands and companies connected?", "How is an instrument different from a share?"].map((prompt) => <button className="ghost" key={prompt} onClick={() => { setQuestion(prompt); document.getElementById("assistant-question")?.focus(); }}>{prompt} <span aria-hidden="true">↗</span></button>)}</div> : null}
+          </div>}
+          <p className="assistant-limitation">Responses can be incorrect. Verify the sources.<br />The Assistant cannot place orders or sign transactions.</p>
+        </div>
+        <aside className="assistant-sources">
+          <details open={sourcesOpen} onToggle={(event) => setSourcesOpen(event.currentTarget.open)}>
+          <summary>{answer ? "Cited sources" : "Start with a source"}</summary>
+          {context ? <div className="assistant-source-context"><span>Research context</span><strong>{context}</strong></div> : null}
+          {answer?.sourceIds?.length ? <ul>{answer.sourceIds.map((id) => {
+            const article = articles.find((item) => `article:${item.slug}` === id);
+            return <li key={id}>{article ? <Link href={`/learn/${article.slug}`}>{article.title} ↗</Link> : <span>{id} · Check this reference independently.</span>}</li>;
+          })}</ul> : null}
+          <p className="platform-label">Reviewed explainers</p>
+          {articles.slice(0, 3).map((article) => <Link className="assistant-source" href={`/learn/${article.slug}`} key={article.slug}><span>Learn</span><strong>{article.title}</strong><span aria-hidden="true">↗</span></Link>)}
+          <details><summary>Allocation questions</summary><p>Allocation is a separate, editable planning step. It does not submit an order.</p><CtaLink id="C38" href="/invest/basket?source=ai" secondary>Open allocation planning</CtaLink></details>
+          </details>
+        </aside>
+      </div>
+        <section className="assistant-composer">
           {context ? (
             <div className="notice">
               Context: {context}{" "}
@@ -269,14 +300,15 @@ export function AssistantScreen() {
           >
             <textarea
               id="assistant-question"
-              rows={5}
+              rows={2}
+              placeholder="Ask about a product, company or exposure…"
               maxLength={850}
               value={question}
               disabled={busy}
               onChange={(event) => setQuestion(event.target.value)}
             />
           </Field>
-          <p id="assistant-privacy">
+          <div className="assistant-permission"><p id="assistant-privacy">
             Your question
             {context ? " and the named product/company context" : ""} will be
             sent to OpenRouter and its model provider. No-training and
@@ -293,6 +325,7 @@ export function AssistantScreen() {
             />{" "}
             I agree to this processing of my question.
           </label>
+          </div>
           <div className="actions">
             <button
               data-cta="C35"
@@ -343,73 +376,6 @@ export function AssistantScreen() {
           <p role="status">{status}</p>
           <ErrorMessage message={error} />
         </section>
-        <aside className="research-section">
-          <h2>Start with a source</h2>
-          <p>
-            For factual definitions, the reviewed learning library is available
-            without external processing.
-          </p>
-          <div className="research-rows">
-            {articles.slice(0, 3).map((article) => (
-              <p key={article.slug}>
-                <Link href={`/learn/${article.slug}`}>{article.title} →</Link>
-              </p>
-            ))}
-          </div>
-          <details>
-            <summary>Allocation questions</summary>
-            <p>
-              Allocation is a separate, editable planning step. It does not
-              submit an order.
-            </p>
-            <CtaLink id="C38" href="/invest/basket?source=ai" secondary>
-              Open allocation planning
-            </CtaLink>
-          </details>
-        </aside>
-      </div>
-      {answer ? (
-        <section
-          className="research-section research-reading"
-          aria-labelledby="research-answer"
-        >
-          <h2 id="research-answer">Research response</h2>
-          <p style={{ whiteSpace: "pre-wrap" }}>{answer.answer}</p>
-          {answer.uncertainty?.length ? (
-            <ul className="notice">
-              {answer.uncertainty.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          ) : null}
-          <h3>Cited sources</h3>
-          {answer.sourceIds?.length ? (
-            <ul>
-              {answer.sourceIds.map((id) => {
-                const article = articles.find(
-                  (item) => `article:${item.slug}` === id
-                );
-                return (
-                  <li key={id}>
-                    {article ? (
-                      <Link href={`/learn/${article.slug}`}>
-                        {article.title}
-                      </Link>
-                    ) : (
-                      <span>{id} · Check this reference independently.</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p>
-              No source references were returned. Treat this answer as
-              unverified.
-            </p>
-          )}
-        </section>
-      ) : null}
-    </>
+    </WorkspaceFrame>
   );
 }

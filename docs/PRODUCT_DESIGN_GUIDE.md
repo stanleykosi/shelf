@@ -1,8 +1,8 @@
 # Shelf Product Design & Experience Guide
 
-Status: Concept 2 accepted and FINAL; remaining frontend completed and locally verified
+Status: Concept 2 Home accepted; five-screen internal art-direction reset locally verified, awaiting user review
 Last updated: 2026-09-24
-Current refactor phase: Phases 3–9 complete locally; awaiting user review, not live activation
+Current refactor phase: Company, Scan, Assistant, Portfolio and Account implemented and verified; STOP for review before propagation
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 
@@ -2496,6 +2496,26 @@ Removing a Saved item never sells, hides, or changes a Holding. Selling a Holdin
 
 # 15. Visual Experience Direction
 
+## Current authority — platform reset, 2026-09-24
+
+The latest user review rejects the internal layout execution, not the working product architecture.
+**Landing/Home is the only accepted visual source of truth.** Earlier acceptance of internal
+compositions below is historical and superseded. Preserve functionality, routes, permissions,
+APIs, consent, exact data and tests; do not preserve markup merely because it works.
+
+The target is an editorial research environment with task-specific workspaces: Research Canvas,
+Discovery Workspace, Financial Workspace and Control Workspace. One dominant object per page;
+spatial hierarchy instead of repeated grids/rules; meaningful graphite/light transitions;
+imagery as identity; smaller task titles for operational work. No new palette, typeface or shell.
+`PLATFORM_ART_DIRECTION.md` records the primitives and five-screen gate. Implement sequentially:
+Company, Scan, Assistant, Portfolio, Account. Render desktop/mobile, review against Home, then
+STOP. Product, Brand, Learn, Discover, Scan Results, financial subroutes and Admin are deferred.
+
+Account changes interaction presentation only: Profile, Privacy, Security and Sessions are
+selected categories within `/account`; Wallet remains a link to its existing route. Scan keeps
+all methods and input-specific consent. Assistant keeps its non-streaming answer, citations,
+explicit processing permission and cancellation behavior. No evidence or financial data is invented.
+
 ## Character
 
 Shelf's FINAL visual direction is **Concept 2 — Capital Research Direction**, embodied by the accepted Shell, Home, Discover and Scan implementations. Preserve editorial hierarchy, institutional structure, familiar reviewed imagery, restrained mint/green accents, contextual dark/light contrast, precise geometry and light functional workspaces. The earlier Simply Wall St philosophy remains only as progressive explanation of complex relationships, not an alternate visual contract. Avoid playful fintech, a generic exchange, crypto terminal or unrelated SaaS dashboard. Actual approved code takes precedence over historical visual-study descriptions below.
@@ -2986,6 +3006,7 @@ The user selected Concept 2 — Capital Research Direction as the authoritative 
 | DD-024 | Earlier Premium Institutional Editorial Research concept retained as historical comparison only. | Superseded by the user's explicit Concept 2 selection; product architecture remains valid. | Historical Concept 1 | Superseded visually by DD-025 |
 | DD-025 | Concept 2 — Capital Research Direction is FINAL for all frontend surfaces. | Explicit user acceptance; extend actual approved implementation rather than invent another system. | Entire frontend | Accepted |
 | DD-026 | Complete remaining frontend in coordinated parallel workstreams with one shared-foundation owner. | Latest request supersedes page-by-page approval gates. Restore distinct Product, Brand and Company research routes; issuer assets remain separate. | Phases 3–9 | Implemented and locally verified; see FRONTEND_COMPLETION_REPORT.md |
+| DD-027 | Reset internal art direction sequentially; Home alone is the visual benchmark. Complete only Company, Scan, Assistant, Portfolio and Account before review. | User rejected repetitive internal layouts; functional contracts remain valid. Supersedes DD-026's visual approval and parallel strategy. | Five gold-standard screens only | Implemented and locally verified; awaiting user review. See PLATFORM_ART_DIRECTION.md. No propagation authorized. |
 
 # 25. Recommended Refactor Sequence
 

@@ -250,12 +250,23 @@ test("preview never upscales, preserves aspect ratio, and keeps consent essentia
     await preview.evaluate((image: HTMLImageElement) => image.decode());
     const dimensions = await preview.evaluate((image: HTMLImageElement) => {
       const bounds = image.getBoundingClientRect();
-      return { width: bounds.width, height: bounds.height, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight };
+      const stage = image.parentElement!;
+      const stageBounds = stage.getBoundingClientRect();
+      const style = getComputedStyle(stage);
+      return {
+        width: bounds.width, height: bounds.height,
+        naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+        availableWidth: stageBounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        availableHeight: stageBounds.height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+      };
     });
     expect(dimensions.width).toBeLessThanOrEqual(dimensions.naturalWidth);
     expect(dimensions.height).toBeLessThanOrEqual(dimensions.naturalHeight);
     expect(dimensions.width / dimensions.height).toBeCloseTo(width / height, 1);
-    expect(dimensions.height).toBeLessThanOrEqual(248);
+    // The art-direction reset enlarges the stage, not the input's natural dimensions.
+    // Verify the actual padded workspace rather than the superseded 248px layout.
+    expect(dimensions.height).toBeLessThanOrEqual(dimensions.availableHeight);
+    expect(dimensions.width).toBeLessThanOrEqual(dimensions.availableWidth);
   }
   await expect(page.getByText("01 / Identify")).toHaveCount(0);
   await expect(page.locator("#scan-processing-summary")).toContainText("OpenRouter");

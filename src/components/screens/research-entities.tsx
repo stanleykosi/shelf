@@ -13,6 +13,7 @@ import {
 } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
 import { CapitalRelationship } from "@/components/capital-relationship";
+import { ResearchBand, ResearchCanvas } from "@/components/platform-composition";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
 import {
@@ -420,62 +421,61 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
   const { links, error } = useReviewedIssuerLinks();
   const listings = links?.byCompany[company.id] ?? [];
   const incomplete = Boolean(links?.unavailable.length || links?.stale.length);
+  const [selectedProduct, setSelectedProduct] = useState(0);
+  const example = items[selectedProduct] ?? items[0];
   return (
-    <>
-      <PageIntro eyebrow="Company research" title={company.name}>
-        <p>
+    <ResearchCanvas>
+      <header className="company-identity-stage">
+        <div className="company-masthead">
+          <p className="platform-label">Company research</p>
+          <h1>{company.name}</h1>
+          <p className="company-listing">
           {company.ticker && company.exchange !== "Private"
             ? `${company.ticker} · ${company.exchange}`
             : "Private company context"}
-          . {company.description}
-        </p>
-      </PageIntro>
-      <nav className="research-tabs" aria-label="Company sections">
+          </p>
+        </div>
+        <div className="company-context">
+          <p>{company.description}</p>
+          <SaveResearch id={company.id} kind="Company" />
+        </div>
+      </header>
+      <nav className="company-section-nav" aria-label="Company sections">
         <a href="#known-for">Known for</a>
         <a href="#company-evidence">Evidence</a>
         <a href="#company-exposure">Exposure</a>
       </nav>
-      <div className="research-split">
-        <section className="research-section">
-          <h2>Company, not Instrument</h2>
-          <p>
-            The business behind the reviewed relationships below is separate
-            from any issuer-defined asset. Saving is research; it does not
-            create a Holding.
-          </p>
-          <SaveResearch id={company.id} kind="Company" />
-        </section>
-        <section className="research-section">
-          <h2>Continue your research</h2>
-          <p>
-            Start with familiar Products, then inspect their sources and the
-            separate terms of any available exposure.
-          </p>
-          <Link
-            className="button secondary"
-            href={`/assistant?company=${company.slug}&from=company` as Route}
-          >
-            Ask about this Company
+      <section className="company-exhibits" id="known-for">
+        <header><h2>Known for</h2><p>Everyday products. One wider picture.</p></header>
+        {items.length ? <div className="company-product-field">{items.map((item, index) => (
+          <Link href={`/products/${item.slug}`} key={item.id} className="company-exhibit">
+            <div className="company-exhibit-media"><span>{String(index + 1).padStart(2, "0")}</span><ProductArtwork product={item} sizes="(max-width: 819px) 270px, 340px" /></div>
+            <div className="company-exhibit-caption"><strong>{item.brand}</strong><span>{item.name} ↗</span></div>
           </Link>
-        </section>
-      </div>
-      <section className="research-section" id="known-for">
-        <h2>Known for</h2>
-        <ProductList items={items} />
+        ))}</div> : <p>No reviewed Products have been linked here yet.</p>}
+        <p className="platform-caption">Reviewed product families. Images may represent a product or brand identity.</p>
       </section>
-      <section className="research-section" id="company-evidence">
-        <h2>Evidence and relationships</h2>
-        {items[0] ? (
-          <CapitalRelationship product={items[0]} discloseEvidence />
+      <ResearchBand id="company-evidence">
+        <header className="company-evidence-heading"><div><p className="platform-label">Evidence and relationships</p><h2>Familiar on the outside.<br />Connected underneath.</h2></div><p>A recognizable name is a starting point.<br />A reviewed source makes the connection.</p></header>
+        {example ? (
+          <div className="company-relationship-stage">
+            <nav aria-label="Explore product relationships">{items.map((item, index) => <button type="button" key={item.id} aria-pressed={selectedProduct === index} onClick={() => setSelectedProduct(index)}>{item.brand}<span aria-hidden="true"> ↗</span></button>)}</nav>
+            <div className="company-relationship-object"><CapitalRelationship product={example} discloseEvidence /></div>
+          </div>
         ) : (
           <p>
             No reviewed consumer Product relationship is recorded. Company
             exposure does not establish one.
           </p>
         )}
-        <Evidence items={items} />
+        <div className="company-evidence-notes"><Evidence items={items} /></div>
+      </ResearchBand>
+      <section className="company-research-note">
+        <h2>Company, not Instrument</h2>
+        <div><p>The business behind these products is separate from any issuer-defined asset. Saving is research; it does not create a Holding.</p><Link href={`/assistant?company=${company.slug}&from=company` as Route}>Ask about this Company ↗</Link></div>
       </section>
-      <section className="research-section" id="company-exposure">
+      <section className="company-exposure-stage" id="company-exposure">
+        <p className="platform-label">The next layer</p>
         <h2>Separate investment exposure</h2>
         <p className="research-reading">
           Issuer-defined instruments have their own rights, restrictions and
@@ -531,6 +531,6 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
           Understand instrument rights
         </Link>
       </section>
-    </>
+    </ResearchCanvas>
   );
 }

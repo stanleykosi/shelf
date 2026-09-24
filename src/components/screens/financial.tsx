@@ -844,48 +844,29 @@ export function PortfolioScreen() {
   if (error) return <Recovery title="Portfolio unavailable" error={error} />;
 
   return (
-    <>
-      <PageIntro eyebrow="Shelf-origin portfolio" title="Your Shelf investments">
-        <p>
-          Only finalized acquisitions made through Shelf appear as holdings. Externally received
-          assets stay in Wallet.
-        </p>
-      </PageIntro>
-      <Card>
-        <p className="eyebrow">Cash</p>
-        <h2>{formatRaw(cashRaw)} USDC</h2>
-        <p className="muted">Cash is separate from holdings. Current market valuation is unavailable; acquisition cost is not today’s value.</p>
-        <CtaLink id="portfolio-wallet" href="/account/wallet" secondary>Manage cash in Wallet</CtaLink>
-      </Card>
-      <section className="section">
+    <div className="platform-canvas portfolio-canvas">
+      <header className="portfolio-masthead">
+        <div><p className="platform-label">Shelf-origin portfolio</p><h1>Your Shelf investments</h1><p>Only finalized acquisitions made through Shelf.</p></div>
+        <div className="portfolio-cash"><span>Wallet cash · separate from holdings</span><p><strong>{formatRaw(cashRaw)}</strong> USDC</p><CtaLink id="portfolio-wallet" href="/account/wallet" secondary>Manage cash in Wallet</CtaLink></div>
+      </header>
+      <nav className="portfolio-navigation" aria-label="Portfolio views"><span aria-current="page">Holdings <span>{holdings.length}</span></span><Link data-cta="C74" href="/portfolio/activity">View history ↗</Link></nav>
+      <section className="portfolio-positions" aria-label="Your holdings">
         {holdings.length ? (
-          <div className="research-rows">
+          <div>
             {holdings.map((holding) => (
-              <Card
-                className={
-                  (holding.companyId.startsWith("issuer:prestocks:") ||
-                    companyById(holding.companyId)?.instrument?.provider === "prestocks")
-                    ? "private-market-card"
-                    : "public-market-card"
-                }
+              <article className="portfolio-position"
                 key={holding.instrumentId}
               >
-                <span className="badge">
+                <div className="portfolio-instrument"><span className="platform-label">
                   {(holding.companyId.startsWith("issuer:prestocks:") ||
                     companyById(holding.companyId)?.instrument?.provider === "prestocks")
                     ? "Private · PreStocks"
                     : "Public · xStocks"}
                 </span>
                 <h2>{holding.symbol}</h2>
-                <p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · Shelf-origin holding</p>
-                <p>{formatRaw(holding.rawAmount, holding.decimals)} displayed units</p>
-                <p className="muted">
-                  Acquisition cost: {formatRaw(holding.totalCostUsdcRaw)} USDC
-                </p>
-                <Link className="button" data-cta="C73" href={`/portfolio/${holding.instrumentId}`}>
-                  View holding
-                </Link>
-              </Card>
+                <p>{companyById(holding.companyId)?.name ?? "Issuer instrument"}</p></div>
+                <div className="portfolio-position-facts"><p className="portfolio-quantity"><strong>{formatRaw(holding.rawAmount, holding.decimals)}</strong><span>displayed units</span></p><p className="portfolio-cost"><span>Acquisition cost</span><strong>{formatRaw(holding.totalCostUsdcRaw)} USDC</strong></p><Link className="button" data-cta="C73" href={`/portfolio/${holding.instrumentId}`}>View holding ↗</Link></div>
+              </article>
             ))}
           </div>
         ) : (
@@ -902,12 +883,8 @@ export function PortfolioScreen() {
           </EmptyState>
         )}
       </section>
-      <div className="section actions">
-        <CtaLink id="C74" href="/portfolio/activity" secondary>
-          View history
-        </CtaLink>
-      </div>
-    </>
+      <footer className="portfolio-context"><p>Current market valuation is unavailable; acquisition cost is not today’s value.</p><p>Externally received assets stay in <Link href="/account/wallet">Wallet ↗</Link>, not this Portfolio.</p></footer>
+    </div>
   );
 }
 

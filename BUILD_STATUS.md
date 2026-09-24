@@ -2,6 +2,27 @@
 
 Updated: 2026-09-24
 
+## Platform art-direction reset — five screens ready for review
+
+The latest review rejects the prior internal visual execution. Home alone is accepted. Company,
+Scan, Assistant, Portfolio and Account are recomposed sequentially; all other routes remain
+unchanged. See `docs/PLATFORM_ART_DIRECTION.md` and `artifacts/platform-art-direction/README.md`
+for composition decisions, visual review and 20 desktop/mobile screenshots. Backend, routing,
+security, consent and financial contracts are preserved. Account now presents one category at
+a time; Company imagery/evidence, Scan media, Assistant response and Portfolio holdings are
+the respective dominant objects.
+
+Final checks: lint, TypeScript, production build and 120 unit/contract tests pass. Relevant browser
+suites pass 90 checks with 12 intentional skips. The five-screen 390/430/768/1280/1440 matrix,
+automated WCAG checks, Account categories and full Scan regression suite pass. One old Scan
+pixel-height assertion now verifies actual padded-stage bounds; no-upscaling and aspect-ratio
+assertions remain. Disk-full packaging was resolved by clearing reproducible production cache;
+the existing dev server was not stopped. No paid providers, live money, deployment or push.
+
+Exact next task: user review and approval of these five screens. STOP; no propagation to Product,
+Brand, Learn, Discover, Scan Results, other financial routes or Admin. Prior completion below is
+functional evidence, not acceptance of the rejected visual execution.
+
 ## Remaining frontend — Concept 2 complete locally
 
 Latest user brief supersedes page-by-page approval gates and authorizes parallel completion.
