@@ -2,6 +2,38 @@
 
 Updated: 2026-09-24
 
+## U32 Discover cold-load reduction — production, uncommitted
+
+Discover now preloads the public issuer directory from its server response, before browser
+hydration. A direct product/company search skips that unused preload. On the default browse
+route, the server also selects ten featured rows from the fresh PostgreSQL issuer snapshot and
+renders them into HTML. The client then loads the complete directory for filters and pagination
+without changing those ten rows when the feed still contains them. If the snapshot is missing,
+stale or unavailable, the existing browser directory path remains available. The Railway
+Function reads the Discover page and directory endpoint after each five-minute feed refresh;
+its 15:05 UTC job recorded `directory_feeds:2,discover_warmed:2`, and subsequent 15:55 and
+16:00 UTC scheduled runs completed with zero failures.
+
+The final code passed ESLint, strict TypeScript and the Next.js 16.3.5 production build. Testing
+focused on browser behavior: 19 desktop/mobile Chromium Discover and search checks passed with
+five project-specific skips. A separate local Chromium visit with JavaScript disabled displayed
+all ten featured rows from the disposable PostgreSQL snapshot in 657 ms. The local HTML contained
+ten rows and one preload hint; search-result HTML contained no directory preload. A browser trace
+showed the directory request beginning at 132 ms, before `DOMContentLoaded` at 551 ms, with one
+request total. No additional unit tests were run for this performance change.
+
+Vercel deployment `dpl_k6QCs2y42VkTT8nQJFKXwj26XG1m` is Ready on the production alias.
+Production HTML contains ten featured rows, and Chromium opened All listings at 1–10 of 1,132
+then moved to 11–20 with ten rows. The preload-only deployment put seven of eight initial fresh
+browser visits under three seconds, but its first CDN miss took 7.1 seconds; a later ten-visit
+sample had six under three seconds. After server rendering, four of five fresh visits displayed
+rows in 1.4–2.1 seconds, while one took 4.2 seconds. A later full production browser visit took
+8.5 seconds. **The requested three-second cold-visit ceiling is therefore not proven or
+guaranteed**; variable HTML/CDN and script delivery still dominate outliers. These are observed
+times from this machine, not a global latency benchmark. No paid provider call, signing,
+broadcast, wallet funding or money movement occurred. The owner asked to leave this work
+uncommitted; the working tree contains U32 changes and was deployed directly.
+
 ## U31 complete issuer directory — production
 
 Discover now loads every current Solana xStocks and PreStocks listing from a lightweight issuer
@@ -380,9 +412,10 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Preserve the local U31 commit in remote Git only after the owner's push approval under AGENTS.md.
-Monitor the five-minute
-worker and stale-feed warnings. Do not create another guest identity to evade the AI quota. Paid
+Keep U32 uncommitted as requested and monitor the five-minute worker and stale-feed warnings.
+If a hard three-second worldwide ceiling is required, evaluate static/edge delivery of the guest
+Discover shell with a separate authentication review before changing the currently safe
+cookie-aware layout. Do not create another guest identity to evade the AI quota. Paid
 Jupiter build compatibility and funded execution remain separate approval gates. Only after
 separate owner approval for funding and live-money testing, execute the activation checklist
 without widening its limits.

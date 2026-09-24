@@ -169,6 +169,7 @@ test("the full issuer directory paginates ten listings and preserves market grou
   });
   await page.goto("/discover");
 
+  await expect(page.locator('link[rel="preload"][as="fetch"][href="/api/v1/issuer/directory"]')).toHaveCount(1);
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(10);
   await expect(page.getByRole("button", { name: "Refresh mix" })).toHaveCount(0);
   await page.getByRole("button", { name: "All listings" }).click();

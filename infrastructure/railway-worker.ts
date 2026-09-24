@@ -161,6 +161,17 @@ async function refreshIssuerDirectorySnapshots(): Promise<number> {
   return payload.data.refreshed;
 }
 
+async function warmDiscover(): Promise<void> {
+  if (!appOrigin) throw new Error("DISCOVER_WARMUP_CONFIGURATION_REQUIRED");
+  const [page, directory] = await Promise.all([
+    fetch(new URL("/discover", appOrigin), { signal: AbortSignal.timeout(15_000) }),
+    fetch(new URL("/api/v1/issuer/directory", appOrigin), { signal: AbortSignal.timeout(15_000) }),
+  ]);
+  if (!page.ok) throw new Error(`DISCOVER_WARMUP_HTTP_${page.status}`);
+  if (!directory.ok) throw new Error(`DIRECTORY_WARMUP_HTTP_${directory.status}`);
+  await Promise.all([page.arrayBuffer(), directory.arrayBuffer()]);
+}
+
 async function reconcileTransactions(heartbeat: () => Promise<void>): Promise<string> {
   if (!appOrigin || !workerSharedSecret) throw new Error("RECONCILIATION_CONFIGURATION_REQUIRED");
   const endpoint = new URL("/api/internal/reconcile", appOrigin);
@@ -279,9 +290,10 @@ try {
         const snapshots = await refreshPreStocksMarketData(() => renewJobLease(claimed[0].id));
         await renewJobLease(claimed[0].id, 120);
         const directoryFeeds = await refreshIssuerDirectorySnapshots();
-        await renewJobLease(claimed[0].id);
+        await renewJobLease(claimed[0].id, 80);
+        await warmDiscover();
         const xStocksAssets = await verifyXStocksAssets();
-        result = `prestocks_snapshots:${snapshots},directory_feeds:${directoryFeeds},xstocks_assets:${xStocksAssets}`;
+        result = `prestocks_snapshots:${snapshots},directory_feeds:${directoryFeeds},discover_warmed:2,xstocks_assets:${xStocksAssets}`;
       } else {
         result = await reconcileTransactions(() => renewJobLease(claimed[0].id));
       }

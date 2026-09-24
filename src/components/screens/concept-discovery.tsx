@@ -274,7 +274,7 @@ function LiveSearchResults({
   );
 }
 
-export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery, initialSector, initialSort, initialView }: { initialMarket?: string; initialPage?: string; initialQuery?: string; initialSector?: string; initialSort?: string; initialView?: string }) {
+export function ConceptDiscoverScreen({ initialFeatured, initialMarket, initialPage, initialQuery, initialSector, initialSort, initialView }: { initialFeatured?: DirectoryListing[]; initialMarket?: string; initialPage?: string; initialQuery?: string; initialSector?: string; initialSort?: string; initialView?: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const leavingDiscover = useRef(false);
   const searchRequest = useRef(0);
@@ -284,7 +284,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(Boolean(initialQuery?.trim()));
   const [directory, setDirectory] = useState<IssuerDirectory | null>(null);
-  const [featured, setFeatured] = useState<DirectoryListing[]>([]);
+  const [featured, setFeatured] = useState<DirectoryListing[]>(initialFeatured ?? []);
   const [directoryError, setDirectoryError] = useState(false);
   const [directoryLoading, setDirectoryLoading] = useState(true);
   const [showAll, setShowAll] = useState(initialView === "all" || Number(initialPage) > 1);
@@ -303,7 +303,10 @@ export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery
     try {
       const result = await apiRequest<IssuerDirectory>("issuer/directory");
       setDirectory(result);
-      setFeatured(selectFeaturedCompanies(result.listings));
+      const currentIds = new Set(result.listings.map((listing) => listing.asset.companyId));
+      setFeatured((current) => current.length && current.every((listing) => currentIds.has(listing.asset.companyId))
+        ? current
+        : selectFeaturedCompanies(result.listings));
     } catch {
       setDirectoryError(true);
     } finally {
@@ -475,7 +478,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery
           </div>
           {directory?.unavailable.length ? <p className="live-search-caution">{directory.unavailable.join(" and ")} feed unavailable. This directory may be incomplete.</p> : null}
           {directory?.stale.length ? <p className="live-search-caution">{directory.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
-          {directoryError && directory ? <p className="live-search-caution">Could not update the directory. Showing the previous list.</p> : null}
+          {directoryError && featured.length ? <p className="live-search-caution">Could not update the directory. Showing recently refreshed companies.</p> : null}
           <SectorTabs available={availableSectors} onChange={changeSector} selected={sector} />
           <div className="mobile-filter-command">
             <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
@@ -496,8 +499,8 @@ export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery
                 <p><strong>{showingFullList ? "All issuer listings" : "Featured companies"}</strong></p>
                 {showingFullList && matchingListings.length ? <span>Showing {pageStart + 1}–{pageStart + visibleListings.length} of {matchingListings.length}</span> : null}
               </div>
-              {directoryLoading && !directory ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
-              {directoryError && !directory ? (
+              {directoryLoading && !directory && !featured.length ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
+              {directoryError && !directory && !featured.length ? (
                 <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadDirectory()} type="button">Retry listings</button></div>
               ) : null}
               {directory && !visibleListings.length ? (

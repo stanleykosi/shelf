@@ -147,6 +147,7 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
   });
 
   await page.goto("/discover?q=ChatGPT");
+  await expect(page.locator('link[rel="preload"][href="/api/v1/issuer/directory"]')).toHaveCount(0);
   await expect(page.getByText("AI suggested owner: OpenAI Group PBC")).toBeVisible();
   await expect(page.locator(".live-issuer-card .issuer-logo img"))
     .toHaveAttribute("src", /prestocks\.com/);

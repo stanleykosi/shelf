@@ -1,5 +1,6 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
+import { preload } from "react-dom";
 import {
   AssistantScreen,
   LearnScreen,
@@ -41,6 +42,8 @@ import {
   productById,
   productBySlug,
 } from "@/data/catalog";
+import { readIssuerDirectory } from "@/db/issuer-directory";
+import { selectFeaturedCompanies, type DirectoryListing } from "@/domain/issuer-spotlight";
 import { state } from "@/domain/store";
 import { env } from "@/lib/env";
 import { requirePageUser } from "@/lib/page-auth";
@@ -79,8 +82,26 @@ export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery 
     delete currentQuery.source;
     permanentRedirect(withQuery("/discover", { ...currentQuery, focus: "search" }) as Route);
   }
+  if (!first(query.q)) {
+    preload("/api/v1/issuer/directory", { as: "fetch", crossOrigin: "anonymous" });
+  }
+  const startsWithFeatured = !first(query.q) && first(query.view) !== "all" &&
+    !first(query.sector) && !first(query.market) && !first(query.sort) &&
+    Number(first(query.page) ?? 1) === 1;
+  let initialFeatured: DirectoryListing[] = [];
+  if (startsWithFeatured) {
+    try {
+      const directory = await readIssuerDirectory();
+      if (directory && !directory.stale.length && !directory.unavailable.length) {
+        initialFeatured = selectFeaturedCompanies(directory.listings);
+      }
+    } catch {
+      // The browser can still load the public directory endpoint when PostgreSQL is unavailable.
+    }
+  }
   return (
     <ConceptDiscoverScreen
+      initialFeatured={initialFeatured}
       key={first(query.q) ?? ""}
       initialMarket={first(query.market)}
       initialPage={first(query.page)}
