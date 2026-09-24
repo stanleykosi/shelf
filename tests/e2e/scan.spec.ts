@@ -56,7 +56,7 @@ test("confirm, ambiguity, correction, exclusion and save preserve separate facts
   await expect(dialog.getByRole("button", { name: "Close replacement search" })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   expect(await page.evaluate(() => Boolean(document.querySelector("dialog")?.contains(document.activeElement)))).toBe(true);
-  await dialog.getByLabel("Search products, brands, or companies").fill("Tide");
+  await dialog.getByLabel("Search a company or product").fill("Tide");
   await dialog.locator(".scan-search-list button").click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Change match", exact: true })).toBeFocused();
@@ -82,30 +82,37 @@ test("camera permission is explicit and denied camera keeps alternatives availab
   await expect(page.getByRole("heading", { name: "Camera access is blocked" })).toBeVisible();
   await expect(page.locator(".concept-two-shell")).toBeVisible();
   await page.goto("/scan?method=search");
-  await page.getByLabel("Search products, brands, or companies").fill("iPhone");
+  await page.getByLabel("Search a company or product").fill("iPhone");
   await page.locator(".scan-search-list button").click();
   await page.getByRole("button", { name: "Confirm Product", exact: true }).click();
   await expect(page.getByRole("link", { name: "View research" })).toHaveAttribute("href", "/companies/apple");
 });
 
-test("deterministic link and barcode do not request image consent", async ({ page }) => {
+test("link and barcode require text-processing consent without uploading images", async ({ page }) => {
+  const consent = { aiProcessingConsentAccepted: true, aiProcessingConsentVersion: "ai-processing-v1", acknowledgeAiProcessing: true };
   await page.route("**/api/v1/discovery/image", () => { throw new Error("No image request permitted"); });
   await page.route("**/api/v1/discovery/link", async (route) => {
-    expect(route.request().postDataJSON()).toEqual({ url: "https://www.apple.com/iphone/" });
+    expect(route.request().postDataJSON()).toEqual({ url: "https://www.apple.com/iphone/", ...consent });
     await route.fulfill({ json: { data: [{ ...scanMatches[0], displayLabel: "iPhone", productId: "product-apple-iphone" }] } });
   });
   await page.goto("/scan?method=link");
-  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await page.getByLabel("Product URL").fill("https://www.apple.com/iphone/");
+  await expect(page.getByRole("button", { name: "Find product", exact: true })).toBeDisabled();
+  await page.getByRole("checkbox").check();
+  await page.getByLabel("Product URL").fill("https://www.apple.com/iphone/?test=1");
+  await expect(page.getByRole("checkbox")).not.toBeChecked();
+  await page.getByLabel("Product URL").fill("https://www.apple.com/iphone/");
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Find product", exact: true }).click();
   await expect(page).toHaveURL(/\/scan\/results$/);
   await page.route("**/api/v1/discovery/barcode", async (route) => {
-    expect(route.request().postDataJSON()).toEqual({ gtin: "00000000" });
+    expect(route.request().postDataJSON()).toEqual({ gtin: "00000000", ...consent });
     await route.fulfill({ json: { data: [] } });
   });
   await page.goto("/scan?method=barcode");
-  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await page.getByLabel("Barcode digits").fill("00000000");
+  await expect(page.getByRole("button", { name: "Find product", exact: true })).toBeDisabled();
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Find product", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No reviewed match found" })).toBeVisible();
 });
@@ -262,4 +269,29 @@ test("preview never upscales, preserves aspect ratio, and keeps consent essentia
   await page.getByRole("checkbox").check();
   await expect(page.getByRole("button", { name: "Identify products", exact: true })).toBeEnabled();
   await expect(page.getByText("Consent accepted for this image. Ready to identify.")).toBeVisible();
+});
+
+test("mobile guidance, consent actions and confirmation clear the unchanged navigation", async ({ page }) => {
+  for (const width of [390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/scan");
+    await expect(page.locator(".scan-camera-status")).not.toContainText("JPEG");
+    expect(await page.locator(".scan-capture-guidance").evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(15);
+    const clearNavigation = async (selector: string) => {
+      await page.locator(selector).scrollIntoViewIfNeeded();
+      expect(await page.locator(selector).evaluate((element) => element.getBoundingClientRect().bottom <= document.querySelector(".mobile-navigation")!.getBoundingClientRect().top)).toBe(true);
+    };
+    await clearNavigation(".scan-media .scan-primary");
+    await upload(page);
+    await expect(page.locator(".scan-identify")).toBeDisabled();
+    expect(await page.locator(".scan-identify").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+    await clearNavigation(".scan-identify");
+    await results(page, [{ ...scanMatches[0], productId: null, companyId: "issuer-only", sourceIds: ["src-xstocks"] }]);
+    await expect(page.getByText("Possible match", { exact: true })).toBeVisible();
+    await expect(page.locator(".scan-resolved-relationship")).toHaveCount(0);
+    await clearNavigation('[data-cta="C13"]');
+    await page.getByRole("button", { name: "Confirm Product", exact: true }).click();
+    await expect(page.locator(".scan-resolved-relationship")).toContainText("PepsiCo");
+    await clearNavigation('[data-cta="C16"]');
+  }
 });

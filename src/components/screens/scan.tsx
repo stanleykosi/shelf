@@ -89,7 +89,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
             const found = await detector.detect(videoRef.current);
             if (cancelled) return;
             const code = found.find((entry) => /^\d{8,14}$/.test(entry.rawValue));
-            if (code) { setBarcode(code.rawValue); stopCamera(); setCamera("idle"); setMessage("Barcode captured. Check the digits, then find the product."); return; }
+            if (code) { setBarcode(code.rawValue); setConsent(false); stopCamera(); setCamera("idle"); setMessage("Barcode captured. Check the digits, then find the product."); return; }
           } catch { /* A frame may not be ready yet; manual entry remains available. */ }
           if (!cancelled) timer = setTimeout(detect, 400);
         }
@@ -145,13 +145,15 @@ function ScanWorkspace({ mode }: { mode: Method }) {
   }
 
   async function identify() {
-    if (processingRef.current || offline || (mode !== "barcode" && mode !== "link" && (!image || !consent))) return;
+    if (processingRef.current || offline || !consent || (mode !== "barcode" && mode !== "link" && !image)) return;
     processingRef.current = true; setBusy(true); setError(""); setMessage("");
     const controller = new AbortController(); requestRef.current = controller;
     const timeout = setTimeout(() => controller.abort("timeout"), 30_000);
     const kind = mode === "barcode" ? "barcode" : mode === "link" ? "link" : "image";
-    const body = kind === "barcode" ? { gtin: barcode } : kind === "link" ? { url } : {
+    const input = kind === "barcode" ? { gtin: barcode } : kind === "link" ? { url } : {
       mode: mode === "receipt" || mode === "screenshot" ? mode : "photo", imageDataUrl: image,
+    };
+    const body = { ...input,
       aiProcessingConsentAccepted: consent, aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
       acknowledgeAiProcessing: consent,
     };
@@ -193,7 +195,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
           </div>
           {!image && camera === "idle" && visual ? <div className="scan-capture-guidance" aria-label="Image guidance"><span>Product name in view</span><span>Even light, no glare</span><span>{mode === "receipt" ? "Remove private details" : "Keep packaging in frame"}</span></div> : null}
           <div className="scan-media-controls">
-          <p className="scan-camera-status" role="status">{camera === "active" ? mode === "barcode" ? "Camera active · reading barcodes locally" : "Camera active · preview stays on your device" : camera === "requesting" ? "Your browser is asking for camera permission." : image ? "Local preview · cleared when you leave this scan" : "JPEG, PNG or WebP · up to 8 MiB / 20 megapixels"}</p>
+          <p className="scan-camera-status" role="status">{camera === "active" ? mode === "barcode" ? "Camera active · reading barcodes locally" : "Camera active · preview stays on your device" : camera === "requesting" ? "Your browser is asking for camera permission." : image ? "Local preview · cleared when you leave this scan" : mode === "barcode" ? "Read a barcode locally, or enter its digits below" : mode === "camera" ? "Camera preview stays on your device" : "JPEG, PNG or WebP · up to 8 MiB / 20 megapixels"}</p>
           <div className="scan-actions">
             {camera === "active" ? <>{mode !== "barcode" ? <button className="scan-primary" data-cta="C06" onClick={capture}>Capture photo</button> : null}{canSwitch ? <button className="scan-secondary" onClick={() => openCamera(facing === "environment" ? "user" : "environment")}><SwitchCamera size={17} aria-hidden="true" />Switch camera</button> : null}<button className="scan-secondary" onClick={() => { stopCamera(); setCamera("idle"); }}>Close camera</button></> : image ? <>{mode === "camera" ? <button className="scan-secondary" data-cta="C07" disabled={busy} onClick={() => openCamera()}>Retake</button> : null}<button className="scan-secondary" disabled={busy} onClick={() => fileRef.current?.click()}>Replace image</button></> : null}
           </div>
@@ -201,20 +203,20 @@ function ScanWorkspace({ mode }: { mode: Method }) {
           </div>
         </> : null}
         {mode === "search" ? <ScanProductSearch onSelect={(product) => { beginScanSession([proposeProduct(product)], "search"); router.push("/scan/results"); }} /> : null}
-        {mode === "barcode" ? <label className="scan-field">Barcode digits<input value={barcode} inputMode="numeric" maxLength={14} onChange={(event) => setBarcode(event.target.value.replace(/\D/g, ""))} /><small>Keep leading zeros. This checks the reviewed catalog without image processing.</small></label> : null}
-        {mode === "link" ? <div className="scan-link-workspace"><LinkIcon size={26} aria-hidden="true" /><label className="scan-field">Product URL<input type="url" maxLength={2048} placeholder="https://www.apple.com/iphone/" value={url} onChange={(event) => setUrl(event.target.value)} /></label><p>Currently supported: the official Apple iPhone page. Shelf matches this approved path without sending it for image processing.</p><button className="scan-text-action" onClick={() => selectMethod("screenshot")}>Use a screenshot for another website <ArrowRight size={16} /></button></div> : null}
-        {visual && image ? <section className="scan-consent" aria-labelledby="scan-privacy-title">
-          <h3 id="scan-privacy-title"><ShieldCheck size={18} aria-hidden="true" />Permission to identify this image</h3>
-          <p id="scan-processing-summary">Identify sends this image to OpenRouter and its model provider for AI-assisted identification. Shelf retains neither images nor raw receipt text.</p>
+        {mode === "barcode" ? <label className="scan-field">Barcode digits<input value={barcode} disabled={busy} inputMode="numeric" maxLength={14} onChange={(event) => { setBarcode(event.target.value.replace(/\D/g, "")); setConsent(false); }} /><small>Keep leading zeros. Shelf looks up public product details, then requests an ownership suggestion. Camera frames are not uploaded.</small></label> : null}
+        {mode === "link" ? <div className="scan-link-workspace"><LinkIcon size={26} aria-hidden="true" /><label className="scan-field">Product URL<input type="url" disabled={busy} maxLength={2048} placeholder="https://www.apple.com/iphone/" value={url} onChange={(event) => { setUrl(event.target.value); setConsent(false); }} /></label><p>Currently supported: the official Apple iPhone page. Shelf uses the product name from this approved path to request an ownership suggestion. No page image is uploaded.</p><button className="scan-text-action" onClick={() => selectMethod("screenshot")}>Use a screenshot for another website <ArrowRight size={16} /></button></div> : null}
+        {(visual && image) || mode === "barcode" || mode === "link" ? <section className="scan-consent" aria-labelledby="scan-privacy-title">
+          <h3 id="scan-privacy-title"><ShieldCheck size={18} aria-hidden="true" />{visual ? "Permission to identify this image" : "Permission to process product details"}</h3>
+          <p id="scan-processing-summary">{visual ? "Identify sends this image to OpenRouter and its model provider for AI-assisted identification. Shelf retains neither images nor raw receipt text." : "Find product sends the resolved product name and, when available, brand to OpenRouter and its model provider for an AI-assisted ownership suggestion. This does not verify a Shelf relationship. No image is sent."}</p>
           <p className="scan-privacy-essential" id="scan-retention-summary">No-training and zero-data-retention routing is required. Providers may retain operational metadata under their privacy policies.</p>
-          <details className="scan-processing-details"><summary>Processing details</summary><p>Nothing is sent on image selection. Recognition cannot proceed without your consent for this image. If the required privacy controls are unavailable, processing is blocked—Shelf does not silently switch providers. Cancellation is best effort once a provider has started processing.</p><p>Consent version: {AI_PROCESSING_CONSENT_VERSION}. Replace or retake the image to start a new acknowledgement.</p></details>
-          <label><input type="checkbox" checked={consent} disabled={busy} aria-describedby="scan-processing-summary scan-retention-summary" onChange={(event) => setConsent(event.target.checked)} /><span>I agree to this processing for this image and have removed unnecessary personal or payment details.</span></label>
-          <p id="scan-consent-state" className="scan-consent-required" role="status">{consent ? "Consent accepted for this image. Ready to identify." : "Accept the acknowledgement to enable identification, or search manually."}</p>
+          <details className="scan-processing-details"><summary>Processing details</summary><p>Nothing is sent to the recognition provider until you submit. Processing cannot proceed without your consent for this input. If the required privacy controls are unavailable, processing is blocked—Shelf does not silently switch providers. Cancellation is best effort once a provider has started processing.</p><p>Consent version: {AI_PROCESSING_CONSENT_VERSION}. Changing the input requires a new acknowledgement.</p></details>
+          <label><input type="checkbox" checked={consent} disabled={busy} aria-describedby="scan-processing-summary scan-retention-summary" onChange={(event) => setConsent(event.target.checked)} /><span>{visual ? "I agree to this processing for this image and have removed unnecessary personal or payment details." : "I agree to this processing of the product details for this request."}</span></label>
+          <p id="scan-consent-state" className="scan-consent-required" role="status">{consent ? visual ? "Consent accepted for this image. Ready to identify." : "Consent accepted for these product details. Ready to continue." : "Accept the acknowledgement to enable identification, or search manually."}</p>
         </section> : null}
         {offline ? <p className="scan-alert" role="status">You’re offline. Manual catalog search is still available; identification needs a connection.</p> : null}
         {error ? <p className="scan-alert" role="alert">{error}</p> : null}
-        <p role="status" className="scan-status">{busy ? mode === "barcode" || mode === "link" ? "Checking the reviewed catalog…" : "Identifying products…" : message}</p>
-        {busy ? <div className="scan-actions"><button className="scan-secondary" onClick={() => requestRef.current?.abort()}>Cancel identification</button><small>Cancellation is best effort once processing has started.</small></div> : (image && visual) || mode === "barcode" || mode === "link" ? <button className="scan-primary scan-identify" data-cta={mode === "barcode" ? "C09" : mode === "link" ? "C12" : mode === "receipt" ? "C11" : "C08"} disabled={offline || preparing || (visual && !consent) || (mode === "barcode" && !barcode) || (mode === "link" && !url.trim())} onClick={identify}>{mode === "barcode" || mode === "link" ? "Find product" : "Identify products"}<ArrowRight size={18} aria-hidden="true" /></button> : null}
+        <p role="status" className="scan-status">{busy ? mode === "barcode" || mode === "link" ? "Identifying product details…" : "Identifying products…" : message}</p>
+        {busy ? <div className="scan-actions"><button className="scan-secondary" onClick={() => requestRef.current?.abort()}>Cancel identification</button><small>Cancellation is best effort once processing has started.</small></div> : (image && visual) || mode === "barcode" || mode === "link" ? <button className="scan-primary scan-identify" aria-describedby="scan-consent-state" data-cta={mode === "barcode" ? "C09" : mode === "link" ? "C12" : mode === "receipt" ? "C11" : "C08"} disabled={offline || preparing || !consent || (mode === "barcode" && !barcode) || (mode === "link" && !url.trim())} onClick={identify}>{mode === "barcode" || mode === "link" ? "Find product" : "Identify products"}<ArrowRight size={18} aria-hidden="true" /></button> : null}
       </section>
       <aside className="scan-methods" aria-label="Identification methods">
         <h2>Your starting point</h2>

@@ -22,7 +22,8 @@ async function capture(page: Page, name: string) {
 try {
   // Capture the existing reviewed artwork as a screenshot input; never fabricate packaging.
   const source = await browser.newPage({ baseURL });
-  await source.goto("/discover?concept=2&q=Doritos");
+  await source.goto("/scan?method=search");
+  await source.getByLabel("Search a company or product").fill("Doritos");
   const artwork = source.getByAltText("Doritos product identity").first();
   await expect(artwork).toBeVisible();
   await artwork.evaluate((image: HTMLImageElement) => image.decode());
@@ -46,8 +47,13 @@ try {
     await page.getByRole("checkbox").check();
     await page.evaluate(() => window.scrollTo(0, 0));
     await capture(page, `scan-${width}-preview-consent-accepted`);
+    if (width === 390) {
+      await page.locator(".scan-identify").scrollIntoViewIfNeeded();
+      await capture(page, "scan-390-consent-accepted-actions");
+    }
     await page.getByRole("button", { name: "Identify products", exact: true }).click();
     await expect(page).toHaveURL(/\/scan\/results$/, { timeout: 20_000 });
+    await capture(page, `results-${width}-possible`);
     await page.getByRole("button", { name: "Confirm Product", exact: true }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await capture(page, `results-${width}-confirmed`);
@@ -62,7 +68,7 @@ try {
     await capture(page, `results-${width}-ambiguous-multiple`);
     if (width === 390) {
       await page.getByRole("button", { name: "Change match", exact: true }).click();
-      await page.getByRole("dialog").getByLabel("Search products, brands, or companies").fill("iPhone");
+      await page.getByRole("dialog").getByLabel("Search a company or product").fill("iPhone");
       await capture(page, "results-390-correction");
     }
     if (width === 1440 || width === 390) {
@@ -71,6 +77,7 @@ try {
       await page.route("**/api/v1/discovery/barcode", (route) => route.fulfill({ json: { data: [] } }));
       await page.goto("/scan?method=barcode");
       await page.getByLabel("Barcode digits").fill("00000000");
+      await page.getByRole("checkbox").check();
       await page.getByRole("button", { name: "Find product", exact: true }).click();
       await expect(page.getByRole("heading", { name: "No reviewed match found" })).toBeVisible();
       await capture(page, `results-${width}-no-match`);

@@ -1,5 +1,16 @@
 # Scan / Scan Results — Concept 2 compliance review
 
+## Latest completion review — 2026-09-24
+
+- **Visual compliance: yes.** Approved desktop geometry and exact shell/search/artwork/Relationship Explorer retained. Mobile guidance stacks legibly; disabled text contrast is 5.32:1. No new font, palette, decorative scanner treatment or motion.
+- **Behavioral compliance: yes, with the explicitly approved backend adaptation.** Capture/input → possible Product → user confirmation → independently reviewed catalog relationship → research. Barcode/link use truthful text-processing consent under the newer backend. AI owner, issuer and mint suggestions do not establish catalog relationships.
+- **UX / enterprise review:** task-first ruled verification workspace, desktop candidate rail, mobile count/navigation, correction sheet with native focus containment, evidence disclosure and explicit recovery states. No investment shortcut or generic AI presentation.
+- **Accessibility:** keyboard upload/disclosure, correction focus containment/return, camera/live-state labels, intrinsic preview sizing, active Scan navigation and action clearance verified. The animation-accessibility guidance informed the reduced-motion checks; no new animation was introduced. Physical-device permission UI remains a release QA item.
+- **Evidence:** 104/104 unit tests; lint, TypeScript and production build pass. Targeted Scan/recognition browser suite 32/32. Full suite 54 passed / 7 skipped / 3 failures in historical Discover assertions (removed Products table twice, old filter action once). All Scan and Phase 0–2 route tests pass. These Discover failures were not hidden or fixed by changing out-of-scope surfaces.
+- **Screenshots:** `../artifacts/scan-concept-2/README.md`, captured on local production build at 390/430/768/1280/1440 using existing reviewed artwork and simulated recognition responses. No paid provider call or accuracy claim.
+
+The pre-implementation review and earlier verification record below remain historical context.
+
 Pre-implementation review, 2026-09-23. Scope: `/scan`, `/scan/results` only, plus exact shared-pattern extraction. Concept 2 — Capital Research Direction is accepted and authoritative by the user's latest instruction. No new inspiration source.
 
 ## Inspected implementation
@@ -22,7 +33,7 @@ Permission/requesting/active/capture/retake/switch camera states; local drag/dro
 
 ## Contract findings
 
-Current image requests already enforce `ai-processing-v1`; barcode and approved Apple link are deterministic and must not ask for that consent. Current camera lacks lifecycle/permission granularity; correction leaves context. Existing results write candidate labels to sessionStorage, contrary to the product pack's memory-only evidence rule. Replace this with an in-memory session; reload expires results gracefully. Guest saves persist only explicitly confirmed catalog IDs. Confidence bands lack calibrated user-facing validation, so omit strength claims. No existing crop/rotate controls to preserve.
+At the initial review, image requests enforced `ai-processing-v1` while barcode and approved Apple link were deterministic. **2026-09-24 reconciliation:** the user explicitly chose to preserve the newer AI/issuer backend. Barcode/link now require truthful text-processing consent matching the server contract; manual catalog search stays local. Issuer ownership, mint and source fields never constitute a reviewed Product relationship. Exact catalog names/brands can propose identities, with ambiguous brands requiring selection and all identities requiring confirmation. Original camera lifecycle and memory-only session issues have been addressed. Guest saves persist only explicitly confirmed catalog IDs. Confidence bands lack calibrated user-facing validation, so strength claims remain omitted. No existing crop/rotate controls to preserve.
 
 ## Execution checklist
 

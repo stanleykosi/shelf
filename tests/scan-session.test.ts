@@ -4,6 +4,20 @@ import { beginScanSession, changeScanCandidate, proposeProduct, readScanSession,
 import { scanMatches } from "./fixtures/scan";
 
 describe("memory-only scan verification", () => {
+  it("proposes exact catalog identities from issuer responses without trusting ownership", () => {
+    beginScanSession([
+      { ...scanMatches[0], productId: null, companyId: "untrusted-issuer", ownerName: "Unverified owner", sourceIds: ["src-xstocks"] },
+      { ...scanMatches[1], productId: null },
+      { ...scanMatches[2], companyId: "company-pepsico", ownerName: "PepsiCo" },
+    ], "photo");
+    const candidates = readScanSession()!.candidates;
+    expect(candidates[0].productId).toBe("product-doritos-snack");
+    expect(candidates[0].decision).toBe("proposed");
+    expect(candidates[1].productId).toBeNull();
+    expect(candidates[1].alternatives.length).toBeGreaterThan(1);
+    expect(candidates[2].productId).toBeNull();
+    expect(JSON.stringify(candidates)).not.toContain("Unverified owner");
+  });
   afterEach(() => { vi.useRealTimers(); });
   it("requires explicit confirmation and never chooses one Product from an ambiguous brand", () => {
     beginScanSession(scanMatches, "photo");

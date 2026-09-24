@@ -154,7 +154,7 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
     .toHaveAttribute("href", "/assets/prestocks/OPENAI");
 });
 
-test("image upload requires consent and shows the AI owner beside the issuer token", async ({ page }) => {
+test("Scan requires consent and verifies a catalog Product independently of issuer suggestions", async ({ page }) => {
   let submittedImage = false;
   await page.route("**/api/v1/discovery/image", (route) => {
     const request = route.request().postDataJSON();
@@ -183,23 +183,22 @@ test("image upload requires consent and shows the AI owner beside the issuer tok
     });
   });
 
-  await page.goto("/scan");
-  await page.getByRole("tab", { name: "Upload" }).click();
+  await page.goto("/scan?method=upload");
   const image = await page.screenshot();
-  await page.getByLabel("Choose an image").setInputFiles({
+  await page.getByLabel("Choose image file").setInputFiles({
     name: "product.png",
     mimeType: "image/png",
     buffer: image,
   });
-  const submit = page.getByRole("button", { name: "Use this image" });
+  const submit = page.getByRole("button", { name: "Identify products", exact: true });
   await expect(submit).toBeDisabled();
-  await page.getByLabel(/I agree to send this image/).check();
+  await page.getByRole("checkbox").check();
   await submit.click();
-  await page.getByRole("link", { name: /candidates are ready/ }).click();
   await expect(page).toHaveURL(/\/scan\/results$/, { timeout: 20_000 });
-  await expect(page.getByText(/Likely owner: Apple/)).toBeVisible();
-  await expect(page.getByText(/Public · xStocks · AAPLx · mint/)).toBeVisible();
-  await expect(page.locator(".scan-issuer-identity .issuer-logo img"))
-    .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
+  await expect(page.getByText("Possible match", { exact: true })).toBeVisible();
+  await expect(page.locator(".scan-resolved-relationship")).toHaveCount(0);
+  await page.getByRole("button", { name: "Confirm Product", exact: true }).click();
+  await expect(page.locator(".scan-resolved-relationship")).toContainText("Apple");
+  await expect(page.getByRole("link", { name: /buy|invest|issuer asset/i })).toHaveCount(0);
   expect(submittedImage).toBe(true);
 });

@@ -792,7 +792,7 @@ Scan and Scan Results use **Concept 2 — Capital Research Direction**, now acce
 
 Use the existing dark/mint shell with a mostly light, ruled intake workspace. Camera is primary; Upload (including screenshots) and Search are strong secondary choices. Barcode, Receipt and Approved link are progressively disclosed, not seven peer tabs. Desktop uses an input workspace beside concise method guidance; mobile places capture/preview and actions first with existing bottom-nav clearance. Dark media treatment is functional, not a new page theme.
 
-Camera permission is requested only on action; distinguish requesting, blocked, unavailable and active states. Stop tracks on capture, method change, background and unmount. Offer switching only when multiple cameras are available. Validate files before preparation; no upload on selection. Preview precedes per-image versioned OpenRouter consent; deterministic barcode/link/search never request image-processing consent. Cancel aborts the request locally, with accurate best-effort provider wording.
+Camera permission is requested only on action; distinguish requesting, blocked, unavailable and active states. Stop tracks on capture, method change, background and unmount. Offer switching only when multiple cameras are available. Validate files before preparation; no upload on selection. Preview precedes per-image versioned OpenRouter consent. Manual catalog search needs no processing consent. Under the newer backend preserved by explicit user approval, barcode lookup and approved-link resolution request ownership suggestions from OpenRouter: these require text-processing consent, never a false image-processing acknowledgement. Cancel aborts the request locally, with accurate best-effort provider wording.
 
 Results distinguish proposed identity, user-confirmed Product, and independently reviewed catalog relationship. Reuse Home's exact Relationship Explorer trail and evidence ledger after confirmation. Use a desktop candidate navigator/detail pane and mobile previous/next count. Correction is a native modal drawer/sheet with the shared SearchCommand, preserving all other candidate decisions. Unknown Products have no invented Company. Confidence scores are omitted until user-facing calibration is established. Results and raw labels remain in memory only; reload/expiry explains recovery. Save only confirmed catalog IDs. No investment action appears here.
 
@@ -800,6 +800,8 @@ Scan refinement (2026-09-24): use a compact neutral media workspace with concise
 
 ### Route
 `/scan?method=`
+
+Mobile completion (2026-09-24): retain approved desktop geometry; stack capture guidance at readable 15px on mobile. Format/size guidance belongs to upload, screenshot and receipt contexts, not an idle camera. Disabled actions use an opaque neutral surface with readable text and reference the consent explanation. Barcode/link input changes reset consent. Their disclosure identifies the resolved product name/brand sent for ownership suggestions and leaves provider privacy controls visible. Backend issuer suggestions never establish reviewed relationships: only exact catalog names/brands propose identities, ambiguous brands require selection, and user confirmation reveals the existing catalog's independently sourced Relationship Explorer. Unknown names require in-flow correction; no fuzzy owner-to-Product inference.
 
 ### Purpose
 Capture or supply product evidence for recognition.
