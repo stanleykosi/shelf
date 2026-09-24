@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
+import { useState } from "react";
 import { ArrowRight, Check, Search } from "lucide-react";
 import { companyById, products, sources } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
@@ -88,20 +89,23 @@ export function StatusText({ children, verified = false }: { children: React.Rea
 
 export function ProductArtwork({ product, sizes = "240px" }: { product: Product; sizes?: string }) {
   const image = reviewedProductImages[product.slug];
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const source = image?.src.replace("w=3840", "w=1280");
   return (
     <span className={"research-product-image category-" + product.category}>
-      {image ? (
+      {image && source && failedSource !== source ? (
         <Image
           alt={image.alt}
           className={"research-product-photo fit-" + image.fit}
           fill
           sizes={sizes}
-          src={image.src}
+          src={source}
+          onError={() => setFailedSource(source)}
         />
       ) : (
         <span className="research-product-placeholder">
           <span aria-hidden="true">{initials(product.brand)}</span>
-          <small>Image pending review</small>
+          <small>{image ? "Image unavailable" : "Image pending review"}</small>
         </span>
       )}
     </span>

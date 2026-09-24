@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { companyById } from "@/data/catalog";
+import { companyById, companyBySlug } from "@/data/catalog";
 import type { CorporateActionView } from "@/domain/issuer-assets";
 import { formatRaw, parseTokenAmount, parseUsdc } from "@/domain/money";
 import type { Company, FinancialRecord, Holding, Order, Quote } from "@/domain/types";
 import { apiRequest, freshApiRequest, freshPostJson, postJson } from "@/lib/api-client";
 import { financialRecordsCsv } from "@/lib/csv";
+import { isSolanaPublicKey } from "@/lib/solana-signing";
 import { signMagicSolanaTransaction } from "@/providers/magic-browser";
 import {
   Card,
@@ -27,7 +28,73 @@ function messageFrom(error: unknown) {
     : "Request failed";
 }
 
+const orderTitles: Record<Order["status"], string> = {
+  draft: "Order requires review", in_progress: "Transaction processing",
+  awaiting_user: "Your approval is required", complete: "Order completed",
+  partially_complete: "Partly completed", failed: "Transaction failed",
+  stopped: "Order stopped", outcome_unknown: "Transaction outcome pending",
+};
+
+function Recovery({ title, error, href = "/portfolio" }: { title: string; error: string; href?: string }) {
+  return <EmptyState title={title} action={<><button onClick={() => window.location.reload()}>Try again</button><CtaLink id="financial-recovery" href={href} secondary>Return</CtaLink></>}>
+    {error}. No transaction outcome is inferred from this error.
+  </EmptyState>;
+}
+
 type Allocation = { companyId: string; amount: string; selected: boolean };
+
+export function InvestmentScreen({ companySlug }: { companySlug: string }) {
+  const company = companyBySlug(companySlug);
+  const router = useRouter();
+  const [amount, setAmount] = useState("10");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function review() {
+    if (!company?.instrument || busy) return;
+    setBusy(true);
+    try {
+      const order = await postJson<Order>("orders", { clientIntentId: crypto.randomUUID(), type: "buy", companyId: company.id, amountUsdcRaw: parseUsdc(amount).toString(), slippageBps: 50 });
+      router.push(`/orders/${order.id}/review`);
+    } catch (reason) { setError(messageFrom(reason)); setBusy(false); }
+  }
+  if (!company?.instrument) return <EmptyState title="No supported exposure" action={<CtaLink id="investment-research" href={`/companies/${companySlug}`} secondary>Return to research</CtaLink>}>Company research remains available. No investment instrument is inferred.</EmptyState>;
+  const instrument = company.instrument;
+  return <>
+    <PageIntro eyebrow="Investment / Amount" title={`Review an investment in ${company.name}`}>
+      <p>Choose an amount for the instrument below. No purchase is submitted here.</p>
+    </PageIntro>
+    <div className="research-split">
+      <section className="research-section">
+        <h2>{company.name}</h2>
+        <p>{company.description}</p>
+        <h3>{instrument.symbol} · {instrument.issuer}</h3>
+        <p className="notice">{instrument.provider === "prestocks"
+          ? "Private company exposure. Liquidity, redemption and valuation differ from public shares. No ordinary share ownership is implied."
+          : "Public equity tracker. This instrument is not an ordinary voting share in the company."}</p>
+        <details>
+          <summary>Instrument and issuer details</summary>
+          <p>Issuer: {instrument.issuer}</p>
+          <p className="break-all">Solana mint: {instrument.mint}</p>
+          <a href={instrument.referenceUrl} target="_blank" rel="noreferrer">Issuer reference</a>
+        </details>
+      </section>
+      <section className="research-section">
+        <h2>Investment amount</h2>
+        <Field label="Amount in USDC" htmlFor="investment-amount" hint="Minimum 5 USDC · beta maximum 100 USDC. Final availability and fees are checked before approval.">
+          <input id="investment-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+        </Field>
+        <p>Review shows a fresh quote, fees and minimum output. You decide whether to approve.</p>
+        <div className="actions">
+          <button data-cta="C57" disabled={busy || !instrument.capabilities.buy} onClick={review}>{busy ? "Preparing review…" : "Review investment"}</button>
+          <CtaLink id="C58" href="/account/wallet/deposit" secondary>Deposit USDC</CtaLink>
+        </div>
+        {!instrument.capabilities.buy ? <p role="status">Purchases are currently unavailable for this instrument.</p> : null}
+        <ErrorMessage message={error}/>
+        <CtaLink id="investment-return" href={`/companies/${companySlug}`} secondary>Return to company research</CtaLink>
+      </section>
+    </div>
+  </>;
+}
 
 export function BasketScreen({ market }: { market?: string }) {
   const router = useRouter();
@@ -35,6 +102,14 @@ export function BasketScreen({ market }: { market?: string }) {
   const [budget, setBudget] = useState("30");
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  let allocationSummary = "Enter valid amounts to see the remaining budget.";
+  try {
+    const allocated = allocations.filter((item) => item.selected).reduce((sum, item) => sum + parseUsdc(item.amount), 0n);
+    const remaining = parseUsdc(budget) - allocated;
+    allocationSummary = `${formatRaw(allocated)} USDC allocated · ${remaining < 0n ? `${formatRaw(-remaining)} USDC over budget` : `${formatRaw(remaining)} USDC unallocated`}`;
+  } catch { /* Invalid input remains editable; review validates before posting. */ }
 
   useEffect(() => {
     apiRequest<Company[]>("watchlist")
@@ -46,9 +121,11 @@ export function BasketScreen({ market }: { market?: string }) {
           return true;
         });
         setEligibleCompanies(eligible);
-        const saved = JSON.parse(
-          sessionStorage.getItem("shelf:allocation-draft") ?? "[]",
-        ) as Array<{ companyId: string; amountUsdcRaw: string }>;
+        let saved: Array<{ companyId: string; amountUsdcRaw: string }> = [];
+        try {
+          const draft: unknown = JSON.parse(sessionStorage.getItem("shelf:allocation-draft") ?? "[]");
+          if (Array.isArray(draft)) saved = draft.filter((item) => item && typeof item.companyId === "string" && typeof item.amountUsdcRaw === "string" && /^\d+$/.test(item.amountUsdcRaw));
+        } catch { /* A missing or damaged optional draft never blocks manual allocation. */ }
         setAllocations(eligible.map((company) => {
           const proposed = saved.find((item) => item.companyId === company.id);
           return {
@@ -58,13 +135,15 @@ export function BasketScreen({ market }: { market?: string }) {
           };
         }));
       })
-      .catch((reason: unknown) => setError(messageFrom(reason)));
+      .catch((reason: unknown) => setError(messageFrom(reason)))
+      .finally(() => setLoading(false));
   }, [market]);
 
   function splitEqually() {
     const selected = allocations.filter((item) => item.selected);
     if (!selected.length) return;
-    const rawBudget = parseUsdc(budget);
+    let rawBudget: bigint;
+    try { rawBudget = parseUsdc(budget); } catch (reason) { setError(messageFrom(reason)); return; }
     const base = rawBudget / BigInt(selected.length);
     let remainder = rawBudget % BigInt(selected.length);
 
@@ -79,8 +158,12 @@ export function BasketScreen({ market }: { market?: string }) {
   }
 
   async function createBasket() {
+    if (busy) return;
+    setBusy(true);
     try {
       const selected = allocations.filter((item) => item.selected);
+      if (!selected.length || selected.length > 5) throw new Error("Choose between one and five companies.");
+      if (selected.reduce((sum, item) => sum + parseUsdc(item.amount), 0n) > parseUsdc(budget)) throw new Error("Allocations exceed your total budget.");
       const order = await postJson<Order>("orders", {
         clientIntentId: crypto.randomUUID(),
         type: "basket",
@@ -94,6 +177,7 @@ export function BasketScreen({ market }: { market?: string }) {
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {
       setError(messageFrom(requestError));
+      setBusy(false);
     }
   }
 
@@ -140,7 +224,7 @@ export function BasketScreen({ market }: { market?: string }) {
         <p className="muted">Choose up to five assets from your saved issuer watchlist. Add more through a scan or issuer search.</p>
         <div className="chips">
           {eligibleCompanies.map((company) => (
-            <button key={company.id} className={allocations.some((item) =>
+            <button key={company.id} aria-pressed={allocations.some((item) => item.companyId === company.id && item.selected)} className={allocations.some((item) =>
               item.companyId === company.id && item.selected) ? "" : "secondary"}
               onClick={() => setAllocations((current) => current.map((item) =>
                 item.companyId === company.id ? { ...item, selected: !item.selected } : item,
@@ -149,7 +233,8 @@ export function BasketScreen({ market }: { market?: string }) {
             </button>
           ))}
         </div>
-        {!eligibleCompanies.length ? <CtaLink id="basket-discover" href="/discover" secondary>
+        {loading ? <p role="status">Loading saved company instruments…</p> : null}
+        {!loading && !eligibleCompanies.length ? <CtaLink id="basket-discover" href="/discover" secondary>
           Find an issuer asset
         </CtaLink> : null}
         <Field label="Total budget in USDC" htmlFor="basket-budget">
@@ -163,7 +248,7 @@ export function BasketScreen({ market }: { market?: string }) {
         {allocations
           .filter((item) => item.selected)
           .map((item) => (
-            <div className="card" key={item.companyId}>
+            <div className="research-section" key={item.companyId}>
               <h3>{eligibleCompanies.find((company) => company.id === item.companyId)?.name}</h3>
               <p className="muted">
                 {eligibleCompanies.find((company) => company.id === item.companyId)?.instrument?.provider === "prestocks"
@@ -199,15 +284,17 @@ export function BasketScreen({ market }: { market?: string }) {
           <button className="secondary" data-cta="C59" onClick={splitEqually}>
             Split equally
           </button>
-          <button data-cta="C61" disabled={!allocations.some((item) => item.selected) ||
+          <button data-cta="C61" disabled={busy || !allocations.some((item) => item.selected) ||
             allocations.filter((item) => item.selected).length > 5} onClick={createBasket}>
-            Review basket
+            {busy ? "Preparing review…" : "Review basket"}
           </button>
           <button className="secondary" data-cta="C62"
             disabled={!allocations.some((item) => item.selected) ||
               allocations.filter((item) => item.selected).length > 5}
-            onClick={suggestAllocation}>Get an AI draft</button>
+            onClick={suggestAllocation}>Suggest an editable allocation</button>
         </div>
+        <p role="status">{allocationSummary}</p>
+        <p className="muted">Suggestions remain editable and are not advice or approval. Each instrument needs its own quote and explicit wallet approval.</p>
         <ErrorMessage message={error} />
       </Card>
     </>
@@ -219,6 +306,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
   const [quantity, setQuantity] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [holding, setHolding] = useState<Holding | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     apiRequest<Holding>(`portfolio/${encodeURIComponent(instrumentId)}`)
@@ -227,6 +315,8 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
   }, [instrumentId]);
 
   async function createSale(sellAll = false) {
+    if (!holding || busy) return;
+    setBusy(true);
     try {
       const order = await postJson<Order>("orders", {
         clientIntentId: crypto.randomUUID(),
@@ -239,6 +329,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {
       setError(messageFrom(requestError));
+      setBusy(false);
     }
   }
 
@@ -251,6 +342,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
         </p>
       </PageIntro>
       <Card className="stack">
+        {holding ? <><h2>{holding.symbol}</h2><p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · tracked holding</p><p>Available: {formatRaw(BigInt(holding.rawAmount) - BigInt(holding.reservedRaw), holding.decimals)} units. Reserved units cannot be sold.</p></> : <p role="status">{error ? "Holding could not be loaded." : "Loading your holding…"}</p>}
         <Field label="Displayed token quantity" htmlFor="sell-quantity">
           <input
             id="sell-quantity"
@@ -260,14 +352,15 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
           />
         </Field>
         <div className="actions">
-          <button className="secondary" data-cta="C80" onClick={() => createSale(true)}>
+          <button className="secondary" data-cta="C80" disabled={!holding || busy} onClick={() => createSale(true)}>
             Sell all
           </button>
-          <button data-cta="C81" disabled={!holding} onClick={() => createSale(false)}>
-            Review sale
+          <button data-cta="C81" disabled={!holding || busy} onClick={() => createSale(false)}>
+            {busy ? "Preparing review…" : "Review sale"}
           </button>
         </div>
         <ErrorMessage message={error} />
+        <CtaLink id="sell-cancel" href={`/portfolio/${instrumentId}`} secondary>Return to holding</CtaLink>
       </Card>
     </>
   );
@@ -275,38 +368,47 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
 
 export function TransferScreen() {
   const router = useRouter();
-  const [assetId, setAssetId] = useState("usdc");
+  const params = useSearchParams();
+  const [assetId, setAssetId] = useState(params.get("asset") || "usdc");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("2.5");
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [external, setExternal] = useState<Holding[]>([]);
+  const scope = assetId === "usdc" ? "cash" : params.get("scope") === "external" ? "external" : "tracked";
+  const availableAssets = params.get("scope") === "external" ? external : holdings;
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     apiRequest<{ holdings: Holding[] }>("portfolio")
       .then((data) => setHoldings(data.holdings))
       .catch((reason: unknown) => setError(messageFrom(reason)));
+    apiRequest<{ externalInventory: Holding[] }>("wallet").then((data) => setExternal(data.externalInventory)).catch((reason) => setError(messageFrom(reason)));
   }, []);
 
   async function approveTransfer() {
+    if (busy || !reviewing) return;
+    setBusy(true);
     try {
-      if (recipient.length < 32) throw new Error("RECIPIENT_INVALID");
+      if (!isSolanaPublicKey(recipient.trim())) throw new Error("Enter a valid Solana destination address.");
       const decimals =
         assetId === "usdc"
           ? 6
-          : holdings.find((holding) => holding.instrumentId === assetId)?.decimals;
+          : availableAssets.find((holding) => holding.instrumentId === assetId)?.decimals;
       if (decimals === undefined) throw new Error("ASSET_UNSUPPORTED");
       const order = await freshPostJson<Order>("orders", "transfer", {
         clientIntentId: crypto.randomUUID(),
         type: "transfer",
         assetId,
-        inventoryScope: assetId === "usdc" ? "cash" : "tracked",
-        recipientAddress: recipient,
+        inventoryScope: scope,
+        recipientAddress: recipient.trim(),
         amountRaw: parseTokenAmount(amount, decimals).toString(),
       });
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {
       setError(messageFrom(requestError));
+      setBusy(false);
     }
   }
 
@@ -316,16 +418,17 @@ export function TransferScreen() {
         <p>Check the complete destination. Transfers are irreversible and do not count as sales.</p>
       </PageIntro>
       <Card className="stack">
+        <p>Inventory source: {scope === "cash" ? "Wallet cash" : scope === "external" ? "Received outside Shelf · not a Portfolio holding" : "Shelf-origin tracked holding"}</p>
         <Field label="Asset" htmlFor="transfer-asset">
           <select
             id="transfer-asset"
             value={assetId}
-            onChange={(event) => setAssetId(event.target.value)}
+            onChange={(event) => { setAssetId(event.target.value); setReviewing(false); }}
           >
             <option value="usdc">USDC</option>
-            {holdings.filter((holding) => BigInt(holding.rawAmount) > 0n).map((holding) => (
+            {availableAssets.filter((holding) => BigInt(params.get("scope") === "external" ? holding.externalRaw : holding.rawAmount) > 0n).map((holding) => (
               <option value={holding.instrumentId} key={holding.instrumentId}>
-                Tracked {holding.symbol}
+                {scope === "external" ? "External" : "Tracked"} {holding.symbol}
               </option>
             ))}
           </select>
@@ -345,7 +448,7 @@ export function TransferScreen() {
             id="transfer-amount"
             inputMode="decimal"
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => { setAmount(event.target.value); setReviewing(false); }}
           />
         </Field>
         {reviewing ? (
@@ -360,11 +463,11 @@ export function TransferScreen() {
           </ResultMessage>
         ) : null}
         <div className="actions">
-          <button className="secondary" data-cta="C82" onClick={() => setReviewing(true)}>
+          <button className="secondary" data-cta="C82" disabled={!recipient.trim() || !amount || busy} onClick={() => setReviewing(true)}>
             Review transfer
           </button>
-          <button data-cta="C83" disabled={!reviewing} onClick={approveTransfer}>
-            Approve transfer
+          <button data-cta="C83" disabled={!reviewing || busy} onClick={approveTransfer}>
+            {busy ? "Preparing review…" : "Continue to order review"}
           </button>
           <button className="ghost" data-cta="C84" onClick={() => setReviewing(false)}>
             Edit recipient
@@ -376,8 +479,15 @@ export function TransferScreen() {
   );
 }
 
-function QuoteFacts({ order, quote }: { order: Order; quote: Quote }) {
-  const leg = order.legs.find((item) => item.quote?.id === quote.id) ?? order.legs[0];
+function QuoteFacts({ order, quote, company }: { order: Order; quote: Quote; company?: Company | null }) {
+  const leg = order.legs.find((item) => item.quote?.id === quote.id)
+    ?? order.legs.find((item) => item.status !== "finalized" && item.status !== "cancelled")
+    ?? order.legs[0];
+  const instrument = company?.instrument;
+  const tokenAmount = (raw: string) => instrument
+    ? `${formatRaw(raw, instrument.decimals)} ${instrument.symbol}`
+    : `${raw} raw asset units (unit metadata unavailable)`;
+  const cashTransfer = leg.side === "transfer" && leg.inventoryScope === "cash";
   return (
     <dl className="facts">
       <div>
@@ -387,16 +497,16 @@ function QuoteFacts({ order, quote }: { order: Order; quote: Quote }) {
       <div>
         <dt>Input</dt>
         <dd>
-          {formatRaw(quote.inputRaw)} {leg.side === "sell" ? "tokens" : "USDC"}
+          {leg.side === "buy" || cashTransfer ? `${formatRaw(quote.inputRaw)} USDC` : tokenAmount(quote.inputRaw)}
         </dd>
       </div>
       <div>
         <dt>Estimated output</dt>
-        <dd>{formatRaw(quote.estimatedOutputRaw)}</dd>
+        <dd>{leg.side === "sell" || cashTransfer ? `${formatRaw(quote.estimatedOutputRaw)} USDC` : tokenAmount(quote.estimatedOutputRaw)}</dd>
       </div>
       <div>
         <dt>Minimum output</dt>
-        <dd>{formatRaw(quote.minimumOutputRaw)}</dd>
+        <dd>{leg.side === "sell" || cashTransfer ? `${formatRaw(quote.minimumOutputRaw)} USDC` : tokenAmount(quote.minimumOutputRaw)}</dd>
       </div>
       <div>
         <dt>Shelf fee</dt>
@@ -437,6 +547,10 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   const [issuerCompany, setIssuerCompany] = useState<Company | null>(null);
+  const [now, setNow] = useState(0);
+  const [quoting, setQuoting] = useState(false);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  const expired = Boolean(quote && now >= Date.parse(quote.expiresAt));
 
   useEffect(() => {
     apiRequest<Order>(`orders/${orderId}`)
@@ -453,27 +567,30 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
   }, [order]);
 
   async function loadQuote() {
-    if (!order) return;
+    if (!order || quoting) return;
     const nextLeg = order.legs.find((leg) => leg.status !== "finalized");
     if (!nextLeg) return;
+    setQuoting(true);
+    setQuote(null);
     try {
       const freshQuote = await postJson<Quote>(`orders/${order.id}/legs/${nextLeg.id}/quote`, {
         expectedOrderVersion: order.version,
       });
       setQuote(freshQuote);
+      setNow(Date.now());
       setError(null);
     } catch (requestError) {
       setError(messageFrom(requestError));
-    }
+    } finally { setQuoting(false); }
   }
 
   async function cancelOrder() {
-    await postJson(`orders/${orderId}/stop`, {});
-    router.push("/portfolio");
+    try { await postJson(`orders/${orderId}/stop`, {}); router.push(`/orders/${orderId}`); }
+    catch (reason) { setError(messageFrom(reason)); }
   }
 
   async function approveOrder() {
-    if (!order || !quote) return;
+    if (!order || !quote || approving || Date.now() >= Date.parse(quote.expiresAt)) return;
     const nextLeg = order.legs.find((leg) => leg.status !== "finalized");
     if (!nextLeg) return;
     setApproving(true);
@@ -493,12 +610,13 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
       await postJson(`preparations/${preparation.preparationId}/broadcast`, {});
       router.push(`/orders/${order.id}`);
     } catch (requestError) {
-      if (messageFrom(requestError).includes("QUOTE_EXPIRED")) setQuote(null);
+      if (messageFrom(requestError).includes("quote expired")) setQuote(null);
       setError(messageFrom(requestError));
       setApproving(false);
     }
   }
 
+  if (!order && error) return <Recovery title="Order unavailable" error={error} />;
   if (!order)
     return <EmptyState title="Loading order">The private order is being retrieved.</EmptyState>;
   const actionId = order.type === "sell" ? "C64" : "C63";
@@ -519,11 +637,20 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
         }
       >
         <p>
-          This is a live Jupiter market route. Signing and broadcast stay unavailable until Shelf
-          activates the funded sponsor.
+          Quotes use Jupiter when available. Signing and broadcast remain unavailable until
+          Shelf’s funding, eligibility and execution gates are satisfied.
         </p>
       </PageIntro>
       <Card className="stack">
+        <h2>{activeCompany?.name ?? activeLeg.instrumentId ?? "Transfer"}</h2>
+        {activeLeg.recipientAddress ? <p className="break-all">Recipient · {activeLeg.recipientAddress}</p> : null}
+        <p>Order reference: {order.id} · Transaction {activeLeg.position + 1} of {order.legs.length}</p>
+        {activeCompany?.instrument ? <p>Instrument: {activeCompany.instrument.symbol} · {activeCompany.instrument.issuer}</p> : null}
+        <p>Requested input: {activeLeg.side === "buy"
+          ? `${formatRaw(activeLeg.requestedInputRaw, 6)} USDC`
+          : activeCompany?.instrument
+            ? `${formatRaw(activeLeg.requestedInputRaw, activeCompany.instrument.decimals)} ${activeCompany.instrument.symbol}`
+            : `${activeLeg.requestedInputRaw} raw units`}. Final output and fees require a current quote.</p>
         {activeCompany?.instrument ? (
           <p className="notice">
             <strong>
@@ -546,7 +673,8 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
         </p> : null}
         {quote ? (
           <>
-            <QuoteFacts order={order} quote={quote} />
+            <QuoteFacts order={order} quote={quote} company={activeCompany} />
+            <p role="status">{expired ? "This quote has expired. Request a fresh quote and review the updated amounts." : `Quote valid until ${new Date(quote.expiresAt).toLocaleTimeString()}.`}</p>
             {!quote.executionAvailable ? (
               <p className="notice" role="status">
                 <strong>Live route verified · execution unavailable</strong>
@@ -560,14 +688,14 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
           <p>No current quote. Request one when you are ready to review.</p>
         )}
         <div className="actions">
-          {!quote ? (
-            <button data-cta="C67" onClick={loadQuote}>
-              Get fresh quote
+          {!quote || expired ? (
+            <button data-cta="C67" disabled={quoting} onClick={loadQuote}>
+              {quoting ? "Checking quote…" : "Get fresh quote"}
             </button>
           ) : (
             <button
               data-cta={actionId}
-              disabled={!quote.executionAvailable || approving}
+              disabled={!quote.executionAvailable || approving || expired}
               onClick={approveOrder}
             >
               {approving
@@ -616,8 +744,10 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
   }, [orderId]);
 
   async function stopRemaining() {
-    setOrder(await postJson<Order>(`orders/${orderId}/stop`, {}));
+    try { setOrder(await postJson<Order>(`orders/${orderId}/stop`, {})); setError(null); }
+    catch (reason) { setError(messageFrom(reason)); }
   }
+  if (!order && error) return <Recovery title="Order status unavailable" error={error} />;
   if (!order)
     return (
       <EmptyState title="Checking transaction outcome">
@@ -634,20 +764,18 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
     <>
       <PageIntro
         eyebrow="Order status"
-        title={order.status === "complete" ? "Complete" :
-          order.status === "outcome_unknown" ? "Transaction outcome pending" :
-          order.status === "failed" ? "Transaction failed" :
-          order.status === "stopped" ? "Order stopped" : "Partly completed"}
+        title={orderTitles[order.status]}
       >
         <p>
           Finalized chain facts are recorded once after reconciliation.
+          {order.status === "outcome_unknown" ? " Do not submit another order while the outcome is unknown. Check this order’s status." : ""}
         </p>
       </PageIntro>
-      <div className="grid">
+      <div className="research-rows" aria-live="polite">
         {order.legs.map((leg) => (
           <Card key={leg.id}>
-            <span className="badge">{leg.status}</span>
-            <h3>Leg {leg.position + 1}</h3>
+            <span className="badge">{leg.status.replaceAll("_", " ")}</span>
+            <h3>{leg.side === "transfer" ? "Transfer" : "Transaction"} {leg.position + 1}</h3>
             <p>{leg.companyId
               ? companyById(leg.companyId)?.name ?? leg.companyId.split(":").at(-1)?.toUpperCase()
               : "Transfer"}</p>
@@ -703,12 +831,17 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
 export function PortfolioScreen() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [cashRaw, setCashRaw] = useState("0");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     apiRequest<{ holdings: Holding[]; cashRaw: string }>("portfolio").then((data) => {
       setHoldings(data.holdings);
       setCashRaw(data.cashRaw);
-    });
+    }).catch((reason) => setError(messageFrom(reason))).finally(() => setLoading(false));
   }, []);
+
+  if (loading) return <EmptyState title="Loading your portfolio">Retrieving Shelf-origin holdings and available cash.</EmptyState>;
+  if (error) return <Recovery title="Portfolio unavailable" error={error} />;
 
   return (
     <>
@@ -721,10 +854,12 @@ export function PortfolioScreen() {
       <Card>
         <p className="eyebrow">Cash</p>
         <h2>{formatRaw(cashRaw)} USDC</h2>
+        <p className="muted">Cash is separate from holdings. Current market valuation is unavailable; acquisition cost is not today’s value.</p>
+        <CtaLink id="portfolio-wallet" href="/account/wallet" secondary>Manage cash in Wallet</CtaLink>
       </Card>
       <section className="section">
         {holdings.length ? (
-          <div className="grid">
+          <div className="research-rows">
             {holdings.map((holding) => (
               <Card
                 className={
@@ -742,6 +877,7 @@ export function PortfolioScreen() {
                     : "Public · xStocks"}
                 </span>
                 <h2>{holding.symbol}</h2>
+                <p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · Shelf-origin holding</p>
                 <p>{formatRaw(holding.rawAmount, holding.decimals)} displayed units</p>
                 <p className="muted">
                   Acquisition cost: {formatRaw(holding.totalCostUsdcRaw)} USDC
@@ -793,7 +929,7 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
   if (error)
     return (
       <EmptyState title="Holding unavailable">
-        Shelf could not load this holding: {error}.
+        Shelf could not load this holding: {error}. Return to Portfolio and try again.
       </EmptyState>
     );
   if (!holding)
@@ -809,6 +945,11 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
         </p>
       </PageIntro>
       <Card>
+        <h2>{formatRaw(holding.rawAmount, holding.decimals)} units</h2>
+        <p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · {holding.symbol}</p>
+        <p>Available to sell or send: {formatRaw(BigInt(holding.rawAmount) - BigInt(holding.reservedRaw), holding.decimals)} units.</p>
+        <p>Acquisition cost: {formatRaw(holding.totalCostUsdcRaw)} USDC. Current market value is unavailable.</p>
+        <details><summary>Exact unit and accounting details</summary>
         <dl className="facts">
           <div>
             <dt>Tracked raw</dt>
@@ -827,6 +968,7 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
             <dd>{formatRaw(holding.totalCostUsdcRaw)} USDC</dd>
           </div>
         </dl>
+        </details>
         <div className="actions">
           <CtaLink id="C76" href={`/portfolio/${holding.instrumentId}/sell`}>
             Sell
@@ -880,37 +1022,54 @@ function exportRecords(records: FinancialRecord[], format: "csv" | "json") {
 
 export function HistoryScreen() {
   const [records, setRecords] = useState<FinancialRecord[]>([]);
+  const params = useSearchParams();
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const visible = records.filter((record) => (!params.get("type") || record.type === params.get("type")) && (!params.get("status") || record.status === params.get("status")));
+  function filter(key: string, value: string) { const next = new URLSearchParams(params.toString()); if (value) next.set(key, value); else next.delete(key); router.replace(`/portfolio/activity?${next}`); }
   useEffect(() => {
-    apiRequest<FinancialRecord[]>("history").then(setRecords);
+    apiRequest<FinancialRecord[]>("history").then(setRecords).catch((reason) => setError(messageFrom(reason))).finally(() => setLoading(false));
   }, []);
 
   async function download(format: "csv" | "json") {
+    setExporting(true);
+    try {
     const exportableRecords = await freshApiRequest<FinancialRecord[]>(
       "exports/activity",
       "activity_export",
     );
     exportRecords(exportableRecords, format);
+    setError(null);
+    } catch (reason) { setError(messageFrom(reason)); } finally { setExporting(false); }
   }
   return (
     <>
-      <PageIntro eyebrow="Private records" title="History and exports">
+      <PageIntro eyebrow="Portfolio / Activity" title="Activity">
         <p>
           Exact raw amounts, unit context, fees and chain references stay attached to each factual
           record.
         </p>
       </PageIntro>
+      <div className="research-tabs">
+        <Field label="Activity type" htmlFor="activity-type"><select id="activity-type" value={params.get("type") || ""} onChange={(event) => filter("type", event.target.value)}><option value="">All activity</option>{["buy", "sell", "transfer", "deposit", "corporate_action"].map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select></Field>
+        <Field label="Status" htmlFor="activity-status"><select id="activity-status" value={params.get("status") || ""} onChange={(event) => filter("status", event.target.value)}><option value="">All statuses</option>{["pending", "finalized", "failed"].map((status) => <option key={status}>{status}</option>)}</select></Field>
+      </div>
+      <ErrorMessage message={error} />
       <div className="actions">
-        <button data-cta="C86" onClick={() => download("csv")}>
+        <button data-cta="C86" disabled={exporting || loading} onClick={() => download("csv")}>
           Download CSV
         </button>
-        <button className="secondary" data-cta="C87" onClick={() => download("json")}>
+        <button className="secondary" data-cta="C87" disabled={exporting || loading} onClick={() => download("json")}>
           Download JSON
         </button>
       </div>
       <section className="section">
-        {records.length ? (
+        {loading ? <p role="status">Loading activity…</p> : error && !records.length ? <Recovery title="Activity unavailable" error={error} /> : visible.length ? (
           <div className="table-wrap">
-            <table>
+            <table className="research-table">
+              <caption>{visible.length} activity records · exact raw amounts</caption>
               <thead>
                 <tr>
                   <th>Time</th>
@@ -922,14 +1081,14 @@ export function HistoryScreen() {
                 </tr>
               </thead>
               <tbody>
-                {records.map((record) => (
+                {visible.map((record) => (
                   <tr key={record.id}>
-                    <td>{new Date(record.recordedAt).toLocaleString()}</td>
-                    <td>{record.type}</td>
-                    <td>{record.status}</td>
-                    <td>{record.asset}</td>
-                    <td>{record.rawAmount}</td>
-                    <td>
+                    <td data-label="Time">{new Date(record.recordedAt).toLocaleString()}</td>
+                    <td data-label="Type">{record.type.replaceAll("_", " ")}</td>
+                    <td data-label="Status">{record.status}</td>
+                    <td data-label="Asset">{record.asset}</td>
+                    <td data-label="Raw amount">{record.rawAmount}</td>
+                    <td data-label="Record">
                       <Link data-cta="C85" href={`/portfolio/activity/${record.id}`}>
                         View record
                       </Link>
@@ -940,8 +1099,8 @@ export function HistoryScreen() {
             </table>
           </div>
         ) : (
-          <EmptyState title="No activity yet">
-            Completed purchases, sells, transfers and corporate actions will appear here.
+          <EmptyState title={records.length ? "No matching activity" : "No activity yet"} action={records.length ? <Link href="/portfolio/activity">Clear filters</Link> : <Link href="/portfolio">View Portfolio</Link>}>
+            {records.length ? "Change or clear your filters to see other records." : "Purchases, sells, transfers and corporate actions will appear here."}
           </EmptyState>
         )}
       </section>
@@ -957,9 +1116,11 @@ export function RecordScreen({
   supportContact?: string;
 }) {
   const [record, setRecord] = useState<FinancialRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    apiRequest<FinancialRecord>(`history/${recordId}`).then(setRecord);
+    apiRequest<FinancialRecord>(`history/${recordId}`).then(setRecord).catch((reason) => setError(messageFrom(reason)));
   }, [recordId]);
+  if (error) return <Recovery title="Activity record unavailable" error={error} href="/portfolio/activity" />;
   if (!record)
     return (
       <EmptyState title="Loading record">
@@ -970,6 +1131,10 @@ export function RecordScreen({
     <>
       <PageIntro eyebrow="Activity record" title={`${record.type} · ${record.status}`} />
       <Card>
+        <h2>{record.asset}</h2>
+        <p>{formatRaw(record.usdcRaw)} USDC recorded · {formatRaw(record.feeRaw)} USDC Shelf fee</p>
+        <p>Recorded {new Date(record.recordedAt).toLocaleString()}. {record.status === "pending" ? "This record is not final." : "This is a factual activity record, not a current valuation."}</p>
+        <details><summary>Exact record details</summary>
         <dl className="facts">
           <div>
             <dt>Recorded</dt>
@@ -996,7 +1161,9 @@ export function RecordScreen({
             <dd>{record.multiplier}</dd>
           </div>
         </dl>
+        </details>
         <div className="actions">
+          <CtaLink id="record-return" href="/portfolio/activity" secondary>Back to Activity</CtaLink>
           {record.signature ? (
             <a
               className="button"

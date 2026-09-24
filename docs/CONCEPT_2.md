@@ -1,8 +1,8 @@
 # Concept 2 — Capital / Rho study
 
-Status: comparison candidate, not selected for promotion.
+Status: ACCEPTED and FINAL — Capital Research Direction, confirmed 2026-09-24.
 
-The current editorial implementation remains Concept 1 at `/` and `/discover`. Concept 2 is available at `/?concept=2` and `/discover?concept=2`. The design-study switch preserves the current search and filter parameters. No additional application route, authentication mode, or financial capability is introduced.
+Concept 2 is the default at `/` and `/discover` and the shared foundation for remaining routes. Explicit `concept=1` preserves the historical comparison; `concept=2` links remain compatible. No new authentication mode or financial capability is introduced by visual promotion. The approved composition remains unchanged.
 
 ## Reference translation
 

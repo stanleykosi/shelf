@@ -42,7 +42,7 @@ test.beforeEach(async ({ page }) => {
 test("Home teaches the entity path and starts discovery without a financial CTA", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/?concept=1");
 
   await expect(
     page.getByRole("heading", { name: "See the company behind what you know." }),
@@ -194,7 +194,7 @@ test("mobile Discover exposes sectors and market filters without hiding company 
 for (const route of ["/", "/discover"] as const) {
   test("mobile bottom navigation clears final content on " + route, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile-only clearance assertion");
-    await page.goto(route);
+    await page.goto(route === "/" ? "/?concept=1" : route);
     const finalContent = route === "/" ? page.locator(".learning-section") : page.locator(".issuer-spotlight-table");
     await finalContent.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -215,7 +215,7 @@ test("Home and Discover fit the requested viewport matrix", async ({ page }, tes
   for (const width of [390, 430, 1280, 1440]) {
     await page.setViewportSize({ width, height: width < 820 ? 932 : 900 });
     for (const route of ["/", "/discover"] as const) {
-      await page.goto(route);
+      await page.goto(route === "/" ? "/?concept=1" : route);
       const hasDocumentOverflow = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
       );

@@ -45,13 +45,13 @@ test("production offers Magic sign-in while public research stays available to g
 
   if (!isLocal) {
     await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/discover\?q=OpenAI$/);
-    await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("OpenAI");
+    await expect(page).toHaveURL(/\/companies\/openai$/);
+    await expect(page.getByRole("heading", { name: "OpenAI", exact: true })).toBeVisible();
   }
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
-  await expect(page.getByRole("link", { name: "Sign in to keep this shelf" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to keep them." })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 });
 
@@ -64,12 +64,13 @@ test("canonical research routes and route-aware navigation preserve the product 
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
 
   await page.goto("/brands/doritos");
-  await expect(page).toHaveURL(/\/discover\?q=Doritos$/);
-  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Doritos");
+  await expect(page).toHaveURL(/\/brands\/doritos$/);
+  await expect(page.getByRole("heading", { name: "Doritos", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View PepsiCo research" })).toHaveAttribute("href", "/companies/pepsico");
 
   await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/discover\?q=PepsiCo$/);
+  await expect(page).toHaveURL(/\/companies\/pepsico$/);
+  await expect(page.getByRole("heading", { name: "PepsiCo", exact: true })).toBeVisible();
 
   await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');

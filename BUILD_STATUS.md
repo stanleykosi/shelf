@@ -2,6 +2,32 @@
 
 Updated: 2026-09-24
 
+## Remaining frontend — Concept 2 complete locally
+
+Latest user brief supersedes page-by-page approval gates and authorizes parallel completion.
+Concept 2 is FINAL. Approved compositions are retained; default Home now selects the accepted
+existing Concept 2 instead of the archived comparison. Brand and Company canonical research
+pages are restored alongside the newer issuer backend, as explicitly requested.
+
+Implemented workstreams A–F: new research entity/Saved/sharing/learning/Admin modules,
+account and financial refinements, and scoped `src/app/research-workspace.css`. See
+`docs/FRONTEND_WORKSTREAMS.md` for ownership and the actionable completion checklist.
+Final verification: ESLint and strict TypeScript passed; 120 unit/contract tests across 21 files
+passed; production build passed. The consolidated browser run passed 90 tests with 14 intentional
+project-specific skips and zero failures. Four additional desktop/mobile guest/member/owner checks
+passed after the final investment-page auth guard. Responsive checks cover 390/430/768/1280/1440;
+the automated desktop/mobile WCAG sweep passes. 76 screenshot links are verified.
+
+See `docs/FRONTEND_COMPLETION_REPORT.md` and `artifacts/frontend-refactor/README.md`.
+Private financial/account screenshots use explicitly synthetic isolated localhost fixtures,
+not real assets or balances. Paid providers and live-money controls stayed disabled. The guide,
+decision log and workstream checklist match the completed frontend. Backend/service limitations,
+including Assistant server-consent enforcement and unavailable valuation/reconciliation data,
+remain explicit in the report. No deployment, public launch or live activation was performed.
+
+Exact next task: user review of the completed frontend and screenshots. Do not automatically
+begin deployment, provider activation, real-money testing or another design phase.
+
 ## U30 live company spotlight — production
 
 Discover now replaces its reviewed product, brand and company browse tables with one rotating

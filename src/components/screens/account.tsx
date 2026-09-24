@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { apiRequest, freshApiRequest, freshPostJson, postJson } from "@/lib/api-client";
 import {
   Card,
@@ -30,6 +30,19 @@ import {
   startMagicGoogleLogin,
 } from "@/providers/magic-browser";
 import { walletRefreshMessage } from "./wallet-refresh-message";
+import { safeReturnTo } from "@/lib/routes";
+import { formatRaw } from "@/domain/money";
+import { productById } from "@/data/catalog";
+import type { Holding } from "@/domain/types";
+import { reviewedGuestProductIds } from "./account-draft";
+
+type WalletDetails = WalletSummary & { externalInventory?: Holding[] };
+
+const subscribeGuestResearch = () => () => {};
+function guestResearchSnapshot() {
+  try { return sessionStorage.getItem("shelf:guest-items") ?? "[]"; }
+  catch { return "[]"; }
+}
 
 async function createLoginChallenge(returnPath: string): Promise<LoginChallenge> {
   return postJson<LoginChallenge>("auth/challenges", {
@@ -44,7 +57,7 @@ async function createShelfSession(challengeId: string, didToken: string, method:
 }
 
 export function SignInScreen({
-  returnPath = "/welcome",
+  returnPath = "/onboarding",
   supportContact,
 }: {
   returnPath?: string;
@@ -59,11 +72,11 @@ export function SignInScreen({
     setLoading(true);
     setError(null);
     try {
-      const challenge = await createLoginChallenge(returnPath);
+      const challenge = await createLoginChallenge(safeReturnTo(returnPath));
       if (method === "email") {
         const didToken = await signInWithMagicEmail(email, challenge.challengeId);
         await createShelfSession(challenge.challengeId, didToken, method);
-        router.push(challenge.returnPath as Route);
+        router.push(safeReturnTo(challenge.returnPath) as Route);
         return;
       }
 
@@ -80,16 +93,17 @@ export function SignInScreen({
 
   return (
     <>
-      <PageIntro eyebrow="Sign in" title="Keep your discoveries and access your wallet">
+      <PageIntro eyebrow="Account access" title="Continue your research.">
         <p>
           Use email or Google to access the same Magic-managed account and embedded Solana wallet.
         </p>
       </PageIntro>
-      <Card className="stack">
+      <div className="research-split"><form className="stack research-section" onSubmit={(event) => { event.preventDefault(); if (!loading && email.includes("@")) void signIn("email"); }}>
         <Field label="Email address" htmlFor="email">
           <input
             id="email"
             type="email"
+            required
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -98,12 +112,13 @@ export function SignInScreen({
         <button
           data-cta="C43"
           disabled={loading || !email.includes("@")}
-          onClick={() => signIn("email")}
+          type="submit"
         >
           {loading ? "Connecting…" : "Continue with email"}
         </button>
         <button
           className="secondary"
+          type="button"
           data-cta="C44"
           disabled={loading}
           onClick={() => signIn("google")}
@@ -117,7 +132,7 @@ export function SignInScreen({
           Get sign-in help
         </SupportAction>
         <ErrorMessage message={error} />
-      </Card>
+      </form><aside className="research-section"><h2>One account. Private research.</h2><p>Your saved research is separate from investments. Signing in does not place an order or enable financial access.</p><p className="muted">Magic manages email and Google authentication and your linked Solana wallet. Shelf does not hold your signing keys.</p></aside></div>
     </>
   );
 }
@@ -139,7 +154,7 @@ export function MagicCallbackScreen() {
         const didToken = await finishMagicGoogleLogin(challenge.challengeId);
         await createShelfSession(challenge.challengeId, didToken, "google");
         sessionStorage.removeItem("shelf:magic-login");
-        router.replace(challenge.returnPath as Route);
+        router.replace(safeReturnTo(challenge.returnPath) as Route);
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "GOOGLE_SIGN_IN_FAILED");
       }
@@ -170,15 +185,27 @@ export function MagicCallbackScreen() {
 }
 
 export function WelcomeScreen() {
+  const router = useRouter();
   const [terms, setTerms] = useState(false);
   const [adult, setAdult] = useState(false);
   const [merged, setMerged] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const guestSnapshot = useSyncExternalStore(subscribeGuestResearch, guestResearchSnapshot, () => "[]");
+  const guestIds = reviewedGuestProductIds(guestSnapshot);
+  const [error, setError] = useState<string | null>(null);
+  const mergeId = useRef<string | null>(null);
 
   async function mergeGuestShelf() {
-    const productIds = JSON.parse(sessionStorage.getItem("shelf:guest-items") ?? "[]") as string[];
-    await postJson("shelf/merge", { mergeId: crypto.randomUUID(), productIds });
-    setMerged(true);
-    sessionStorage.removeItem("shelf:guest-items");
+    if (merging || merged || !guestIds.length) return;
+    setMerging(true);
+    setError(null);
+    try {
+      mergeId.current ??= crypto.randomUUID();
+      await postJson("shelf/merge", { mergeId: mergeId.current, productIds: guestIds });
+      setMerged(true);
+      sessionStorage.removeItem("shelf:guest-items");
+    } catch { setError("Your discoveries were not merged. They remain on this device; try again."); }
+    finally { setMerging(false); }
   }
 
   return (
@@ -189,7 +216,9 @@ export function WelcomeScreen() {
           while provider and policy gates are open.
         </p>
       </PageIntro>
-      <Card className="stack">
+      <div className="research-split"><section className="research-section stack">
+        <h2>Before you continue</h2>
+        <p className="muted">These acknowledgements apply to this setup step. Financial availability is checked separately by the server.</p>
         <label>
           <input
             type="checkbox"
@@ -206,14 +235,21 @@ export function WelcomeScreen() {
           />{" "}
           I confirm I am an adult.
         </label>
-        <CtaLink
+        <button
           id="C47"
-          href={terms && adult ? "/onboarding/availability" : "/onboarding"}
+          data-cta="C47"
+          disabled={!terms || !adult}
+          aria-describedby="setup-requirements"
+          onClick={() => router.push("/onboarding/availability")}
         >
           Continue
-        </CtaLink>
-        <button className="secondary" data-cta="C48" onClick={mergeGuestShelf}>
-          Save my discoveries
+        </button>
+        <p id="setup-requirements" className="hint">Acknowledge both statements to continue. This does not enable deposits or trading.</p>
+      </section><section className="research-section stack"><h2>Keep your discoveries</h2>
+        <p>{guestIds.length ? `${guestIds.length} reviewed Products saved in this browser session.` : "No temporary discoveries to merge."}</p>
+        {guestIds.length ? <ul>{guestIds.map((id) => <li key={id}>{productById(id)?.name}</li>)}</ul> : null}
+        <button className="secondary" data-cta="C48" disabled={!guestIds.length || merging || merged} onClick={mergeGuestShelf}>
+          {merging ? "Saving discoveries…" : merged ? "Discoveries saved" : "Save my discoveries"}
         </button>
         <CtaLink id="C49" href="/" secondary>
           Skip for now
@@ -221,7 +257,9 @@ export function WelcomeScreen() {
         {merged ? (
           <ResultMessage>Your previously saved guest products were merged once.</ResultMessage>
         ) : null}
-      </Card>
+        <p className="hint">Skipping keeps temporary research in this browser session. Saved research is not ownership.</p>
+        <ErrorMessage message={error} />
+      </section></div>
     </>
   );
 }
@@ -231,8 +269,13 @@ export function EligibilityScreen() {
   const [adult, setAdult] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   async function checkEligibility() {
+    if (checking) return;
+    setChecking(true);
+    setResult("");
+    setError(null);
     try {
       const response = await postJson<{ allowed: boolean; policyVersion: string }>(
         "eligibility/check",
@@ -244,29 +287,29 @@ export function EligibilityScreen() {
       );
       setResult(
         response.allowed
-          ? `Allowed by policy ${response.policyVersion}.`
+          ? `Eligibility check passed under policy ${response.policyVersion}. Funding and trading remain subject to separate activation controls.`
           : "Financial capabilities are unavailable. You can continue learning.",
       );
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Eligibility check failed");
-    }
+    } finally { setChecking(false); }
   }
 
   return (
     <>
       <PageIntro
         eyebrow="Financial availability"
-        title="Check before viewing funding or trading controls"
+        title="Financial availability"
       >
         <p>
           Global access to education does not establish that stock-token distribution is allowed
           everywhere. This prototype does not collect identity documents.
         </p>
       </PageIntro>
-      <Card className="stack">
+      <Card className="stack research-reading">
         <Field label="Country of residence" htmlFor="country">
-          <select id="country" value={country} onChange={(event) => setCountry(event.target.value)}>
+          <select id="country" value={country} disabled={checking} onChange={(event) => { setCountry(event.target.value); setResult(""); }}>
             <option value="">Choose a country</option>
             <option value="NG">Nigeria</option>
             <option value="GB">United Kingdom</option>
@@ -277,12 +320,13 @@ export function EligibilityScreen() {
           <input
             type="checkbox"
             checked={adult}
-            onChange={(event) => setAdult(event.target.checked)}
+            disabled={checking}
+            onChange={(event) => { setAdult(event.target.checked); setResult(""); }}
           />{" "}
           I confirm I am an adult.
         </label>
-        <button data-cta="C50" disabled={!country || !adult} onClick={checkEligibility}>
-          Check availability
+        <button data-cta="C50" disabled={!country || !adult || checking} onClick={checkEligibility}>
+          {checking ? "Checking availability…" : "Check availability"}
         </button>
         <ErrorMessage message={error} />
         {result ? (
@@ -304,11 +348,20 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
   const [message, setMessage] = useState("");
   const [refreshPending, setRefreshPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [wallet, setWallet] = useState<WalletSummary>();
+  const [wallet, setWallet] = useState<WalletDetails>();
+  const [refreshing, setRefreshing] = useState(false);
   const address = wallet?.address ?? "Wallet unavailable";
 
+  async function retryWallet() {
+    setRefreshing(true);
+    setError(null);
+    try { setWallet(await apiRequest<WalletDetails>("wallet")); }
+    catch { setError("Wallet details are unavailable. Try again when your connection is restored."); }
+    finally { setRefreshing(false); }
+  }
+
   useEffect(() => {
-    apiRequest<WalletSummary>("wallet")
+    apiRequest<WalletDetails>("wallet")
       .then(setWallet)
       .catch((requestError: unknown) => {
         setError(requestError instanceof Error ? requestError.message : "WALLET_UNAVAILABLE");
@@ -316,6 +369,8 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
   }, []);
 
   async function refreshBalance() {
+    if (refreshing) return;
+    setRefreshing(true);
     try {
       const refreshed = await postJson<
         Pick<WalletSummary, "cashRaw" | "reconciliationRequiredAssets"> &
@@ -327,10 +382,11 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "WALLET_REFRESH_UNAVAILABLE");
-    }
+    } finally { setRefreshing(false); }
   }
 
   async function copyAddress() {
+    if (!wallet?.address) return;
     try {
       await navigator.clipboard.writeText(address);
       setRefreshPending(false);
@@ -356,8 +412,8 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
         <Card className="section">
           <dl className="facts">
             <div>
-              <dt>Environment</dt>
-              <dd>Magic identity integration</dd>
+              <dt>Funding status</dt>
+              <dd>Not activated</dd>
             </div>
             <div>
               <dt>Network</dt>
@@ -368,21 +424,19 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
               <dd>USDC deposits disabled</dd>
             </div>
             <div>
-              <dt>Wallet address</dt>
-              <dd>{address}</dd>
+              <dt>Deposit instructions</dt>
+              <dd>Withheld while deposits are disabled</dd>
             </div>
           </dl>
           <div className="actions">
-            <button data-cta="C54" onClick={copyAddress}>
-              Copy address
+            <button data-cta="C54" disabled aria-describedby="deposit-gate">
+              Deposits unavailable
             </button>
-            <button className="secondary" data-cta="C55" onClick={refreshBalance}>
-              I’ve sent USDC
-            </button>
-            <CtaLink id="C56" href="/invest/pepsico" secondary>
-              Return to purchase
+            <CtaLink id="C56" href="/account/wallet" secondary>
+              Return to Wallet
             </CtaLink>
           </div>
+          <p id="deposit-gate" className="hint">Do not send funds. Identity verification does not activate funding. No deposit address or QR code is provided until that capability is enabled.</p>
           <ErrorMessage message={error} />
           {message ? refreshPending
             ? <div className="notice" role="status" aria-live="polite">{message}</div>
@@ -400,29 +454,35 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
           stay separate here.
         </p>
       </PageIntro>
-      <div className="grid">
+      <div className="research-split">
         <Card>
-          <p className="eyebrow">Funding status</p>
-          <h2>Deposits disabled</h2>
-          <p className="muted">Identity and wallet binding are active; no funds are accepted yet.</p>
+          <h2>USDC balance</h2>
+          {wallet ? <dl className="facts"><div><dt>Tracked balance</dt><dd>{formatRaw(wallet.cashRaw)} USDC</dd></div><div><dt>Reserved</dt><dd>{formatRaw(wallet.reservedRaw)} USDC</dd></div><div><dt>Spending status</dt><dd>{wallet.reconciliationRequiredAssets.length ? "Reconciliation required" : "Financial execution disabled"}</dd></div></dl> : <p role="status">{error ? "Balance unavailable. No amount is assumed." : "Loading wallet balance…"}</p>}
+          <p className="muted">Tracked balances are not a live spending authorization. Deposits remain disabled.</p>
         </Card>
         <Card>
           <p className="eyebrow">Embedded wallet</p>
           <h2>Magic · Solana</h2>
-          <p className="muted">{address}</p>
+          <p className="breakable-code">{address}</p>
+          <button className="secondary" disabled={!wallet?.address} onClick={copyAddress}>Copy wallet address</button>
+          <p className="hint">For identification only, not deposit instructions. Activity on Solana is public.</p>
         </Card>
       </div>
       <div className="section actions">
         <CtaLink id="C51" href="/account/wallet/deposit">
-          Deposit USDC
+          View funding status
         </CtaLink>
         <CtaLink id="C52" href="/account/wallet/send" secondary>
           Send USDC
         </CtaLink>
-        <button className="secondary" data-cta="C53" onClick={refreshBalance}>
-          Refresh balance
+        <button className="secondary" data-cta="C53" disabled={refreshing || !wallet} onClick={refreshBalance}>
+          {refreshing ? "Refreshing…" : "Refresh balance"}
         </button>
       </div>
+      <section className="research-section"><h2>Assets received outside Shelf</h2><p>These assets were not bought through Shelf and are separate from Portfolio holdings.</p>
+        {wallet?.externalInventory ? wallet.externalInventory.length ? <div className="research-rows">{wallet.externalInventory.map((holding) => <div className="research-row" key={holding.instrumentId}><div><h3>{holding.symbol}</h3><p>{formatRaw(holding.externalRaw, holding.decimals)} units · external balance</p><p className="hint">Instrument: {holding.instrumentId}</p></div><CtaLink id={`external-${holding.instrumentId}`} href={`/account/wallet/send?asset=${encodeURIComponent(holding.instrumentId)}&scope=external`} secondary>Review sending {holding.symbol}</CtaLink></div>)}</div> : <p className="muted">No supported external assets in the latest wallet summary.</p> : <p className="muted">External inventory unavailable. No balance is assumed.</p>}
+        <CtaLink id="wallet-portfolio" href="/portfolio" secondary>View Shelf-origin holdings</CtaLink>
+      </section>
       {wallet?.reconciliationRequiredAssets.length ? (
         <div className="notice" role="alert">
           One or more asset balances need reconciliation. Shelf is showing the last known tracked
@@ -430,6 +490,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
         </div>
       ) : null}
       <ErrorMessage message={error} />
+      {error && !wallet ? <button className="secondary" disabled={refreshing} onClick={retryWallet}>Retry wallet details</button> : null}
       {message ? refreshPending
         ? <div className="notice" role="status" aria-live="polite">{message}</div>
         : <ResultMessage>{message}</ResultMessage> : null}
@@ -444,6 +505,19 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
   const [checkingSignature, setCheckingSignature] = useState(false);
   const [signingChallenge, setSigningChallenge] = useState<WalletSigningChallenge>();
   const [account, setAccount] = useState<AccountSummary>();
+  const [pendingAction, setPendingAction] = useState(false);
+  const [acknowledgeDeletion, setAcknowledgeDeletion] = useState(false);
+  const [acknowledgeWallet, setAcknowledgeWallet] = useState(false);
+
+  async function runAccountAction(action: () => Promise<void>) {
+    if (pendingAction) return;
+    setPendingAction(true);
+    setError(null);
+    setMessage("");
+    try { await action(); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "This account action could not be completed. Try again."); }
+    finally { setPendingAction(false); }
+  }
 
   useEffect(() => {
     apiRequest<AccountSummary>("me")
@@ -552,6 +626,7 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
   }
 
   async function requestDeletion() {
+    if (!acknowledgeDeletion || !acknowledgeWallet) return;
     await freshPostJson("account/deletion", "account_deletion", {
       acknowledgeChainPermanence: true,
       acknowledgeWalletIndependence: true,
@@ -563,19 +638,20 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
 
   return (
     <>
-      <PageIntro eyebrow="Settings and privacy" title="Your account, data and recovery">
+      <PageIntro eyebrow="Account" title="Identity, privacy & security.">
         <p>
           Shelf data is private by default. Standard Solana activity remains public, and deleting
           Shelf does not destroy a provider-managed wallet.
         </p>
       </PageIntro>
-      <div className="grid">
+      <div className="research-rows">
         <Card>
-          <h2>Account</h2>
+          <h2>Profile</h2>
           <p>
-            Magic identity · {account?.email ?? "email unavailable"}
+            {account ? `Magic identity · ${account.email ?? "Email unavailable"}` : error ? "Account details unavailable" : "Loading account details…"}
           </p>
-          {account?.walletAddress ? <p className="muted">{account.walletAddress}</p> : null}
+          {account?.walletAddress ? <p className="breakable-code">{account.walletAddress}</p> : null}
+          <CtaLink id="account-wallet" href="/account/wallet" secondary>Manage Wallet</CtaLink>
           {account?.ownerBindingId ? (
             <details>
               <summary>Production owner setup</summary>
@@ -586,7 +662,7 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
               </p>
               <code className="breakable-code">{account.ownerBindingId}</code>
               <div className="actions">
-                <button className="secondary" onClick={copyOwnerBindingId}>
+                <button className="secondary" disabled={pendingAction} onClick={() => void runAccountAction(copyOwnerBindingId)}>
                   Copy owner binding ID
                 </button>
               </div>
@@ -597,6 +673,8 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
         <Card>
           <h2>Data controls</h2>
           <p>Images, raw receipt text and chat transcripts are not retained by Shelf.</p>
+          <p className="muted">Export requires fresh authentication. Financial records subject to retention are separate from research data.</p>
+          <button data-cta="C95" disabled={pendingAction || !account} onClick={() => void runAccountAction(downloadExport)}>Export my data</button>
         </Card>
         {account?.identityProvider === "magic" ? (
           <Card>
@@ -611,8 +689,9 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
                   <strong>Review before signing</strong>
                 </p>
                 <p className="muted">
-                  Network: {signingChallenge.network} · Wallet: {signingChallenge.walletAddress}
+                  Network: {signingChallenge.network}
                 </p>
+                <p className="breakable-code">Wallet: {signingChallenge.walletAddress}</p>
                 <p className="muted">
                   Purpose: prove control of this wallet. This transaction contains only a memo,
                   will not be broadcast, and cannot move funds.
@@ -638,23 +717,24 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
           </Card>
         ) : null}
       </div>
-      <div className="section actions">
-        <button data-cta="C95" onClick={downloadExport}>
-          Export my data
-        </button>
-        <button className="secondary" data-cta="C96" onClick={requestDeletion}>
-          Delete my Shelf account
-        </button>
-        <button className="secondary" data-cta="C97" onClick={signOut}>
+      <section className="research-section"><h2>Sessions & support</h2><p>Signing out all sessions requires fresh authentication. Your linked wallet remains independent of your Shelf session.</p><div className="actions">
+        <button className="secondary" data-cta="C97" disabled={pendingAction} onClick={() => void runAccountAction(signOut)}>
           Sign out
         </button>
-        <button className="secondary" data-cta="C98" onClick={signOutEverywhere}>
+        <button className="secondary" data-cta="C98" disabled={pendingAction || !account} onClick={() => void runAccountAction(signOutEverywhere)}>
           Sign out all sessions
         </button>
         <SupportAction id="C99" contact={supportContact}>
           Get support
         </SupportAction>
-      </div>
+      </div></section>
+      <section className="research-section"><details><summary>Delete Shelf account</summary><div className="stack">
+        <p>Deletion removes eligible Shelf profile data. Required financial records are retained. It does not delete your Magic wallet or public blockchain activity.</p>
+        <label><input type="checkbox" checked={acknowledgeDeletion} onChange={(event) => setAcknowledgeDeletion(event.target.checked)} /> I understand that public blockchain activity and required records remain.</label>
+        <label><input type="checkbox" checked={acknowledgeWallet} onChange={(event) => setAcknowledgeWallet(event.target.checked)} /> I understand that my wallet is independent and will not be deleted.</label>
+        <button className="secondary" data-cta="C96" disabled={pendingAction || !account || !acknowledgeDeletion || !acknowledgeWallet} onClick={() => void runAccountAction(requestDeletion)}>Authenticate and delete Shelf account</button>
+      </div></details></section>
+      {pendingAction ? <p role="status">Completing account action…</p> : null}
       {message ? <ResultMessage>{message}</ResultMessage> : null}
       <ErrorMessage message={error} />
     </>

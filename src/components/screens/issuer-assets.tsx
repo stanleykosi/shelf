@@ -53,8 +53,8 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
-  if (error) return <ErrorMessage message={error} />;
-  if (!listing) return <EmptyState title="Asset unavailable">This token is not in the current issuer feed.</EmptyState>;
+  if (error) return <EmptyState title="Issuer information unavailable" action={<button onClick={() => window.location.reload()}>Try again</button>}>{error}. No current availability is inferred.</EmptyState>;
+  if (!listing) return <EmptyState title="Asset unavailable" action={<Link href="/discover">Return to Discover</Link>}>This token is not in the current issuer feed.</EmptyState>;
 
   const { asset } = listing;
   const publicAsset = listing.provider === "xstocks" ? listing.asset : null;
@@ -63,11 +63,11 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
   async function saveToWatchlist() {
     try {
       await postJson("watchlist/items", { companyId: asset.companyId });
-      setSaveMessage("Saved to your private watchlist.");
+      setSaveMessage("Added to Saved research. This is not a Holding.");
       setSaveError(null);
     } catch (reason) {
       setSaveError(authenticationIsRequired(reason)
-        ? "Sign in to save this asset to your private watchlist."
+        ? "Sign in to keep this asset in Saved research."
         : reason instanceof Error ? reason.message : "Could not save this asset");
     }
   }
@@ -82,7 +82,7 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
           <p>{asset.description || "Issuer description unavailable."}</p>
         </div>
       </PageIntro>
-      <div className="grid">
+      <div className="research-split">
         {lifecycle ? <Card className="stack">
           <h2>{lifecycle.title}</h2>
           <p>{lifecycle.description}</p>
@@ -93,7 +93,7 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
         <Card className="stack">
           <h2>Issuer token</h2>
           <p><strong>Symbol:</strong> {asset.symbol}</p>
-          <p><strong>Solana mint:</strong> <code className="break-all">{asset.mint}</code></p>
+          <details><summary>Token identity</summary><p><strong>Solana mint:</strong> <code className="break-all">{asset.mint}</code></p></details>
           <p><strong>Source:</strong> {issuerName(provider)} · observed {new Date(asset.observedAt).toLocaleString()}</p>
           <p className="muted">
             {provider === "xstocks"
@@ -143,13 +143,14 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
-  if (feedError) return <ErrorMessage message={feedError} />;
-  if (!listing) return <EmptyState title="Asset unavailable">The issuer no longer lists this token.</EmptyState>;
+  if (feedError) return <EmptyState title="Purchase information unavailable" action={<button onClick={() => window.location.reload()}>Try again</button>}>{feedError}. No purchase has been submitted.</EmptyState>;
+  if (!listing) return <EmptyState title="Asset unavailable" action={<Link href="/discover">Return to Discover</Link>}>The issuer no longer lists this token.</EmptyState>;
   const { asset } = listing;
   const issuerUnavailable = listing.provider === "xstocks" &&
     listing.asset.tradingHalted;
 
   async function createPurchase() {
+    if (submitting || issuerUnavailable) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -179,7 +180,8 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
             ? "This is private company exposure, not ordinary stock. Liquidity, redemption and valuation may differ."
             : "This is a public equity tracker certificate, not an ordinary voting share."}
         </p>
-        <p><strong>Issuer mint:</strong> <code className="break-all">{asset.mint}</code></p>
+        <h2>{asset.name}</h2><p>{asset.symbol} · {issuerName(provider)} instrument</p>
+        <details><summary>Issuer token identity</summary><p><strong>Issuer mint:</strong> <code className="break-all">{asset.mint}</code></p></details>
         <Field label="Amount in USDC" htmlFor="issuer-buy-amount" hint="Minimum 5 USDC · beta maximum 100 USDC">
           <input id="issuer-buy-amount" inputMode="decimal" value={amount}
             onChange={(event) => setAmount(event.target.value)} />
@@ -190,6 +192,7 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
             {submitting ? "Preparing review…" : "Review purchase"}
           </button>
           <Link className="button secondary" data-cta="C58" href="/account/wallet/deposit">Deposit USDC</Link>
+          <Link className="button secondary" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>Return to instrument</Link>
         </div>
         <ErrorMessage message={error} />
       </Card>

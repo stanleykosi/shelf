@@ -54,9 +54,9 @@ test("one search checks live companies first, then resolves an unmatched product
   });
 
   await page.goto("/");
-  await page.getByLabel("Search a company or product").fill("Disney");
-  await page.locator(".home-search-command").getByRole("button", { name: "Search" }).click();
-  await expect(page).toHaveURL(/\/discover\?q=Disney$/);
+  await page.getByLabel("Search products, brands, or companies").fill("Disney");
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await expect(page).toHaveURL(/\/discover\?.*q=Disney/);
   const search = page.getByPlaceholder("Search a company or product");
   await expect(page.getByRole("heading", { name: "The Walt Disney" })).toBeVisible();
   await expect(page.locator(".live-issuer-card .issuer-logo img"))
@@ -109,9 +109,14 @@ test("a reviewed product keeps its source and links only to a live issuer mint",
   }));
 
   await page.goto("/products/doritos-snack");
-  await expect(page.getByRole("heading", { name: "Reviewed relationship" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Current issuer assets" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View current issuer asset" }))
+  await expect(page.getByRole("heading", { name: "Relationship explorer" })).toBeVisible();
+  await expect(page.locator(".c2-entity-trail")).toContainText("PepsiCo");
+  await expect(page.getByRole("link", { name: /View .*exposure|Buy|Invest/i })).toHaveCount(0);
+  await page.getByRole("link", { name: "View company research" }).click();
+  await expect(page).toHaveURL(/\/companies\/pepsico$/);
+  await expect(page.getByRole("heading", { name: "PepsiCo", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Separate investment exposure" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View exposure details" }))
     .toHaveAttribute("href", "/assets/xstocks/PEPx");
 });
 

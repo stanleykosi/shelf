@@ -291,6 +291,8 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
   const [market, setMarket] = useState(initialMarket ?? "");
   const [sort, setSort] = useState(initialSort ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterDialogRef = useRef<HTMLDialogElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
 
   const loadSpotlight = useCallback(async () => {
     setSpotlightLoading(true);
@@ -364,14 +366,14 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
   useEffect(() => {
     if (!filtersOpen) return;
     const previousOverflow = document.body.style.overflow;
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setFiltersOpen(false);
-    }
+    const dialog = filterDialogRef.current;
+    const trigger = filterTriggerRef.current;
+    dialog?.showModal();
     document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
     return () => {
+      dialog?.close();
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
+      trigger?.focus();
     };
   }, [filtersOpen]);
 
@@ -379,6 +381,8 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
     const timer = window.setTimeout(() => {
       if (leavingDiscover.current) return;
       const params = new URLSearchParams();
+      const concept = new URLSearchParams(window.location.search).get("concept");
+      if (concept === "1" || concept === "2") params.set("concept", concept);
       if (query.trim()) params.set("q", query.trim());
       if (sector) params.set("sector", sector);
       if (market) params.set("market", market);
@@ -462,7 +466,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
           {spotlightError && spotlight ? <p className="live-search-caution">Could not refresh the company mix. Showing the previous selection.</p> : null}
           <SectorTabs available={availableSectors} onChange={setSector} selected={sector} />
           <div className="mobile-filter-command">
-            <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
+            <button ref={filterTriggerRef} aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
           </div>
           {activeFilters.length ? <div className="active-filter-list" aria-label="Active filters">{activeFilters.map((filter) => <button key={filter.label} onClick={filter.clear} type="button">{filter.label}<X size={13} aria-hidden="true" /></button>)}</div> : null}
 
@@ -499,13 +503,13 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
       )}
 
       {filtersOpen && !searchedQuery ? (
-        <div className="mobile-filter-layer" role="presentation" onMouseDown={() => setFiltersOpen(false)}>
-          <section aria-label="Discover filters" aria-modal="true" className="mobile-filter-sheet" id="mobile-discover-filters" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+        <dialog ref={filterDialogRef} aria-label="Discover filters" id="mobile-discover-filters" className="mobile-filter-layer" style={{ margin: 0, padding: 0, border: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none" }} onCancel={() => setFiltersOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setFiltersOpen(false); }}>
+          <section className="mobile-filter-sheet">
             <header><strong>Filters</strong><button aria-label="Close filters" autoFocus onClick={() => setFiltersOpen(false)} type="button"><X size={20} aria-hidden="true" /></button></header>
             <FilterFields {...filterProps} />
             <footer><button className="sheet-reset" onClick={clearFilters} type="button">Reset</button><button className="sheet-apply" onClick={() => setFiltersOpen(false)} type="button">Show {visibleListings.length} companies</button></footer>
           </section>
-        </div>
+        </dialog>
       ) : null}
     </div>
   );

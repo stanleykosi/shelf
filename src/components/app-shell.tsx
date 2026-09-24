@@ -54,23 +54,25 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const comparisonPage = pathname === "/" || pathname === "/discover";
-  const conceptTwo = (comparisonPage && searchParams.get("concept") === "2") || pathname === "/scan" || pathname === "/scan/results";
+  const conceptTwo = !comparisonPage || searchParams.get("concept") !== "1";
+  const researchWorkspace = !comparisonPage && !pathname.startsWith("/scan");
   const activeSection = activePrimarySection(pathname);
   function comparisonHref(concept: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (concept === "2") params.set("concept", "2");
-    else params.delete("concept");
+    else params.set("concept", "1");
     return (pathname + (params.size ? "?" + params.toString() : "")) as Route;
   }
   return (
     <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "")}>
-      {comparisonPage ? <nav className="concept-comparison" aria-label="Design comparison">
+      {comparisonPage && searchParams.has("concept") ? <nav className="concept-comparison" aria-label="Design comparison">
         <span>Design study</span>
-        <Link href={comparisonHref("1")} aria-current={!conceptTwo ? "page" : undefined}>01 <span>Concept 1</span></Link>
-        <Link href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></Link>
+        {/* A full navigation isolates the historical studies from pending Discover URL updates. */}
+        <a href={comparisonHref("1")} aria-current={!conceptTwo ? "page" : undefined}>01 <span>Concept 1</span></a>
+        <a href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></a>
       </nav> : null}
       <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} />
-      <main className="application-main">{children}</main>
+      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")}>{children}</main>
       <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} />
     </div>
   );

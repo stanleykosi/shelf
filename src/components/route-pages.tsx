@@ -1,11 +1,10 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
-import {
-  AssistantScreen,
-  LearnScreen,
-  ProductScreen,
-  ShelfScreen,
-} from "@/components/screens/discovery";
+import { AssistantScreen, LearnScreen } from "@/components/screens/research-learning";
+import { ShelfScreen } from "@/components/screens/research-saved";
+import { ShareScreen } from "@/components/screens/research-sharing";
+import { ResearchAdminScreen } from "@/components/screens/research-admin";
+import { ResearchProductScreen, ResearchBrandScreen, ResearchCompanyScreen } from "@/components/screens/research-entities";
 import {
   ConceptDiscoverScreen,
   ConceptHomeScreen,
@@ -31,8 +30,8 @@ import {
   RecordScreen,
   SellScreen,
   TransferScreen,
+  InvestmentScreen,
 } from "@/components/screens/financial";
-import { AdminScreen, ShareScreen } from "@/components/screens/operations";
 import {
   articles,
   brandBySlug,
@@ -71,7 +70,7 @@ function withQuery(pathname: string, query: Query) {
 
 export async function HomePage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
-  return first(query.concept) === "2" ? <ConceptTwoHome /> : <ConceptHomeScreen />;
+  return first(query.concept) === "1" ? <ConceptHomeScreen /> : <ConceptTwoHome />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
@@ -103,7 +102,7 @@ export function ScanResultsPage() {
 export async function ProductPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const product = productBySlug(slug);
-  if (product) return <ProductScreen productId={product.id} />;
+  if (product) return <ResearchProductScreen productId={product.id} />;
   const legacyProduct = productById(slug);
   if (legacyProduct) permanentRedirect(`/products/${legacyProduct.slug}`);
   notFound();
@@ -113,7 +112,7 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
+  return <ResearchBrandScreen slug={brand.slug} />;
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
@@ -124,7 +123,7 @@ export async function CompanyPage({ params }: { params: AsyncParams<{ slug: stri
     if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
     notFound();
   }
-  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
+  return <ResearchCompanyScreen companyId={company.id} />;
 }
 
 export function LearnPage() {
@@ -211,10 +210,8 @@ export async function InvestmentPage({ params }: { params: AsyncParams<{ company
     if (legacyCompany) permanentRedirect(`/invest/${legacyCompany.slug}`);
     notFound();
   }
-  if (company.instrument) {
-    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}/buy` as Route);
-  }
-  notFound();
+  await requirePageUser(`/invest/${company.slug}`);
+  return <InvestmentScreen companySlug={company.slug} />;
 }
 
 export async function BasketPage({ searchParams }: { searchParams: AsyncQuery }) {
@@ -271,27 +268,27 @@ export async function ActivityRecordPage({ params }: { params: AsyncParams<{ rec
 
 export async function AdminPage() {
   await requirePageUser("/admin", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="overview" />;
 }
 
 export async function AdminCatalogPage() {
   await requirePageUser("/admin/catalog", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="catalog" />;
 }
 
 export async function AdminAccessPage() {
   await requirePageUser("/admin/access", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="access" />;
 }
 
 export async function AdminOperationsPage() {
   await requirePageUser("/admin/operations", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="operations" />;
 }
 
 export async function AdminAuditPage() {
   await requirePageUser("/admin/audit", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="audit" />;
 }
 
 export async function LegacyRedirectPage({

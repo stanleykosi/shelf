@@ -3,6 +3,20 @@ import { expect, test } from "@playwright/test";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL;
 test.skip(!baseURL || !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname), "Local design study only");
 
+const spotlightListings = [
+  { provider: "xstocks", sector: "Technology", asset: { companyId: "issuer:xstocks:AAPLx", name: "Apple", symbol: "AAPLx" } },
+  { provider: "prestocks", sector: "Technology", asset: { companyId: "issuer:prestocks:OPENAI", name: "OpenAI", symbol: "OPENAI" } },
+];
+
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/issuer/spotlight", (route) => route.fulfill({
+    json: { data: { featured: spotlightListings, listings: spotlightListings, unavailable: [], stale: [] } },
+  }));
+  await page.route("**/api/v1/discovery/query", (route) => route.fulfill({
+    json: { data: { kind: "company", listings: [spotlightListings[0]], matches: [], unavailable: [], stale: [] } },
+  }));
+});
+
 test("comparison keeps both concepts accessible and preserves search/filter context", async ({ page }) => {
   await page.goto("/?concept=2");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("The things you know.");
@@ -12,15 +26,16 @@ test("comparison keeps both concepts accessible and preserves search/filter cont
   await page.getByLabel("Search products, brands, or companies").fill("Apple");
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect(page).toHaveURL(/concept=2.*q=Apple/);
-  await expect(page.getByRole("heading", { name: "Products", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: /iPhone/ }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /View AAPLx issuer asset/ })).toHaveAttribute("href", "/assets/xstocks/AAPLx");
   const comparison = page.getByRole("navigation", { name: "Design comparison" });
   await comparison.getByRole("link", { name: /01 Concept 1/ }).click();
   await expect(page).toHaveURL(/q=Apple/);
-  await expect(page).not.toHaveURL(/concept=2/);
+  await expect(page).toHaveURL(/concept=1/);
+  await expect(comparison.getByRole("link", { name: /01 Concept 1/ })).toHaveAttribute("aria-current", "page");
   await comparison.getByRole("link", { name: /02 Concept 2/ }).click();
   await expect(page).toHaveURL(/concept=2/);
-  await expect(page.getByLabel("Search products, brands, or companies")).toHaveValue("Apple");
+  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Apple");
 });
 
 test("motion can be paused and reduced-motion preferences keep content visible", async ({ page }) => {
@@ -46,19 +61,24 @@ test("mobile filters trap focus, dismiss with Escape, and preserve the chosen co
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Close filters" })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("button", { name: /Show .* results/ })).toBeFocused();
-  await dialog.getByLabel("Market status").selectOption("private");
+  // Native dialogs allow browser chrome at the boundary, never a background page control.
+  expect(await dialog.evaluate((element) => element.matches(":modal") && (document.activeElement === document.body || element.contains(document.activeElement)))).toBe(true);
+  await page.keyboard.press("Tab");
+  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await dialog.getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole("button", { name: /^Filters/ })).toBeFocused();
   await expect(page).toHaveURL(/concept=2.*market=private/);
   await page.reload();
-  await expect(page.locator(".research-table").getByText("Private", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(1);
+  await expect(page.locator(".issuer-spotlight-table").getByText("Private exposure", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View OpenAI details" })).toHaveAttribute("href", "/assets/prestocks/OPENAI");
 });
 
 test("both surfaces fit the viewport matrix and clear mobile navigation", async ({ page }, info) => {
   test.skip(info.project.name !== "chromium", "One viewport matrix");
-  for (const width of [390, 430, 1280, 1440]) {
+  for (const width of [390, 430, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const path of ["/?concept=2", "/discover?concept=2"]) {
       await page.goto(path);

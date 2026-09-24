@@ -50,6 +50,9 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   const protectedResponse = await request.get("/account", { maxRedirects: 0 });
   expect(protectedResponse.status()).toBe(307);
   expect(protectedResponse.headers().location).toBe("/sign-in?returnTo=%2Faccount");
+  const investmentResponse = await request.get("/invest/pepsico", { maxRedirects: 0 });
+  expect(investmentResponse.status()).toBe(307);
+  expect(investmentResponse.headers().location).toBe("/sign-in?returnTo=%2Finvest%2Fpepsico");
 
   for (const path of [
     "/products/not-a-reviewed-product",
@@ -73,18 +76,18 @@ test("the Home product gallery still leads to a guest's saved product", async ({
     body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
   }));
 
-  await page.goto("/");
+  await page.goto("/?concept=1");
   for (const product of ["Doritos snack", "Olay skincare", "iPhone", "Nike apparel", "Tide laundry"]) {
     await expect(page.locator(".home-product-gallery .product-tile").filter({ hasText: product })).toBeVisible();
   }
 
   await page.locator(".home-product-gallery .product-tile").filter({ hasText: "Doritos snack" }).click();
   await expect(page).toHaveURL(/\/products\/doritos-snack$/);
-  await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Save product", exact: true })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();
-  await page.getByRole("button", { name: "Save to shelf" }).click();
-  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
-  await page.getByRole("link", { name: "View shelf" }).click();
+  await page.getByRole("button", { name: "Save product", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove product from Saved" })).toBeVisible();
+  await page.getByRole("link", { name: "View Saved", exact: true }).click();
   await expect(page.getByRole("heading", { name: productName ?? "" })).toBeVisible();
 });
 
@@ -105,7 +108,7 @@ test("a member product save reaches the shelf items endpoint", async ({ page }) 
   });
 
   await page.goto("/products/doritos-snack");
-  await page.getByRole("button", { name: "Save to shelf" }).click();
-  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
+  await page.getByRole("button", { name: "Save product", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove product from Saved" })).toBeVisible();
   expect(savedIds).toEqual(["product-doritos-snack"]);
 });
