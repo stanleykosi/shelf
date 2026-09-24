@@ -18,17 +18,17 @@ The browse area first shows ten rotating assets from current issuer listings, wi
 
 Modes: Camera, Barcode, Upload, Receipt, Product link, Search. Screenshots use Upload and are labeled in help, not a distinct technical channel.
 
-C05 **Open camera** requests video permission after explanation. C06 **Capture photo** freezes frame; C07 **Retake** discards bytes; C08 **Use photo** shows processing consent then uploads. Switch camera shown only if supported. Stop camera tracks on navigation/background/close.
+C05 **Open camera** requests browser video permission. C06 **Capture photo** freezes frame; C07 **Retake** discards bytes; C08 **Use photo** sends the captured image for recognition without an extra consent step. Switch camera shown only if supported. Stop camera tracks on navigation/background/close.
 
 Barcode mode reads camera frames locally; C09 **Enter barcode** fallback accepts digits, validates supported GTIN checksum, preserves leading zeros. Unsupported hardware/library → ordinary camera or manual entry.
 
 C10 **Choose image** uses file input. Accept JPEG/PNG/WebP; enforce document 00 limits. HEIC/HEIF: convert only if a tested client decoder is provided; otherwise tell user to upload JPEG or take an in-app photo. PDFs/video/animated images are rejected.
 
-Receipt: crop guidance “Include product lines, exclude names/payment details.” Before C11 **Read receipt**, show local preview and retake/crop controls. Do not upload automatically on file selection.
+Receipt: guide the user toward a clear image of the product lines. Before C11 **Read receipt**, show a local preview and retake/crop controls. Do not upload automatically on file selection.
 
 Link: URL field, approved-host explanation, C12 **Find products**. Unsupported domain offers “Upload a screenshot instead”; no silent arbitrary fetch.
 
-Typed input invokes S02. Camera denied: **Use an image** and **Search instead**, plus browser permission instructions. Upload too large: **Choose another image**. Consent declined: return to preview without sending.
+Typed input invokes S02. Camera denied: **Use an image** and **Search instead**, plus browser permission instructions. Upload too large: **Choose another image**.
 
 ## S04 — Scan results · /scan/results
 

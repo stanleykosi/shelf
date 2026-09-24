@@ -33,6 +33,7 @@ Version 1.0, 2026-09-20. U = explicit user choice; D = delegated default; G = ex
 | U29 | Discover checks xStocks and PreStocks first, then automatically sends an unmatched search term to OpenRouter for a likely owner. No consent checkbox or second search action. AI ownership remains unverified; OpenRouter privacy controls and spend limits remain enforced. |
 | U30 | Replace Discover's reviewed product, brand and company example tables with a live, rotating company spotlight. Use current xStocks listings for recognizable public issuers and include roughly two current PreStocks listings. Show provider logos prominently, editorial sector filters, and links to issuer detail pages. Do not call the selection top-performing without provider performance data; the search continues to cover all issuer listings. |
 | U31 | The 27-entry editorial pool is not the directory. Discover must expose every current xStocks and PreStocks listing, ten per page, with market grouping and sector filters. Keep a rotating featured first page generated automatically on each visit; remove the refresh button and 27-company badge. Cache validated feed data so browsing does not refetch upstream pages, while issuer detail and trade checks remain fresh. |
+| U33 | Scan camera, barcode, upload, screenshot, receipt and link submissions proceed without a repeated AI-processing consent checkbox or consent fields. Preserve OpenRouter no-data-collection/ZDR routing, transient image handling, input validation and usage limits. |
 
 ## Delegated defaults
 

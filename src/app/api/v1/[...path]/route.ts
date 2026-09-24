@@ -39,7 +39,6 @@ import { OpenRouterProvider } from "@/providers/openrouter";
 import { REQUIRED_AI_PRIVACY } from "@/providers/contracts";
 import { env } from "@/lib/env";
 import { productNameForApprovedUrl } from "@/lib/product-url";
-import { hasCurrentAiProcessingConsent } from "@/lib/ai-consent";
 import { safeReturnTo } from "@/lib/routes";
 import { isValidGtin } from "@/domain/gtin";
 import type {
@@ -378,7 +377,6 @@ const statusByError: Record<string, number> = {
   RECIPIENT_ACCOUNT_UNSAFE: 422,
   RECIPIENT_VERIFICATION_UNAVAILABLE: 503,
   LEG_NOT_QUOTEABLE: 409,
-  AI_CONSENT_REQUIRED: 403,
   AI_GROUNDING_REQUIRED: 422,
   REVIEW_CHANGED: 409,
   RECONCILIATION_REQUIRED: 409,
@@ -1009,9 +1007,6 @@ async function discoveryResponse(
   if (pathIs(path, "discovery", "barcode")) {
     const gtin = String(body.gtin ?? "");
     if (!isValidGtin(gtin)) throw new Error("INVALID_BARCODE");
-    if (!hasCurrentAiProcessingConsent(body) || body.acknowledgeAiProcessing !== true) {
-      throw new Error("AI_CONSENT_REQUIRED");
-    }
     const product = await lookupBarcodeProduct(gtin);
     if (!product) return [{
       candidateId: "barcode-unresolved",
@@ -1034,18 +1029,13 @@ async function discoveryResponse(
     }));
   }
   if (pathIs(path, "discovery", "link")) {
-    if (!hasCurrentAiProcessingConsent(body) || body.acknowledgeAiProcessing !== true) {
-      throw new Error("AI_CONSENT_REQUIRED");
-    }
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
     const query = productNameForApprovedUrl(String(body.url));
     if (!query || query.length > 120) throw new Error("INVALID_INPUT");
     return recognizeWithIssuerFeeds(request, () => ai.resolveOwnership(query, REQUIRED_AI_PRIVACY));
   }
   if (pathIs(path, "discovery", "image")) {
-    if (!hasCurrentAiProcessingConsent(body)) throw new Error("AI_CONSENT_REQUIRED");
     if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-    if (body.acknowledgeAiProcessing !== true) throw new Error("AI_CONSENT_REQUIRED");
     const mode = String(body.mode ?? "photo") as "photo" | "screenshot" | "receipt";
     if (!["photo", "screenshot", "receipt"].includes(mode)) throw new Error("INVALID_INPUT");
     const image = imageBytesFromDataUrl(body.imageDataUrl);

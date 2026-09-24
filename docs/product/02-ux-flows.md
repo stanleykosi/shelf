@@ -74,7 +74,7 @@ Never fill these values with invented example data in a live mode. A read-only p
 
 1. Open Discover; no camera prompt on page load.
 2. Tap Scan a product. Choose camera, barcode, upload, receipt, link or search.
-3. For images, show the processing notice and let the user crop/rotate/retake before upload. Explain no images are kept by Shelf.
+3. For images, let the user preview, crop/rotate or retake before submitting the scan. Shelf does not retain the image.
 4. Recognize up to the documented candidate limit. Show each candidate and explicit uncertainty.
 5. User confirms the matching catalog entry or chooses Change match. Uncertain candidates are not preselected for a purchase.
 6. Show verified company relationships; ambiguous/private/unsupported results keep educational value but no investment CTA.

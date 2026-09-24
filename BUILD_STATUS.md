@@ -2,6 +2,39 @@
 
 Updated: 2026-09-24
 
+## U33 direct Scan submissions — production, uncommitted
+
+The Scan page no longer displays a repeated OpenRouter processing checkbox or requires its
+consent fields for camera, barcode, upload, screenshot, receipt or approved-link scans. The
+six modes send their actual input directly after the user selects **Use photo**, **Enter
+barcode**, **Use this image**, **Read receipt** or **Find products**. Buttons wait for required
+input and show a busy state while a request runs. The obsolete scan-only consent helper and
+test were removed. Server-side OpenRouter no-data-collection/ZDR/required-parameters policy,
+AI budgets, image validation, transient image handling and issuer-feed verification remain.
+The affected product decisions, flow, CTA, API, AI and privacy documents now describe this
+behavior.
+
+ESLint, strict TypeScript, 14 focused route/OpenRouter tests and the Next.js 16.3.5 production
+build passed. The built app passed all ten desktop/mobile Chromium checks in
+`tests/e2e/live-discovery.spec.ts`, including direct submission from all Scan modes and the
+upload-to-issuer-result journey. Tests intercepted discovery responses; no paid provider call
+or money movement occurred. A first browser attempt inside the local filesystem sandbox could
+not launch Chromium; the rerun with local browser permission passed.
+
+Vercel deployment `dpl_CC7cFS8ywQWkGqkHxGUmSiAJxMSB` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. The public `/scan` page returns 200 with the new copy and
+without the old consent notice. `/readyz` reports PostgreSQL and configured providers ready,
+with real trading disabled. Focused production Chromium checks passed for the five other Scan
+inputs and for upload through the matched issuer result, with API responses intercepted. The
+live image and link endpoints returned `INVALID_INPUT` and `UNSUPPORTED_PRODUCT_URL` for
+deliberately invalid requests without consent fields, before any provider call. The
+first cold production browser navigation to the result page timed out once; a retry passed in
+14.6 seconds, and a direct `/scan/results` request returned 200 in 2.0 seconds. The broader
+production browser run stopped after an unrelated Discover search timeout, so it is not
+reported as passing. The owner asked to keep implementation changes uncommitted. Next task:
+monitor cold browser navigation separately if it repeats; financial live-money activation
+remains gated by its existing approval and funding requirements.
+
 ## U32 Discover cold-load reduction — production, uncommitted
 
 Discover now preloads the public issuer directory from its server response, before browser
@@ -120,7 +153,8 @@ search action. The server checks current xStocks and PreStocks issuer listings f
 company or symbol result returns without an AI request. Only an unmatched term goes to OpenRouter
 under the existing no-data-collection/ZDR policy and quota limits. AI suggests an owner; the
 issuer feed alone supplies the linked asset, symbol and mint. The unused consent-gated
-`/discovery/search` endpoint was removed; scan image, barcode and URL consent flows are unchanged.
+`/discovery/search` endpoint was removed; Scan's consent flows remained at that milestone and
+were later removed by U33.
 Home and Discover explain the automatic routing, and Discover shows a clear provider or quota
 failure instead of a consent-required state.
 

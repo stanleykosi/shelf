@@ -41,7 +41,7 @@ Provider policies, not cryptographic guarantees, underpin retention claims. Open
 
 ## Recognition flow
 
-1. Client asks permission, captures/selects image, offers crop/retake and consent.
+1. Client asks for browser camera permission when needed, captures/selects an image and offers crop/retake. The user's scan action submits directly; no per-scan AI consent checkbox is required.
 2. Decode safely, strip metadata/EXIF by re-encoding, reject decompression bombs and unsupported types, limit dimensions/bytes. Client downsampling is a convenience; server independently validates.
 3. Local barcode decoding first when requested. Check curated verified barcode map before external lookup. Optional product-database answer is product identity evidence, not ownership proof.
 4. For visual/receipt tasks, send image bytes to selected private-capable provider; no persistent signed image URL or object storage.

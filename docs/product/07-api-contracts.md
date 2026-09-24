@@ -59,9 +59,9 @@ Status: 200 read/update; 201 new resource; 202 operation accepted/pending; 204 l
 | GET /companies/{id} | guest/member | CompanyCard, jurisdiction-aware promotion policy |
 | GET /learn and /learn/{slug} | guest/member | approved editorial content, sources and version |
 | POST /discovery/query | guest/member; {query} | search both issuer feeds first; return matching company assets without AI, or automatically ask OpenRouter to suggest an owner for an unmatched term and join it to the same feed snapshot; enforce AI privacy and spend limits; never accept a model-supplied mint |
-| POST /discovery/image | guest/member+AI consent; {imageDataUrl,mode,consent fields} | temporary product and likely-owner candidates joined to current issuer listings; no retained image/OCR |
-| POST /discovery/barcode | guest/member+AI consent; {gtin,consent fields} | public Open Food/Beauty/Products Facts product-name lookup → AI likely owner → issuer feed; unresolved if no name; never GTIN→mint |
-| POST /discovery/link | guest/member+AI consent; {url,consent fields} | approved URL yields a product name for AI ownership resolution; unsupported site → 422 |
+| POST /discovery/image | guest/member; {imageDataUrl,mode} | temporary product and likely-owner candidates joined to current issuer listings; no retained image/OCR; OpenRouter privacy and budget controls enforced server-side |
+| POST /discovery/barcode | guest/member; {gtin} | public Open Food/Beauty/Products Facts product-name lookup → AI likely owner → issuer feed; unresolved if no name; never GTIN→mint |
+| POST /discovery/link | guest/member; {url} | approved URL yields a product name for AI ownership resolution; unsupported site → 422 |
 | POST /catalog/reports | guest/member; {productId?,relationshipId?,reasonCode,note?} | reportId; sanitize note; no attachment |
 | GET /shelf | member | shelf id/name/version, items with grouped company summary |
 | PATCH /shelf | member; {name?,itemOrderIds?[],expectedVersion}; at least one changed field | updated shelf; name length, exact current-item permutation for ordering, optimistic concurrency; Undo sends prior order with new expectedVersion |

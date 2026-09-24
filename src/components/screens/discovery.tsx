@@ -13,7 +13,6 @@ import {
 } from "@/data/catalog";
 import type { Category, Company, RecognitionMatch } from "@/domain/types";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
-import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
 import { IssuerLogo } from "@/components/issuer-logo";
 import {
@@ -216,7 +215,7 @@ export function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [aiConsent, setAiConsent] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -248,33 +247,20 @@ export function ScanScreen() {
   }
 
   async function recognize(selectedMode = mode) {
+    if (scanning) return;
+    setScanning(true);
+    setError(null);
     try {
       let response: RecognitionMatch[];
       if (selectedMode === "barcode") {
-        if (!aiConsent) throw new Error("AI processing consent is required.");
-        response = await postJson("discovery/barcode", {
-          gtin: barcode,
-          aiProcessingConsentAccepted: true,
-          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
-          acknowledgeAiProcessing: true,
-        });
+        response = await postJson("discovery/barcode", { gtin: barcode });
       } else if (selectedMode === "link") {
-        if (!aiConsent) throw new Error("AI processing consent is required.");
-        response = await postJson("discovery/link", {
-          url,
-          aiProcessingConsentAccepted: true,
-          aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
-          acknowledgeAiProcessing: true,
-        });
+        response = await postJson("discovery/link", { url });
       } else {
         if (!imageDataUrl) throw new Error("Choose or capture an image first.");
-        if (!aiConsent) throw new Error("AI processing consent is required.");
         response = await postJson("discovery/image", {
           mode: selectedMode === "camera" || selectedMode === "upload" ? "photo" : selectedMode,
           imageDataUrl,
-          aiProcessingConsentAccepted: aiConsent,
-          aiProcessingConsentVersion: aiConsent ? AI_PROCESSING_CONSENT_VERSION : "",
-          acknowledgeAiProcessing: aiConsent,
         });
       }
       sessionStorage.setItem("shelf:scan-results", JSON.stringify(response));
@@ -287,6 +273,8 @@ export function ScanScreen() {
           ? requestError.message.replaceAll("_", " ")
           : "Recognition failed",
       );
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -334,10 +322,7 @@ export function ScanScreen() {
   return (
     <>
       <PageIntro eyebrow="Seven ways in" title="What are you looking at?">
-        <p>
-          Images are processed for this request and are not kept by Shelf. Review every match before
-          saving it.
-        </p>
+        <p>Scan, upload or search to find the company behind a product.</p>
       </PageIntro>
       <div className="chips" role="tablist" aria-label="Discovery input">
         {["camera", "barcode", "upload", "screenshot", "receipt", "link", "search"].map(
@@ -355,21 +340,6 @@ export function ScanScreen() {
         )}
       </div>
       <Card className="section stack">
-        {["camera", "barcode", "upload", "screenshot", "receipt", "link"].includes(mode) ? (
-          <label className="notice">
-            <input
-              type="checkbox"
-              checked={aiConsent}
-              onChange={(event) => setAiConsent(event.target.checked)}
-            />{" "}
-            I agree to send this {mode === "link"
-              ? "product name from the approved link"
-              : mode === "barcode" ? "barcode to Open Food Facts and the returned product name" : "image"}
-            {" "}to OpenRouter for recognition and an ownership suggestion. Shelf does not retain
-            the image, but the provider processes submitted content under its privacy policies.
-            I have removed unnecessary personal or payment details.
-          </label>
-        ) : null}
         {mode === "camera" ? (
           <>
             <video
@@ -392,10 +362,10 @@ export function ScanScreen() {
               </button>
               <button
                 data-cta="C08"
-                disabled={!imageDataUrl || !aiConsent}
+                disabled={!imageDataUrl || scanning}
                 onClick={() => recognize("photo")}
               >
-                Use photo
+                {scanning ? "Finding matches…" : "Use photo"}
               </button>
             </div>
           </>
@@ -412,8 +382,8 @@ export function ScanScreen() {
               value={barcode}
               onChange={(event) => setBarcode(event.target.value.replace(/\D/g, ""))}
             />
-            <button data-cta="C09" disabled={!aiConsent} onClick={() => recognize("barcode")}>
-              Enter barcode
+            <button data-cta="C09" disabled={!barcode || scanning} onClick={() => recognize("barcode")}>
+              {scanning ? "Finding matches…" : "Enter barcode"}
             </button>
           </Field>
         ) : null}
@@ -424,7 +394,7 @@ export function ScanScreen() {
               htmlFor="image-file"
               hint={
                 mode === "receipt"
-                  ? "Include product lines and exclude names or payment details."
+                  ? "Choose a clear image of the product lines."
                   : "JPEG, PNG or WebP, up to 8 MiB."
               }
             >
@@ -447,11 +417,10 @@ export function ScanScreen() {
             ) : null}
             <button
               data-cta={mode === "receipt" ? "C11" : "C10"}
-              disabled={!imageDataUrl || !aiConsent}
+              disabled={!imageDataUrl || scanning}
               onClick={() => recognize(mode)}
             >
-              {" "}
-              {mode === "receipt" ? "Read receipt" : "Use this image"}
+              {scanning ? "Finding matches…" : mode === "receipt" ? "Read receipt" : "Use this image"}
             </button>
           </>
         ) : null}
@@ -468,8 +437,8 @@ export function ScanScreen() {
               value={url}
               onChange={(event) => setUrl(event.target.value)}
             />
-            <button data-cta="C12" disabled={!aiConsent} onClick={() => recognize("link")}>
-              Find products
+            <button data-cta="C12" disabled={!url.trim() || scanning} onClick={() => recognize("link")}>
+              {scanning ? "Finding matches…" : "Find products"}
             </button>
           </Field>
         ) : null}

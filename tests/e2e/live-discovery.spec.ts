@@ -155,12 +155,12 @@ test("AI product fallback can link to PreStocks in the same search result", asyn
     .toHaveAttribute("href", "/assets/prestocks/OPENAI");
 });
 
-test("image upload requires consent and shows the AI owner beside the issuer token", async ({ page }) => {
+test("image upload goes straight to a matched issuer result", async ({ page }) => {
   let submittedImage = false;
   await page.route("**/api/v1/discovery/image", (route) => {
     const request = route.request().postDataJSON();
     submittedImage = request.mode === "photo" &&
-      request.acknowledgeAiProcessing === true &&
+      Object.keys(request).sort().join(",") === "imageDataUrl,mode" &&
       request.imageDataUrl.startsWith("data:image/jpeg;base64,");
     return route.fulfill({
       status: 201,
@@ -193,8 +193,8 @@ test("image upload requires consent and shows the AI owner beside the issuer tok
     buffer: image,
   });
   const submit = page.getByRole("button", { name: "Use this image" });
-  await expect(submit).toBeDisabled();
-  await page.getByLabel(/I agree to send this image/).check();
+  await expect(submit).toBeEnabled();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await submit.click();
   await page.getByRole("link", { name: /candidates are ready/ }).click();
   await expect(page).toHaveURL(/\/scan\/results$/, { timeout: 20_000 });
@@ -203,4 +203,70 @@ test("image upload requires consent and shows the AI owner beside the issuer tok
   await expect(page.locator(".scan-issuer-identity .issuer-logo img"))
     .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
   expect(submittedImage).toBe(true);
+});
+
+test("every other scan input submits without an AI consent step", async ({ page }) => {
+  const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 320;
+          canvas.height = 240;
+          canvas.getContext("2d")?.fillRect(0, 0, 320, 240);
+          return canvas.captureStream(30);
+        },
+      },
+    });
+  });
+  await page.route(/\/api\/v1\/discovery\/(barcode|link|image)$/, (route) => {
+    const url = new URL(route.request().url());
+    requests.push({ path: url.pathname, body: route.request().postDataJSON() });
+    return route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ data: [] }),
+    });
+  });
+
+  await page.goto("/scan");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open camera" }).click();
+  await expect.poll(() => page.getByLabel("Camera preview").evaluate((video) =>
+    (video as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Capture photo" }).click();
+  await page.getByRole("button", { name: "Use photo" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].body.mode).toBe("photo");
+
+  await page.getByRole("tab", { name: "Barcode" }).click();
+  await page.getByLabel("Enter barcode").fill("5449000000996");
+  await page.getByRole("button", { name: "Enter barcode" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toEqual({ path: "/api/v1/discovery/barcode", body: { gtin: "5449000000996" } });
+
+  await page.getByRole("tab", { name: "Link" }).click();
+  await page.getByRole("button", { name: "Find products" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  expect(requests[2]).toEqual({
+    path: "/api/v1/discovery/link",
+    body: { url: "https://www.apple.com/iphone/" },
+  });
+
+  const image = await page.screenshot();
+  for (const input of ["Screenshot", "Receipt"] as const) {
+    await page.getByRole("tab", { name: input }).click();
+    await page.getByLabel(input === "Receipt" ? "Choose a cropped receipt" : "Choose an image")
+      .setInputFiles({ name: "product.png", mimeType: "image/png", buffer: image });
+    await page.getByRole("button", { name: input === "Receipt" ? "Read receipt" : "Use this image" }).click();
+  }
+  await expect.poll(() => requests.length).toBe(5);
+  expect(requests.slice(3).map(({ body }) => body.mode)).toEqual(["screenshot", "receipt"]);
+  for (const request of requests.filter(({ path }) => path.endsWith("/image"))) {
+    expect(Object.keys(request.body).sort()).toEqual(["imageDataUrl", "mode"]);
+    expect(request.body.imageDataUrl).toMatch(/^data:image\/jpeg;base64,/);
+  }
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
 });
