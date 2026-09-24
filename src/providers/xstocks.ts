@@ -46,6 +46,11 @@ export type XStocksListing = {
   observedAt: string;
 };
 
+export type XStocksDetail = {
+  listing: XStocksListing;
+  sourceData: unknown;
+};
+
 function listingForAsset(
   asset: z.infer<typeof assetSchema>,
   observedAt: string,
@@ -88,7 +93,7 @@ export class LiveXStocksProvider {
     this.send = send ?? fetch;
   }
 
-  async listing(symbol: string): Promise<XStocksListing | null> {
+  async detail(symbol: string): Promise<XStocksDetail | null> {
     if (!/^[A-Za-z0-9.-]{1,32}$/.test(symbol)) throw new Error("XSTOCKS_SYMBOL_INVALID");
     const endpoint = new URL(`public/assets/${encodeURIComponent(symbol)}`, this.baseUrl);
     const response = await this.send(endpoint, {
@@ -97,9 +102,15 @@ export class LiveXStocksProvider {
     });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error("XSTOCKS_UNAVAILABLE");
-    const asset = assetSchema.parse(await response.json());
+    const sourceData: unknown = await response.json();
+    const asset = assetSchema.parse(sourceData);
     if (asset.symbol !== symbol) throw new Error("XSTOCKS_ASSET_MISMATCH");
-    return listingForAsset(asset, new Date().toISOString());
+    const listing = listingForAsset(asset, new Date().toISOString());
+    return listing ? { listing, sourceData } : null;
+  }
+
+  async listing(symbol: string): Promise<XStocksListing | null> {
+    return (await this.detail(symbol))?.listing ?? null;
   }
 
   async listings(): Promise<XStocksListing[]> {

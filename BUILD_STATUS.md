@@ -2,6 +2,44 @@
 
 Updated: 2026-09-24
 
+## U34 issuer-scoped AI chat — production, uncommitted
+
+Each current xStocks and PreStocks token detail page links to an issuer-scoped AI chat. The
+assistant waits for the user's first question, then the server refetches the exact public
+issuer record and sends its complete bounded response, normalized listing, source URL,
+observation time and reviewed lifecycle notice to OpenRouter. Follow-up turns carry only the
+last six bounded messages. The browser keeps up to 40 displayed messages in page memory;
+there is no server transcript or chat-history database. The assistant handles loading,
+unavailable feeds, draft restoration after errors or cancellation, suggested questions,
+source/uncertainty display and explicit clearing.
+
+The AI call runs outside the PostgreSQL state transaction. A short shared reservation before
+feed loading enforces spend and per-user limits across concurrent Vercel requests; a failed
+feed lookup releases it. Signed HttpOnly guest quota cookies keep browsers behind one network
+separate, with a secondary network cap. Provider privacy routing, validated source IDs and
+trade controls remain in force. xStocks and PreStocks adapters retain the complete raw public
+issuer response for chat while separately validating the token listing.
+
+ESLint, strict TypeScript, 100 Vitest tests in 17 files, the Next.js 16.3.5 production build
+and `git diff --check` passed. The built local app passed all eight desktop/mobile Chromium
+journeys in `tests/e2e/issuer-chat.spec.ts`: xStocks and PreStocks entry points, no paid AI
+request before a question, follow-up history, feed outage, simultaneous browser isolation,
+separate signed guest cookies and retry after a failed answer. The browser intercepted answer
+responses, so no paid OpenRouter request was made.
+
+Vercel deployment `dpl_EFZQg227SU74jZnyXaUBmyRYK3Db` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. Production `/assistant?provider=xstocks&symbol=METAx`,
+`/api/v1/ai/session` and `/readyz` returned 200; readiness reported PostgreSQL, Magic,
+OpenRouter, Jupiter and Helius configured while real trading remained disabled. The guest
+cookie was Secure, HttpOnly and SameSite=Lax. Four focused desktop/mobile production Chromium
+checks passed with AI answers intercepted. A production request with a forged `system` chat
+history role returned `INVALID_INPUT` 422 before any provider call. Read-only production exact
+issuer lookups returned METAx from xStocks and OPENAI from PreStocks with current provider
+symbols and mints. No paid AI request or
+live-money operation occurred. Chat retention beyond page memory remains a separate product
+decision; the next task is to decide whether any transcript should survive navigation or a
+time limit, then implement only that chosen policy.
+
 ## U33 direct Scan submissions — production, uncommitted
 
 The Scan page no longer displays a repeated OpenRouter processing checkbox or requires its

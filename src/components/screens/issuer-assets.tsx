@@ -127,6 +127,12 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
           <Link className="button" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy` as Route}>
             Review a purchase
           </Link>
+          <Link
+            className="button secondary"
+            href={`/assistant?provider=${provider}&symbol=${encodeURIComponent(asset.symbol)}` as Route}
+          >
+            Chat with AI
+          </Link>
           <button className="secondary" onClick={saveToWatchlist}>Save to watchlist</button>
           {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}
           <ErrorMessage message={saveError} />

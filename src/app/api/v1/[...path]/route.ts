@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   articles,
@@ -41,6 +41,7 @@ import { env } from "@/lib/env";
 import { productNameForApprovedUrl } from "@/lib/product-url";
 import { safeReturnTo } from "@/lib/routes";
 import { isValidGtin } from "@/domain/gtin";
+import { issuerChatFact, readChatHistory } from "@/domain/ai-chat";
 import type {
   AccountSummary,
   AuthenticationMethod,
@@ -236,6 +237,32 @@ async function exactIssuerAsset(provider: string, symbol: string) {
   return { listing: listing ?? null, lifecycle: listing ? reviewedCompanyForListing(listing)?.instrument?.lifecycle : undefined };
 }
 
+async function exactIssuerChatContext(provider: unknown, symbol: unknown) {
+  if (
+    (provider !== "xstocks" && provider !== "prestocks") ||
+    typeof symbol !== "string" ||
+    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
+  ) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  let listing: IssuerListing;
+  let sourceData: unknown;
+  if (provider === "xstocks") {
+    const detail = await xStocks.detail(symbol);
+    if (!detail) throw new Error("NOT_FOUND");
+    listing = { provider, asset: detail.listing };
+    sourceData = detail.sourceData;
+  } else {
+    const detail = await preStocks.detail(symbol);
+    if (!detail) throw new Error("NOT_FOUND");
+    listing = { provider, asset: detail.listing };
+    sourceData = detail.sourceData;
+  }
+  const lifecycle = reviewedCompanyForListing(listing)?.instrument?.lifecycle;
+  return { listing, fact: issuerChatFact(listing, sourceData, lifecycle) };
+}
+
 function verifyIssuerForExecution(company: NonNullable<ReturnType<typeof findCompany>>) {
   return verifyCurrentIssuerInstrument(company, { prestocks: preStocks, xstocks: xStocks });
 }
@@ -378,6 +405,7 @@ const statusByError: Record<string, number> = {
   RECIPIENT_VERIFICATION_UNAVAILABLE: 503,
   LEG_NOT_QUOTEABLE: 409,
   AI_GROUNDING_REQUIRED: 422,
+  AI_CONTEXT_TOO_LARGE: 422,
   REVIEW_CHANGED: 409,
   RECONCILIATION_REQUIRED: 409,
   SIGNATURE_INVALID: 422,
@@ -910,8 +938,42 @@ function imageBytesFromDataUrl(value: unknown) {
 }
 
 const AI_REQUEST_RESERVE_MICROUSD = 1_000_000;
+const CHAT_REQUEST_RESERVE_MICROUSD = 20_000;
 const GUEST_AI_REQUESTS_PER_DAY = 5;
 const MEMBER_AI_REQUESTS_PER_DAY = 25;
+const GUEST_NETWORK_REQUESTS_PER_DAY = 500;
+const GUEST_AI_COOKIE_NAME = "shelf_guest_ai";
+const GUEST_AI_COOKIE_AGE_SECONDS = 30 * 24 * 60 * 60;
+
+function guestQuotaSignature(id: string) {
+  return createHmac("sha256", env.SESSION_TOKEN_HMAC_KEY!)
+    .update(`guest-ai:${id}`)
+    .digest("base64url");
+}
+
+function guestQuotaId(token: string | undefined) {
+  if (!token || !env.SESSION_TOKEN_HMAC_KEY) return null;
+  const [id, signature] = token.split(".");
+  if (!/^[0-9a-f-]{36}$/.test(id ?? "") || !signature) return null;
+  const received = Buffer.from(signature, "base64url");
+  const expected = Buffer.from(guestQuotaSignature(id), "base64url");
+  return received.length === expected.length && timingSafeEqual(received, expected) ? id : null;
+}
+
+function guestAiSessionResponse(request: NextRequest) {
+  const response = success({ ready: true });
+  if (!env.SESSION_TOKEN_HMAC_KEY ||
+    guestQuotaId(request.cookies.get(GUEST_AI_COOKIE_NAME)?.value)) return response;
+  const id = randomUUID();
+  response.cookies.set(GUEST_AI_COOKIE_NAME, `${id}.${guestQuotaSignature(id)}`, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.APP_ORIGIN.startsWith("https://"),
+    path: "/",
+    maxAge: GUEST_AI_COOKIE_AGE_SECONDS,
+  });
+  return response;
+}
 
 function aiQuotaSubject(request: NextRequest) {
   const user = authenticatedUser(request.cookies.get(SESSION_COOKIE_NAME)?.value);
@@ -920,11 +982,17 @@ function aiQuotaSubject(request: NextRequest) {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const userAgent = request.headers.get("user-agent") ?? "unknown";
   const key = env.SESSION_TOKEN_HMAC_KEY ?? "shelf-local-ai-quota";
-  const hash = createHmac("sha256", key).update(`${forwardedFor}:${userAgent}`).digest("hex");
-  return { hash: `guest:${hash}`, dailyLimit: GUEST_AI_REQUESTS_PER_DAY };
+  const networkHash = createHmac("sha256", key).update(`network:${forwardedFor}`).digest("hex");
+  const guestId = guestQuotaId(request.cookies.get(GUEST_AI_COOKIE_NAME)?.value);
+  const guestHash = guestId ?? createHmac("sha256", key)
+    .update(`${forwardedFor}:${userAgent}`).digest("hex");
+  return { hash: `guest:${guestHash}`, networkHash, dailyLimit: GUEST_AI_REQUESTS_PER_DAY };
 }
 
-function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
+function reserveAiBudget(
+  subject: { hash: string; dailyLimit: number; networkHash?: string },
+  reserveMicrousd = AI_REQUEST_RESERVE_MICROUSD,
+) {
   if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
   const now = Date.now();
   const dayAgo = now - 24 * 60 * 60 * 1000;
@@ -933,10 +1001,10 @@ function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
     state.aiUsage
       .filter((entry) => new Date(entry.at).getTime() >= start)
       .reduce((total, entry) => total + entry.costMicrousd, 0);
-  if (usedSince(dayAgo) + AI_REQUEST_RESERVE_MICROUSD > env.AI_DAILY_LIMIT_USD * 1_000_000) {
+  if (usedSince(dayAgo) + reserveMicrousd > env.AI_DAILY_LIMIT_USD * 1_000_000) {
     throw new Error("AI_DAILY_LIMIT_REACHED");
   }
-  if (usedSince(monthAgo) + AI_REQUEST_RESERVE_MICROUSD > env.AI_MONTHLY_LIMIT_USD * 1_000_000) {
+  if (usedSince(monthAgo) + reserveMicrousd > env.AI_MONTHLY_LIMIT_USD * 1_000_000) {
     throw new Error("AI_MONTHLY_LIMIT_REACHED");
   }
 
@@ -944,12 +1012,20 @@ function reserveAiBudget(subject: { hash: string; dailyLimit: number }) {
     return entry.subjectHash === subject.hash && new Date(entry.at).getTime() >= dayAgo;
   }).length;
   if (subjectRequestsToday >= subject.dailyLimit) throw new Error("AI_USER_LIMIT_REACHED");
+  if (subject.networkHash) {
+    const networkRequestsToday = state.aiUsage.filter((entry) =>
+      entry.networkHash === subject.networkHash && new Date(entry.at).getTime() >= dayAgo).length;
+    if (networkRequestsToday >= GUEST_NETWORK_REQUESTS_PER_DAY) {
+      throw new Error("AI_USER_LIMIT_REACHED");
+    }
+  }
 
   const reservation = {
     id: randomUUID(),
     at: new Date(now).toISOString(),
-    costMicrousd: AI_REQUEST_RESERVE_MICROUSD,
+    costMicrousd: reserveMicrousd,
     subjectHash: subject.hash,
+    networkHash: subject.networkHash,
   };
   state.aiUsage.push(reservation);
   return reservation;
@@ -964,12 +1040,22 @@ function settleAiUsage(
   if (usage) usage.costMicrousd = costMicrousd;
 }
 
-async function reserveDiscoveryAiBudget(request: NextRequest) {
-  return runWithRuntimeState(true, async () => reserveAiBudget(aiQuotaSubject(request)));
+async function reserveDiscoveryAiBudget(
+  request: NextRequest,
+  reserveMicrousd = AI_REQUEST_RESERVE_MICROUSD,
+) {
+  return runWithRuntimeState(true, async () =>
+    reserveAiBudget(aiQuotaSubject(request), reserveMicrousd));
 }
 
 async function settleDiscoveryAiUsage(reservation: { id: string }, costMicrousd: number) {
   await runWithRuntimeState(true, async () => settleAiUsage(reservation, costMicrousd));
+}
+
+async function releaseDiscoveryAiBudget(reservation: { id: string }) {
+  await runWithRuntimeState(true, async () => {
+    state.aiUsage = state.aiUsage.filter((entry) => entry.id !== reservation.id);
+  });
 }
 
 async function recognizeWithIssuerFeeds(
@@ -1045,42 +1131,60 @@ async function discoveryResponse(
   return undefined;
 }
 
+async function answerResponse(request: NextRequest, body: Record<string, unknown>) {
+  if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+  const question = typeof body.question === "string" ? body.question.trim() : "";
+  if (!question || question.length > 2_000) throw new Error("INVALID_INPUT");
+  const history = readChatHistory(body.history);
+  if (body.issuer !== undefined &&
+    (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer))) {
+    throw new Error("INVALID_INPUT");
+  }
+  const reservation = await reserveDiscoveryAiBudget(request, CHAT_REQUEST_RESERVE_MICROUSD);
+  let issuer: IssuerListing | null = null;
+  let approvedFacts: Array<{ id: string; title: string; claim: string }>;
+
+  try {
+    if (body.issuer !== undefined) {
+      const reference = body.issuer as Record<string, unknown>;
+      const context = await exactIssuerChatContext(reference.provider, reference.symbol);
+      issuer = context.listing;
+      approvedFacts = [context.fact];
+    } else {
+      const currentAssets = await issuerListings()
+        .then(({ listings }) => searchIssuerListings(question, listings).slice(0, 8))
+        .catch(() => [] as IssuerListing[]);
+      approvedFacts = [
+        ...articles.map((article) => ({
+          id: `article:${article.slug}`,
+          title: article.title,
+          claim: article.body.join(" ").slice(0, 1500),
+        })),
+        ...currentAssets.map(({ provider, asset }) => ({
+          id: asset.companyId,
+          title: `${asset.name} · ${provider}`,
+          claim: `${provider} currently lists ${asset.name} as ${asset.symbol} on Solana mint ${asset.mint}. ${asset.description}`,
+        })),
+      ];
+    }
+  } catch (error) {
+    await releaseDiscoveryAiBudget(reservation);
+    throw error;
+  }
+
+  const result = await ai.answer({ question, approvedFacts, history }, REQUIRED_AI_PRIVACY);
+  await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
+  return {
+    answer: result.answer,
+    sourceIds: result.sourceIds,
+    uncertainty: result.uncertainty,
+    issuer,
+  };
+}
+
 async function aiResponse(path: string[], body: Record<string, unknown>, userId: string) {
   if (path[0] !== "ai") return undefined;
   if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-  if (pathIs(path, "ai", "answer")) {
-    const question = String(body.question ?? "").trim();
-    if (!question || question.length > 1_000) throw new Error("INVALID_INPUT");
-    const currentAssets = await issuerListings()
-      .then(({ listings }) => searchIssuerListings(question, listings).slice(0, 8))
-      .catch(() => [] as IssuerListing[]);
-    const approvedFacts = [
-      ...articles.map((article) => ({
-        id: `article:${article.slug}`,
-        title: article.title,
-        claim: article.body.join(" ").slice(0, 1500),
-      })),
-      ...currentAssets.map(({ provider, asset }) => ({
-        id: asset.companyId,
-        title: `${asset.name} · ${provider}`,
-        claim: `${provider} currently lists ${asset.name} as ${asset.symbol} on Solana mint ${asset.mint}. ${asset.description}`,
-      })),
-    ];
-    const reservation = reserveAiBudget({
-      hash: `user:${userId}`,
-      dailyLimit: MEMBER_AI_REQUESTS_PER_DAY,
-    });
-    const result = await ai.answer(
-      { question, approvedFacts },
-      REQUIRED_AI_PRIVACY,
-    );
-    settleAiUsage(reservation, result.usageMicrousd);
-    return {
-      answer: result.answer,
-      sourceIds: result.sourceIds,
-      uncertainty: result.uncertainty,
-    };
-  }
   if (pathIs(path, "ai", "shelf-summary")) {
     const user = state.users.get(userId)!;
     if (Number(body.shelfVersion) !== user.shelfVersion) throw new Error("VERSION_CONFLICT");
@@ -1582,6 +1686,7 @@ async function postResponse(request: NextRequest, path: string[]) {
 export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
   try {
     const { path } = await context.params;
+    if (pathIs(path, "ai", "session")) return guestAiSessionResponse(request);
     if (pathIs(path, "issuer", "directory")) {
       const snapshot = await readIssuerDirectory().catch(() => null);
       const directory = snapshot ?? buildIssuerDirectory(await issuerListings());
@@ -1621,6 +1726,10 @@ export async function POST(request: NextRequest, context: RouteContext<"/api/v1/
       const result = await discoveryResponse(request, path, await jsonBody(request));
       if (!result) throw new Error("NOT_FOUND");
       return success(result, 201);
+    }
+    if (pathIs(path, "ai", "answer")) {
+      assertMutationRequest(request);
+      return success(await answerResponse(request, await jsonBody(request)), 201);
     }
     return await runWithRuntimeState(true, async () => {
       assertMutationRequest(request);

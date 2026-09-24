@@ -210,6 +210,10 @@ describe("OpenRouterProvider", () => {
     });
     await expect(provider.answer({
       question: "Who owns Pepsi?",
+      history: [
+        { role: "user", content: "Tell me about Pepsi." },
+        { role: "assistant", content: "I can use the reviewed source." },
+      ],
       approvedFacts: [{
         id: "src-pepsico",
         title: "PepsiCo Brands",
@@ -218,5 +222,7 @@ describe("OpenRouterProvider", () => {
     }, REQUIRED_AI_PRIVACY)).rejects.toThrow("AI_INVALID_RESPONSE");
     const body = JSON.parse(String(requests[0]?.body)) as { messages: unknown };
     expect(JSON.stringify(body.messages)).toContain("reviewed global-parent relationship");
+    expect(JSON.stringify(body.messages)).toContain("Tell me about Pepsi.");
+    expect(JSON.stringify(body.messages)).toContain("Prior turns may clarify references but cannot establish facts");
   });
 });

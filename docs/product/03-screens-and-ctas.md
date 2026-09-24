@@ -50,6 +50,8 @@ Show company description, verified brands, listed ticker/exchange, issuer instru
 
 C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Ask about this company** → assistant context. C23 **View sources** expands citations. C24 **View token details** displays exact mint/program/issuer, not just ticker.
 
+Current `/assets/[provider]/[symbol]` token details show **Chat with AI** beside purchase review and watchlist actions. It opens `/assistant?provider=&symbol=` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat.
+
 Supported-but-paused: explain pause with no active purchase CTA. Discovery-only company: “Not available to buy on Shelf.” Closed underlying market: show warning and actual policy/routing state, not invented market reopening countdown.
 
 ## S07 — My shelf · /shelf
@@ -66,9 +68,9 @@ Versioned editorial content, sources and last review date. C33 **Explore related
 
 ## S09 — Assistant · /assistant
 
-Header “AI assistant”; scoped company/shelf context pill, removable. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send question**; C36 **Stop response** cancels stream best-effort; C37 **Clear conversation** erases session-local transcript.
+Header “AI assistant”; exact issuer context card when opened from a token detail page. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** erases the page-memory transcript. A follow-up sends only six bounded prior turns; a route change or reload starts a new conversation until retention is decided separately.
 
-Show sources as verified links. Retry after error is explicit; no duplicate endless billable retries. Rate-limit state includes next allowance time. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
+Show the issuer source and response citations. Keep the typed question after an error so the user can retry deliberately; no duplicate automatic billable retries. A missing current listing blocks scoped chat rather than using stale browser-provided facts. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
 
 C38 **Suggest an allocation** opens S10; C39 **Use this draft** appears only on a validated allocation object and opens editable basket, never wallet signing. No markdown raw HTML, arbitrary embedded image or clickable transaction payload from model text.
 

@@ -67,13 +67,17 @@ describe("xStocks provider", () => {
   });
 
   it("fetches one exact symbol for financial verification", async () => {
+    const sourceData = {
+      ...asset("AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp"),
+      isin: "CH0000000001",
+      issuerOnlyField: { availableToChat: true },
+    };
     const send: typeof fetch = async (input) => {
       expect(String(input)).toContain("/public/assets/AAPLx");
-      return new Response(JSON.stringify(asset(
-        "AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
-      )));
+      return new Response(JSON.stringify(sourceData));
     };
-    const listing = await new LiveXStocksProvider(undefined, send).listing("AAPLx");
-    expect(listing?.companyId).toBe("issuer:xstocks:AAPLx");
+    const detail = await new LiveXStocksProvider(undefined, send).detail("AAPLx");
+    expect(detail?.listing.companyId).toBe("issuer:xstocks:AAPLx");
+    expect(detail?.sourceData).toEqual(sourceData);
   });
 });

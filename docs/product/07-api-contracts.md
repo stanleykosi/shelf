@@ -120,12 +120,13 @@ Same submit retried returns original submission. Changing signed bytes under sam
 
 ## AI endpoints
 
-- POST /ai/answer: {question,companyId?,sourceContextIds?,includeShelf:false|true}. Member or limited guest, explicit scope consent. Streaming answer events: started, text_delta, sources, warning, completed, error. Server chooses retrievable sources; sourceContextIds cannot access private other-user data.
+- GET /ai/session: sets a signed, HttpOnly guest quota cookie when server signing is configured. The cookie contains a random quota ID, never chat content or a member identity. Guests behind one network receive separate daily quotas; a secondary network cap and the shared AI spending budget still limit abuse.
+- POST /ai/answer: {question,issuer?:{provider:xstocks|prestocks,symbol},history?:[{role:user|assistant,content}]}. Member or limited guest. For scoped chat the server refetches the exact current issuer record, including its full public provider response, and ignores client-supplied facts. History is at most six prior turns of 1,000 characters each and is not persisted. Returns {answer,sourceIds,uncertainty,issuer}; issuer is the current normalized listing or null for general chat. Every request enforces OpenRouter privacy routing and shared spend limits. The current transport returns one bounded JSON answer, with browser abort as best-effort cancellation.
 - POST /ai/shelf-summary: member {shelfVersion}; returns summary, duplicateParents[], categoryCounts, proposedSortIds[] and sourceIds. No automatic mutation.
 - POST /ai/allocation-drafts: eligible member {budgetUsdcRaw,companyIds?[],categories?[],includeShelf:boolean}; returns validated AllocationDraft, never an order/preparation.
 - GET /ai/allocation-drafts/{id}: owner, until expiry.
 
-Streaming metadata never includes hidden reasoning, raw provider payload, email, wallet or full receipt. If token transport needs AI SDK protocol, define an adapter preserving these semantic events and contract-test it against the pinned SDK. The domain response schema remains authoritative.
+Answer responses never include hidden reasoning, the raw provider payload, email, wallet or full receipt. The domain response schema remains authoritative.
 
 ## Owner endpoints
 

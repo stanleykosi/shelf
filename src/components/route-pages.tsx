@@ -158,8 +158,19 @@ export async function LearningArticlePage({ params }: { params: AsyncParams<{ sl
   return <LearnScreen slug={slug} />;
 }
 
-export function AssistantPage() {
-  return <AssistantScreen />;
+export async function AssistantPage({ searchParams }: { searchParams: AsyncQuery }) {
+  const query = await searchParams;
+  const provider = first(query.provider);
+  const symbol = first(query.symbol);
+  if (!provider && !symbol) return <AssistantScreen key="general" />;
+  if (
+    (provider !== "xstocks" && provider !== "prestocks") ||
+    !symbol ||
+    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
+  ) {
+    notFound();
+  }
+  return <AssistantScreen key={`${provider}:${symbol}`} issuer={{ provider, symbol }} />;
 }
 
 export function SavedPage() {
