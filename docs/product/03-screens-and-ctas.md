@@ -10,9 +10,9 @@ Show concise product explanation, curated catalog items and “How it works.” 
 
 ## S02 — Explore/search · /discover
 
-Search field: visible label “Product, brand or company,” 120-character limit, submit/Enter plus debounced local catalog search (300 ms). Filters: category and availability; do not preselect “investable only.” Sort relevance then verified display name. Cards identify whether they are products, brands or companies.
+Active U30 flow: one search field checks the full current xStocks and PreStocks feeds first, then automatically asks OpenRouter for a likely product owner if no company matches. Search results replace the browse table while active. AI ownership is labelled unverified and only current issuer listings supply symbols and mints. Clearing search returns to the company spotlight.
 
-C03 **View product/company** opens its canonical route. C04 **Clear filters** resets query. No results offers Scan instead and corrected spelling; never generate a matching ticker from the query. Unverified keyword matches are suggestions, not buyable instruments.
+The browse area is a rotating selection from current issuer listings, with recognizable public companies and about two PreStocks listings. Show provider logos prominently in one company table, with editorial sector chips, a public/private market filter, name ordering and a refresh action. It is not a performance ranking or the whole issuer universe. A missing sector remains Other; an unavailable feed cannot create a fallback asset. C03 **View company details** opens the current issuer asset page. C04 **Clear filters** restores the featured mix. Empty filters, stale feeds and provider errors have distinct, recoverable states. The older product and brand browse tables are retired.
 
 ## S03 — Scan/input chooser · /scan
 

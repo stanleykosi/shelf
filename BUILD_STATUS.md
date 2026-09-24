@@ -1,6 +1,43 @@
 # Shelf build status
 
-Updated: 2026-09-23
+Updated: 2026-09-24
+
+## U30 live company spotlight — production
+
+Discover now replaces its reviewed product, brand and company browse tables with one rotating
+company table. Each request selects up to ten recognizable public-company xStocks assets and two
+PreStocks assets from the current issuer feeds. The selection changes per request; the source
+feeds remain the only source for displayed assets, symbols, mints and provider logos. xStocks
+does not supply a popularity, performance or sector ranking, so this is explicitly an editorial
+selection of familiar names, not a claim of top performance or a recommendation. Sector labels
+are editorial. The new `/api/v1/issuer/spotlight` response is no-store and carries stale and
+unavailable feed warnings. Search still covers the full feeds and automatically uses OpenRouter
+for unmatched product terms. Company rows lead to the current issuer detail pages. The table has
+sector and public/private filters, name ordering, a refresh action, mobile controls, and loading,
+empty and provider-failure states. Missing or slow logos display company initials; PreStocks
+logos load directly from validated provider URLs because the local Next image proxy timed out on
+some otherwise available images.
+
+`npm run check` passed ESLint, strict TypeScript, 100 Vitest tests in 16 files and the Next.js
+16.3.5 production build. Against an isolated migrated PostgreSQL 16 test database,
+`PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 npm run test:browser --
+tests/e2e/concept-one.spec.ts tests/e2e/live-discovery.spec.ts
+tests/e2e/route-architecture.spec.ts` passed 23 desktop/mobile Chromium checks with five
+intentional project-specific skips. The browser checks cover company logos and failure fallback,
+sector/market filters, issuer detail routing, direct-first/AI-fallback search, responsive layout
+and legacy routes. `git diff --check` passed. Two real local spotlight requests each returned
+12 assets (ten public, two PreStocks) with different mixes and no missing logo URLs. The final
+local Chromium page loaded all 12 provider logos at nonzero natural width. No paid AI call,
+wallet funding, quote, trade or transaction was made for this release.
+
+Vercel deployment `dpl_AwbptuDDf5b3igPuFwcH4ysqQam6` is Ready at
+`https://shelf-one-phi.vercel.app`. Production `/readyz` reports PostgreSQL, Magic, OpenRouter,
+Jupiter and Helius ready while real trading remains disabled. Two read-only spotlight requests
+returned 12 assets (ten public, two PreStocks), no missing logo URLs or feed warnings, and
+different mixes. Production Chromium loaded all 12 logos at nonzero width and found no old
+reviewed-reference section. The release was deployed directly from this local tree. Next task:
+preserve the local commit in remote Git when the user authorizes a push; real-money activation
+remains a separate user-approved gate.
 
 ## U29 automatic Discover product ownership lookup — production
 

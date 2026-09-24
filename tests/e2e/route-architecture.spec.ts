@@ -11,9 +11,9 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   request,
 }) => {
   const permanentRedirects = [
-    ["/markets?q=apple", "/discover?entity=company&q=apple"],
-    ["/markets/public", "/discover?entity=company&market=public"],
-    ["/markets/private", "/discover?entity=company&market=private"],
+    ["/markets?q=apple", "/discover?q=apple"],
+    ["/markets/public", "/discover?market=public"],
+    ["/markets/private", "/discover?market=private"],
     ["/shelf", "/saved"],
     ["/shelf/share", "/saved/share"],
     ["/wallet", "/account/wallet"],
@@ -61,12 +61,7 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   }
 });
 
-test("all five categories lead to reviewed products and a guest can save one", async ({ page }) => {
-  await page.route("**/api/v1/issuer/search?*", (route) => route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify({ data: { listings: [], total: 0, unavailable: [], stale: [] } }),
-  }));
+test("the Home product gallery still leads to a guest's saved product", async ({ page }) => {
   await page.route("**/api/v1/shelf", (route) => route.fulfill({
     status: 401,
     contentType: "application/json",
@@ -78,21 +73,12 @@ test("all five categories lead to reviewed products and a guest can save one", a
     body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
   }));
 
-  const categories = {
-    groceries: "Doritos snack",
-    beauty: "Olay skincare",
-    electronics: "iPhone",
-    clothing: "Nike apparel",
-    household: "Tide laundry",
-  } as const;
-  for (const [category, product] of Object.entries(categories)) {
-    await page.goto(`/discover?category=${category}`);
-    await expect(page).toHaveURL(new RegExp(`/discover\\?category=${category}$`));
-    await expect(page.locator(".product-tile").filter({ hasText: product })).toBeVisible();
+  await page.goto("/");
+  for (const product of ["Doritos snack", "Olay skincare", "iPhone", "Nike apparel", "Tide laundry"]) {
+    await expect(page.locator(".home-product-gallery .product-tile").filter({ hasText: product })).toBeVisible();
   }
 
-  await page.goto("/discover?category=groceries");
-  await page.locator(".product-tile").filter({ hasText: "Doritos snack" }).click();
+  await page.locator(".home-product-gallery .product-tile").filter({ hasText: "Doritos snack" }).click();
   await expect(page).toHaveURL(/\/products\/doritos-snack$/);
   await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();

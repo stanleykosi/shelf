@@ -7,14 +7,12 @@ type LegacyRedirect = {
 
 const safeQueryKeys = new Set([
   "asset",
-  "availability",
-  "category",
   "cursor",
-  "entity",
   "from",
   "market",
   "q",
   "scope",
+  "sector",
   "sort",
   "source",
   "status",
@@ -125,7 +123,7 @@ export function legacyRedirectFor(
   searchParams: URLSearchParams,
 ): LegacyRedirect | undefined {
   if (pathname === "/markets" || pathname === "/markets/public" || pathname === "/markets/private") {
-    const target = new URLSearchParams({ entity: "company" });
+    const target = new URLSearchParams();
     if (pathname !== "/markets") {
       target.set("market", pathname.endsWith("/private") ? "private" : "public");
     }

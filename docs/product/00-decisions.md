@@ -31,6 +31,7 @@ Version 1.0, 2026-09-20. U = explicit user choice; D = delegated default; G = ex
 | U23 | Do not use the UI/UX skill. Use native UX judgment. |
 | U24 | Active typed search and image discovery use AI to infer likely product ownership, then look up that company in the current full xStocks and PreStocks issuer feeds. A presaved product/company registry is not the discovery or trading universe. AI ownership is a suggestion; issuer symbol and mint come only from the feed. The selected mint is checked on Solana before order creation and rechecked against the issuer before Jupiter quoting. |
 | U29 | Discover checks xStocks and PreStocks first, then automatically sends an unmatched search term to OpenRouter for a likely owner. No consent checkbox or second search action. AI ownership remains unverified; OpenRouter privacy controls and spend limits remain enforced. |
+| U30 | Replace Discover's reviewed product, brand and company example tables with a live, rotating company spotlight. Use current xStocks listings for recognizable public issuers and include roughly two current PreStocks listings. Show provider logos prominently, editorial sector filters, and links to issuer detail pages. Do not call the selection top-performing without provider performance data; the search continues to cover all issuer listings. |
 
 ## Delegated defaults
 

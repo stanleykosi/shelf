@@ -7,9 +7,10 @@ view, portfolio, records, sharing and deliberate investment workflows.
 
 Discover uses one search field: it checks both live issuer feeds for a company first, then uses
 OpenRouter automatically to suggest the owner of an unmatched product. The UI labels AI ownership
-as unverified, while stock assets and mints come only from the current issuer feeds.
-The reviewed product collection remains browseable, and its issuer links are checked against
-current listings rather than assumed from saved token snapshots.
+as unverified, while stock assets and mints come only from the current issuer feeds. Discover
+shows a rotating, sector-filtered company spotlight built only from current issuer listings,
+including public xStocks and PreStocks exposure. Spotlight names are an editorial discovery
+selection, not a performance ranking. Search still covers the full feeds.
 
 The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share. Barcode discovery uses public Open Food/Beauty/Products Facts for a product-name clue before the same AI and issuer lookup.
 
@@ -44,7 +45,7 @@ PLAYWRIGHT_BASE_URL=https://shelf-one-phi.vercel.app npm run test:browser
 
 Browser tests are read-only and use the installed Linux Chromium. They do not install or use Windows Chrome, Firefox, or WebKit.
 
-Live issuer results use optional logo images supplied by xStocks and PreStocks. Shelf accepts only their known HTTPS logo paths and shows initials when a provider omits an image or it fails to load. Logos do not establish product ownership.
+Live issuer results and the Discover company table use optional logo images supplied by xStocks and PreStocks. Shelf accepts only their known HTTPS logo paths and shows initials when a provider omits an image or it fails to load. Logos do not establish product ownership.
 
 ## Repository map
 

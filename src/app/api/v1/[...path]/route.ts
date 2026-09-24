@@ -52,6 +52,7 @@ import type {
   WalletSummary,
 } from "@/domain/identity";
 import type { MarketFeed } from "@/domain/market-data";
+import { buildIssuerSpotlight } from "@/domain/issuer-spotlight";
 import type { RecognitionMatch } from "@/domain/types";
 import {
   companyFromIssuerListing,
@@ -667,6 +668,7 @@ async function getResponse(request: NextRequest, path: string[]) {
 
   if (pathIs(path, "catalog", "prestocks")) return preStocksListings();
   if (pathIs(path, "catalog", "xstocks")) return xStocksListings();
+  if (pathIs(path, "issuer", "spotlight")) return buildIssuerSpotlight(await issuerListings());
   if (pathIs(path, "issuer", "reviewed")) return reviewedIssuerLinks(await issuerListings());
   if (path.length === 4 && path[0] === "issuer" && path[1] === "asset") {
     return exactIssuerAsset(path[2], path[3]);
@@ -1595,6 +1597,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
     }
     if (
       pathIs(path, "issuer", "search") ||
+      pathIs(path, "issuer", "spotlight") ||
       pathIs(path, "issuer", "reviewed") ||
       (path.length === 4 && path[0] === "issuer" && path[1] === "asset") ||
       pathIs(path, "catalog", "prestocks") ||

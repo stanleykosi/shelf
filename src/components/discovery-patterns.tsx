@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, Check, Search } from "lucide-react";
-import { companyById, productById, products, sources } from "@/data/catalog";
-import type { Brand, Company, Product } from "@/domain/types";
+import { companyById, products, sources } from "@/data/catalog";
+import type { Company, Product } from "@/domain/types";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
 
 const reviewedProductImages: Partial<
@@ -118,24 +118,6 @@ export function ProductTile({ product }: { product: Product }) {
         <span>{product.brand}</span>
         <small>{company?.name ?? "Company under review"}</small>
       </span>
-    </Link>
-  );
-}
-
-export function BrandRow({ brand }: { brand: Brand }) {
-  const brandProducts = brand.productIds
-    .map((id) => productById(id))
-    .filter((product) => product !== undefined);
-  const companyNames = brand.companyRelationships
-    .map((relationship) => companyById(relationship.companyId)?.name)
-    .filter(Boolean);
-
-  return (
-    <Link className="brand-row" href={("/brands/" + brand.slug) as Route}>
-      <span className="brand-row-identity" aria-hidden="true">{initials(brand.name)}</span>
-      <span className="brand-row-name"><strong>{brand.name}</strong><small>Brand</small></span>
-      <span className="brand-row-products">{brandProducts.slice(0, 3).map((item) => item.name).join(" · ")}</span>
-      <span className="brand-row-company">{companyNames.join(", ")}</span>
     </Link>
   );
 }

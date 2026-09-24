@@ -99,11 +99,11 @@ describe("frontend route architecture", () => {
 
   it("maps legacy routes one way while preserving only approved state", () => {
     expect(legacyRedirectFor("/markets", new URLSearchParams("q=apple"))).toEqual({
-      destination: "/discover?entity=company&q=apple",
+      destination: "/discover?q=apple",
       permanent: true,
     });
     expect(legacyRedirectFor("/markets/private", new URLSearchParams("sort=name"))).toEqual({
-      destination: "/discover?entity=company&market=private&sort=name",
+      destination: "/discover?market=private&sort=name",
       permanent: true,
     });
     expect(
@@ -112,7 +112,7 @@ describe("frontend route architecture", () => {
         new URLSearchParams("entity=product&market=private&q=apple"),
       ),
     ).toEqual({
-      destination: "/discover?entity=company&market=public&q=apple",
+      destination: "/discover?market=public&q=apple",
       permanent: true,
     });
     expect(legacyRedirectFor("/wallet/send", new URLSearchParams("asset=usdc&amount=50"))).toEqual({
@@ -136,8 +136,8 @@ describe("frontend route architecture", () => {
   });
 
   it("accepts only same-origin relative return destinations and safe query keys", () => {
-    expect(safeReturnTo("/discover?q=apple&category=electronics")).toBe(
-      "/discover?q=apple&category=electronics",
+    expect(safeReturnTo("/discover?q=apple&category=electronics&sector=Technology")).toBe(
+      "/discover?q=apple&sector=Technology",
     );
     expect(safeReturnTo("/portfolio/activity?status=failed&recipient=secret")).toBe(
       "/portfolio/activity?status=failed",
