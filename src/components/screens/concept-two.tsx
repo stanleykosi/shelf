@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronRight, Pause, Play, ScanLine, Search } from "lucide-react";
-import { articles, brands, companies, companyById, productById, products, sources } from "@/data/catalog";
+import { ArrowDown, ArrowUpRight, Check, ChevronRight, Pause, Play, ScanLine, Search } from "lucide-react";
+import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import { ProductArtwork, ResearchTable } from "@/components/discovery-patterns";
+import { CapitalRelationship } from "@/components/capital-relationship";
 
 const examples = ["product-doritos-snack", "product-apple-iphone", "product-tide-laundry"]
   .map((id) => productById(id))
@@ -28,9 +29,6 @@ export function ConceptTwoHome() {
   const [chapter, setChapter] = useState(0);
   const [motionPaused, setMotionPaused] = useState(false);
   const product = examples[exampleIndex];
-  const company = companyById(product.companyId)!;
-  const brand = brands.find((item) => item.name === product.brand)!;
-  const source = sources.find((item) => product.sourceIds.includes(item.id))!;
   const familiarCompanies = companies.filter((item) => products.some((entry) => entry.companyId === item.id));
 
   useEffect(() => {
@@ -113,14 +111,7 @@ export function ConceptTwoHome() {
               <nav className="c2-example-nav" aria-label="Example product"><span>Start with a product</span>{examples.map((item, index) => <button key={item.id} aria-pressed={exampleIndex === index} onClick={() => setExampleIndex(index)} type="button"><span>{item.brand}</span><ChevronRight size={15} aria-hidden="true" /></button>)}<Link href="/discover?concept=2&entity=product">All products <ArrowUpRight size={14} aria-hidden="true" /></Link></nav>
               <div className="c2-board-content" key={product.id}>
                 <div className="c2-board-title"><div><span>Relationship explorer</span><h2>Behind {product.brand}.</h2></div><span className="c2-board-index">0{exampleIndex + 1} / 03</span></div>
-                <div className="c2-entity-trail">
-                  <Link href={("/products/" + product.slug) as Route}><ProductArtwork product={product} sizes="(max-width: 819px) 110px, 200px" /><small>Product</small><strong>{product.name}</strong></Link>
-                  <span className="c2-connector" aria-hidden="true"><ArrowRight size={17} /></span>
-                  <Link className="c2-trail-identity" href={("/brands/" + brand.slug) as Route}><span className="c2-type-symbol">{product.brand.slice(0, 1)}</span><small>Brand</small><strong>{product.brand}</strong></Link>
-                  <span className="c2-connector" aria-hidden="true"><ArrowRight size={17} /></span>
-                  <Link className="c2-trail-identity c2-trail-company" href={("/companies/" + company.slug) as Route}><span className="c2-type-symbol">{company.ticker ?? company.name.slice(0, 2)}</span><small>Company</small><strong>{company.name}</strong></Link>
-                </div>
-                <footer className="c2-evidence-ledger"><div><span>Relationship</span><strong>Global parent</strong></div><div><span>Source</span><a href={source.url} target="_blank" rel="noreferrer">{source.publisher} <ArrowUpRight size={12} aria-hidden="true" /></a></div><div><span>Reviewed</span><strong>{source.verifiedAt}</strong></div><div><span>Scope</span><strong>Family-level · region may vary</strong></div></footer>
+                <CapitalRelationship product={product} />
               </div>
             </div>
           </div>

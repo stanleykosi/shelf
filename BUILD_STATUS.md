@@ -1,6 +1,14 @@
 # Shelf build status
 
-Updated: 2026-09-23
+Updated: 2026-09-24
+
+## Active frontend phase — Scan / Scan Results
+
+Concept 2 is the accepted visual contract for this phase. Implemented local Scan intake, memory-only result verification, in-flow correction, and exact shared Home Relationship Explorer extraction. Compliance review: `docs/SCAN_CONCEPT_2_REVIEW.md`; Scan-only guide extension: `docs/PRODUCT_DESIGN_GUIDE.md`. No entity-detail, Saved or Portfolio redesign.
+
+Phase complete for visual review, not yet user-accepted. ESLint, TypeScript, 15 Vitest files/93 tests, production build, and `git diff --check` pass. `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3200 npx playwright test`: 41 passed, 7 expected project/viewport skips, including all 20 Scan desktop/mobile cases. Reviewed production captures at 390/430/768/1280/1440; gallery and reproduction command: `artifacts/scan-concept-2/README.md`. Capture produced no browser page errors. Build emitted a non-fatal existing Magic SDK network-initialization warning in the restricted environment; it exited successfully. Tests ran on the available Node 24.12.0 runtime (package target remains Node 22).
+
+Camera lifecycle was verified using browser-generated media tracks, not physical hardware. Native BarcodeDetector availability and real-device permission UI still require device QA; live recognition accuracy and authenticated persistence were not exercised by this visual phase. No deployment, paid recognition, wallet signing or money movement. Next task: wait for explicit user review/acceptance of Scan and Scan Results. Do not start Product/Brand/Company Detail, Saved or Portfolio redesign.
 
 ## Current release
 

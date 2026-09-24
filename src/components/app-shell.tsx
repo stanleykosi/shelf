@@ -54,7 +54,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const comparisonPage = pathname === "/" || pathname === "/discover";
-  const conceptTwo = comparisonPage && searchParams.get("concept") === "2";
+  const conceptTwo = (comparisonPage && searchParams.get("concept") === "2") || pathname === "/scan" || pathname === "/scan/results";
   const activeSection = activePrimarySection(pathname);
   function comparisonHref(concept: string) {
     const params = new URLSearchParams(searchParams.toString());

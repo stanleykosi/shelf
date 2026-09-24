@@ -786,6 +786,18 @@ Executable quotes, buy buttons, holdings, raw mints, AI-generated unknown matche
 
 ## Scan
 
+### Accepted Concept 2 extension — 2026-09-23
+
+Scan and Scan Results use **Concept 2 — Capital Research Direction**, now accepted and authoritative. The implemented Shell/Home/Discover define its unchanged visual rules; earlier visual concept records below are historical. See `SCAN_CONCEPT_2_REVIEW.md` for the pre-implementation code-based compliance review.
+
+Use the existing dark/mint shell with a mostly light, ruled intake workspace. Camera is primary; Upload (including screenshots) and Search are strong secondary choices. Barcode, Receipt and Approved link are progressively disclosed, not seven peer tabs. Desktop uses an input workspace beside concise method guidance; mobile places capture/preview and actions first with existing bottom-nav clearance. Dark media treatment is functional, not a new page theme.
+
+Camera permission is requested only on action; distinguish requesting, blocked, unavailable and active states. Stop tracks on capture, method change, background and unmount. Offer switching only when multiple cameras are available. Validate files before preparation; no upload on selection. Preview precedes per-image versioned OpenRouter consent; deterministic barcode/link/search never request image-processing consent. Cancel aborts the request locally, with accurate best-effort provider wording.
+
+Results distinguish proposed identity, user-confirmed Product, and independently reviewed catalog relationship. Reuse Home's exact Relationship Explorer trail and evidence ledger after confirmation. Use a desktop candidate navigator/detail pane and mobile previous/next count. Correction is a native modal drawer/sheet with the shared SearchCommand, preserving all other candidate decisions. Unknown Products have no invented Company. Confidence scores are omitted until user-facing calibration is established. Results and raw labels remain in memory only; reload/expiry explains recovery. Save only confirmed catalog IDs. No investment action appears here.
+
+Scan refinement (2026-09-24): use a compact neutral media workspace with concise capture-quality guidance. Render previews at intrinsic size with bounded width/height and `object-fit: contain`; never enlarge small inputs. Remove isolated step numbering and redundant journey copy from the method rail. Keep the external recipients, purpose, Shelf non-retention, required no-training/zero-retention routing and provider operational-metadata caveat visible before acknowledgement. A keyboard-accessible “Processing details” disclosure holds supplemental timing, fail-closed, cancellation and consent-version explanation. A visible consent status explains why Identify is disabled and when it is ready. The acknowledgement and server consent contract are unchanged. Results retain the accepted verification composition.
+
 ### Route
 `/scan?method=`
 

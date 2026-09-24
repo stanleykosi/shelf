@@ -6,8 +6,6 @@ import {
   CompanyScreen,
   LearnScreen,
   ProductScreen,
-  ScanResultsScreen,
-  ScanScreen,
   ShelfScreen,
 } from "@/components/screens/discovery";
 import {
@@ -15,6 +13,8 @@ import {
   ConceptHomeScreen,
 } from "@/components/screens/concept-discovery";
 import { ConceptTwoHome } from "@/components/screens/concept-two";
+import { ScanScreen } from "@/components/screens/scan";
+import { ScanResultsScreen } from "@/components/screens/scan-results";
 import {
   EligibilityScreen,
   MagicCallbackScreen,

@@ -15,10 +15,10 @@ test("comparison keeps both concepts accessible and preserves search/filter cont
   await expect(page.getByRole("heading", { name: "Products", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /iPhone/ }).first()).toBeVisible();
   const comparison = page.getByRole("navigation", { name: "Design comparison" });
-  await comparison.getByRole("link", { name: /01 Editorial/ }).click();
+  await comparison.getByRole("link", { name: /01 Concept 1/ }).click();
   await expect(page).toHaveURL(/q=Apple/);
   await expect(page).not.toHaveURL(/concept=2/);
-  await comparison.getByRole("link", { name: /02 Capital/ }).click();
+  await comparison.getByRole("link", { name: /02 Concept 2/ }).click();
   await expect(page).toHaveURL(/concept=2/);
   await expect(page.getByLabel("Search products, brands, or companies")).toHaveValue("Apple");
 });
