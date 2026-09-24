@@ -9,15 +9,19 @@ export const issuerSectors = [
   "Media",
   "Industrials",
   "Energy",
+  "Funds & ETFs",
   "Other",
 ] as const;
 
 export type IssuerSector = (typeof issuerSectors)[number];
-export type SpotlightListing = IssuerListing & { sector: IssuerSector };
+export type DirectoryListing = {
+  provider: IssuerListing["provider"];
+  asset: Pick<IssuerListing["asset"], "companyId" | "name" | "symbol" | "logoUrl">;
+  sector: IssuerSector;
+};
 
-export type IssuerSpotlight = {
-  featured: SpotlightListing[];
-  listings: SpotlightListing[];
+export type IssuerDirectory = {
+  listings: DirectoryListing[];
   unavailable: string[];
   stale: string[];
 };
@@ -70,43 +74,52 @@ function shuffled<T>(items: T[], random: () => number): T[] {
   return result;
 }
 
-export function buildIssuerSpotlight(
-  feeds: IssuerFeedSnapshot,
-  random: () => number = Math.random,
-): IssuerSpotlight {
-  const listings = feeds.listings.flatMap<SpotlightListing>((listing) => {
+export function buildIssuerDirectory(feeds: IssuerFeedSnapshot): IssuerDirectory {
+  const listings = feeds.listings.map<DirectoryListing>((listing) => {
     const symbol = listing.asset.symbol.toUpperCase();
     const sector = listing.provider === "xstocks"
-      ? publicSectors[symbol]
+      ? publicSectors[symbol] ?? (/\bETF\b/i.test(listing.asset.name) ? "Funds & ETFs" : "Other")
       : privateSectors[symbol] ?? "Other";
-    return sector ? [{ ...listing, sector }] : [];
+    return {
+      provider: listing.provider,
+      asset: {
+        companyId: listing.asset.companyId,
+        name: listing.asset.name,
+        symbol: listing.asset.symbol,
+        logoUrl: listing.asset.logoUrl,
+      },
+      sector,
+    };
   });
 
-  const publicListings = listings.filter((listing) => listing.provider === "xstocks");
-  const privateListings = listings.filter((listing) => listing.provider === "prestocks");
-  const familiar = publicListings.filter((listing) => familiarPublicSymbols.has(listing.asset.symbol.toUpperCase()));
-  const others = publicListings.filter((listing) => !familiarPublicSymbols.has(listing.asset.symbol.toUpperCase()));
-  const featuredPublic = [
-    ...shuffled(familiar, random).slice(0, 4),
-    ...shuffled(others, random),
-  ].slice(0, 10);
-  const featuredPrivate = shuffled(privateListings, random).slice(0, 2);
-  const featured = [
-    ...featuredPublic.slice(0, 4),
-    ...featuredPrivate.slice(0, 1),
-    ...featuredPublic.slice(4, 8),
-    ...featuredPrivate.slice(1),
-    ...featuredPublic.slice(8),
-  ];
-  const featuredIds = new Set(featured.map((listing) => listing.asset.companyId));
-  const remaining = listings
-    .filter((listing) => !featuredIds.has(listing.asset.companyId))
-    .toSorted((a, b) => a.asset.name.localeCompare(b.asset.name));
-
   return {
-    featured,
-    listings: [...featured, ...remaining],
+    listings: listings.toSorted((a, b) => a.asset.name.localeCompare(b.asset.name)),
     unavailable: feeds.unavailable,
     stale: feeds.stale,
   };
+}
+
+export function selectFeaturedCompanies(
+  listings: DirectoryListing[],
+  random: () => number = Math.random,
+): DirectoryListing[] {
+  const publicListings = listings.filter((listing) => listing.provider === "xstocks");
+  const privateListings = listings.filter((listing) => listing.provider === "prestocks");
+  const familiar = publicListings.filter((listing) => familiarPublicSymbols.has(listing.asset.symbol.toUpperCase()));
+  const others = publicListings.filter((listing) =>
+    publicSectors[listing.asset.symbol.toUpperCase()] && !familiarPublicSymbols.has(listing.asset.symbol.toUpperCase()),
+  );
+  const publicSelection = [
+    ...shuffled(familiar, random).slice(0, 4),
+    ...shuffled(others, random),
+    ...shuffled(publicListings.filter((listing) => !publicSectors[listing.asset.symbol.toUpperCase()]), random),
+  ].slice(0, 8);
+  const privateSelection = shuffled(privateListings, random).slice(0, 2);
+
+  return [
+    ...publicSelection.slice(0, 4),
+    ...privateSelection.slice(0, 1),
+    ...publicSelection.slice(4),
+    ...privateSelection.slice(1),
+  ];
 }

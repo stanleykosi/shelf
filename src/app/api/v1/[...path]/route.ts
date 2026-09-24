@@ -52,7 +52,8 @@ import type {
   WalletSummary,
 } from "@/domain/identity";
 import type { MarketFeed } from "@/domain/market-data";
-import { buildIssuerSpotlight } from "@/domain/issuer-spotlight";
+import { buildIssuerDirectory } from "@/domain/issuer-spotlight";
+import { readIssuerDirectory } from "@/db/issuer-directory";
 import type { RecognitionMatch } from "@/domain/types";
 import {
   companyFromIssuerListing,
@@ -668,7 +669,6 @@ async function getResponse(request: NextRequest, path: string[]) {
 
   if (pathIs(path, "catalog", "prestocks")) return preStocksListings();
   if (pathIs(path, "catalog", "xstocks")) return xStocksListings();
-  if (pathIs(path, "issuer", "spotlight")) return buildIssuerSpotlight(await issuerListings());
   if (pathIs(path, "issuer", "reviewed")) return reviewedIssuerLinks(await issuerListings());
   if (path.length === 4 && path[0] === "issuer" && path[1] === "asset") {
     return exactIssuerAsset(path[2], path[3]);
@@ -1592,12 +1592,20 @@ async function postResponse(request: NextRequest, path: string[]) {
 export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[...path]">) {
   try {
     const { path } = await context.params;
+    if (pathIs(path, "issuer", "directory")) {
+      const snapshot = await readIssuerDirectory().catch(() => null);
+      const directory = snapshot ?? buildIssuerDirectory(await issuerListings());
+      const response = success(directory);
+      if (!directory.unavailable.length && !directory.stale.length) {
+        response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=600");
+      }
+      return response;
+    }
     if (path[0] === "markets" && path[1] === "history" && path[2]) {
       return runWithRuntimeState(false, async () => success(await marketHistory(path[2])));
     }
     if (
       pathIs(path, "issuer", "search") ||
-      pathIs(path, "issuer", "spotlight") ||
       pathIs(path, "issuer", "reviewed") ||
       (path.length === 4 && path[0] === "issuer" && path[1] === "asset") ||
       pathIs(path, "catalog", "prestocks") ||

@@ -6,12 +6,13 @@ These are functional UX decisions, not a visual identity. The frontend teammate 
 
 Mobile primary navigation: **Discover · Scan · Shelf · Portfolio**. Scan is visually prominent but still has a text label. Account/wallet/settings live in the account menu. Learning content is reached from Discover, products, companies and the assistant. Desktop uses the same destinations in a header/sidebar; preserve route meaning.
 
-In Discover, the active U30 browse view is a rotating table of current xStocks and PreStocks
-company assets. Sector labels are editorial; the selection does not imply strong performance or
-trading eligibility. Product and company queries use the same full-feed search, with automatic
-AI ownership lookup only when the issuer feeds have no direct match. Browse filters do not limit
-search results. Reviewed products remain in the educational and saved-product journeys, not in
-Discover's company browse table.
+In Discover, the active U31 browse view has a per-visit rotating featured selection and a full
+directory of current xStocks and PreStocks assets, ten per page. Market grouping and editorial
+sector labels help browsing; a missing issuer sector is Other. Neither the featured selection nor
+the directory implies strong performance or trading eligibility. Product and company queries
+use the same full-feed search, with automatic AI ownership lookup only when the issuer feeds have
+no direct match. Browse filters do not limit search results. Reviewed products remain in the
+educational and saved-product journeys, not in Discover's company browse table.
 
 Guests see Portfolio's explanation and sign-in CTA, never fabricated balances. Existing members see a pending-transaction banner across financial screens until resolution. Do not put market tickers or flashing price charts above the scanner.
 

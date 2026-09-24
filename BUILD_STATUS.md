@@ -2,6 +2,48 @@
 
 Updated: 2026-09-24
 
+## U31 complete issuer directory — production
+
+Discover now loads every current Solana xStocks and PreStocks listing from a lightweight issuer
+directory. The Featured tab rotates ten names on each visit, including up to two PreStocks
+listings. All listings paginates the complete set at ten rows per page, with market and editorial
+sector filters, name ordering, page selection, and shareable page/view parameters. The old
+27-company cap and manual mix-refresh action are gone. Search still checks the full current
+issuer feeds before its automatic product-owner AI fallback; an asset detail page rechecks its
+exact issuer symbol and mint before a purchase draft.
+
+Migration `drizzle/0003_nervous_captain_stacy.sql` adds provider snapshots in PostgreSQL. The
+five-minute Railway Function calls the shared-secret refresh endpoint, which validates both
+complete feeds before saving lightweight company rows. The directory route reads the snapshot
+and uses a five-minute Vercel CDN cache only while both feeds are fresh. Missing or stale feeds
+remain labeled; a new deployment can fall back to live provider reads before its first snapshot.
+The Railway Function artifact is generated from the repository source with the exact pinned
+`postgres@3.4.9` dependency. Its 13:40, 13:45, and 13:50 UTC production runs completed with
+`directory_feeds:2`, two checked jobs, and zero failures.
+
+`npm run check` passed ESLint, strict TypeScript, 100 Vitest tests in 16 files, and the Next.js
+16.3.5 production build. Focused desktop/mobile Chromium checks passed 17 cases with five
+intentional project-specific skips after selector corrections; they cover 10-row pagination,
+market filters, featured rotation and the anonymous refresh-endpoint denial. The earlier full
+browser run also passed all eight direct-first/AI-fallback search checks. An isolated PostgreSQL
+16 database accepted all migrations; an authenticated local refresh stored 1,124 xStocks and
+eight PreStocks listings in 6.256 seconds while an anonymous request returned 404. Local warm
+Chromium page visits displayed the first rows in 885, 880 and 818 ms.
+
+The additive migration is applied to Railway PostgreSQL, and Vercel deployment
+`dpl_G3EnqdJrcYXAzGZRCGo1cPuCGN7V` is Ready on the production alias. `/readyz` confirms
+PostgreSQL and configured providers while trade execution remains disabled. Production directory
+data shows 1,132 listings
+(1,124 public and eight private), no stale or unavailable feed warnings. A cold CDN read took
+3,244 ms and a repeat hit took 408 ms. Production Chromium showed ten Featured rows, then ten
+of 1,132 rows on All listings, then rows 11–20 without a new feed read. Its first cold-browser
+visit took 7,797 ms; a repeat visit took 834 ms. A later cold-browser profile measured 2,579 ms
+to first rows, including 1,852 ms to DOM ready and 2,289 ms to the directory response. The final
+pagination hover uses dark text on a light background in computed production styles. The
+one-second target is met on these warm visits, but is **not guaranteed on a cold browser or CDN
+miss**. No paid AI call, wallet funding,
+quote, trade, signing, broadcast or money movement was performed for U31.
+
 ## U30 live company spotlight — production
 
 Discover now replaces its reviewed product, brand and company browse tables with one rotating
@@ -338,12 +380,12 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Preserve U29 in remote Git before a future automatic Git deployment can replace the direct
-Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
-another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
-fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate
-approval gates. Only after separate owner approval for funding and live-money testing, execute
-the activation checklist without widening its limits.
+Preserve the local U31 commit in remote Git only after the owner's push approval under AGENTS.md.
+Monitor the five-minute
+worker and stale-feed warnings. Do not create another guest identity to evade the AI quota. Paid
+Jupiter build compatibility and funded execution remain separate approval gates. Only after
+separate owner approval for funding and live-money testing, execute the activation checklist
+without widening its limits.
 
 ## Recent maintenance
 

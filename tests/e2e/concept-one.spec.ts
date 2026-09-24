@@ -27,11 +27,10 @@ const spotlightListings = [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/v1/issuer/spotlight", (route) => route.fulfill({
+  await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({ data: {
-      featured: spotlightListings,
       listings: spotlightListings,
       unavailable: [],
       stale: [],
@@ -115,10 +114,10 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await page.getByRole("button", { name: "All sectors" }).click();
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("dialog").getByLabel("Market").selectOption("private");
+    await page.getByRole("dialog").getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
     await page.getByRole("dialog").getByRole("button", { name: /Show .* companies/ }).click();
   } else {
-    await page.getByLabel("Market").selectOption("private");
+    await page.getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
   }
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "View SpaceX details" })).toBeVisible();
@@ -133,7 +132,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: "PreStocks exposure" }).click();
   } else {
-    await page.getByLabel("Market").selectOption("");
+    await page.getByRole("combobox", { name: "Market", exact: true }).selectOption("");
   }
 
   const hasDocumentOverflow = await page.evaluate(
@@ -144,6 +143,53 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await page.getByRole("link", { name: "View PepsiCo details" }).click();
   await expect(page).toHaveURL(/\/assets\/xstocks\/PEPx$/);
   await expect(page.getByRole("heading", { name: "PepsiCo" })).toBeVisible();
+});
+
+test("the full issuer directory paginates ten listings and preserves market groups", async ({ page }, testInfo) => {
+  let directoryRequests = 0;
+  const publicListings = Array.from({ length: 23 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return {
+      provider: "xstocks",
+      sector: "Other",
+      asset: { companyId: `issuer:xstocks:C${number}x`, name: `Company ${number}`, symbol: `C${number}x` },
+    };
+  });
+  await page.route("**/api/v1/issuer/directory", (route) => {
+    directoryRequests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: {
+        listings: [...publicListings, spotlightListings[2], spotlightListings[3]],
+        unavailable: [],
+        stale: [],
+      } }),
+    });
+  });
+  await page.goto("/discover");
+
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(10);
+  await expect(page.getByRole("button", { name: "Refresh mix" })).toHaveCount(0);
+  await page.getByRole("button", { name: "All listings" }).click();
+  await expect(page.getByText("Showing 1–10 of 25")).toBeVisible();
+  await page.getByRole("navigation", { name: "Directory pages" }).getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Showing 11–20 of 25")).toBeVisible();
+  await page.getByLabel("Choose directory page").selectOption("3");
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(5);
+  await expect(page).toHaveURL(/view=all.*page=3/);
+
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("dialog").getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
+    await page.getByRole("dialog").getByRole("button", { name: /Show .* companies/ }).click();
+  } else {
+    await page.getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
+  }
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "View OpenAI details" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Directory pages" })).toHaveCount(0);
+  expect(directoryRequests).toBe(1);
 });
 
 test("mobile shell keeps the approved destinations and active state", async ({ page }, testInfo) => {
@@ -179,15 +225,15 @@ test("mobile Discover exposes sectors and market filters without hiding company 
   await expect(page.getByRole("button", { name: "Technology" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Food & drink" })).toBeVisible();
   await expect(page.getByRole("link", { name: "View OpenAI details" }).locator("img")).toBeVisible();
-  await expect(page.getByLabel("Market")).not.toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Market", exact: true })).not.toBeVisible();
 
   await page.getByRole("button", { name: /^Filters/ }).click();
   const filterDialog = page.getByRole("dialog");
-  await filterDialog.getByLabel("Market").selectOption("private");
+  await filterDialog.getByRole("combobox", { name: "Market", exact: true }).selectOption("private");
   await expect(page).toHaveURL(/market=private/);
   await expect(page.getByLabel("1 active filters")).toBeVisible();
   await filterDialog.getByRole("button", { name: /Show .* companies/ }).click();
-  await expect(page.getByLabel("Market")).not.toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Market", exact: true })).not.toBeVisible();
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
 });
 

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
 import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
-import { issuerSectors, type IssuerSector, type IssuerSpotlight, type SpotlightListing } from "@/domain/issuer-spotlight";
+import { issuerSectors, selectFeaturedCompanies, type DirectoryListing, type IssuerDirectory, type IssuerSector } from "@/domain/issuer-spotlight";
 import { apiRequest, postJson } from "@/lib/api-client";
 import { IssuerLogo } from "@/components/issuer-logo";
 import {
@@ -132,7 +132,7 @@ function FilterFields({ market, setMarket, setSort, sort }: FilterProps) {
   return (
     <div className="filter-fields">
       <label><span>Market</span><select value={market} onChange={(event) => setMarket(event.target.value)}><option value="">Both markets</option><option value="public">Public · xStocks</option><option value="private">PreStocks exposure</option></select></label>
-      <label><span>Order</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="">Featured order</option><option value="name">Name A–Z</option></select></label>
+      <label><span>Order</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="">Market then name</option><option value="name">Name A–Z</option></select></label>
     </div>
   );
 }
@@ -173,7 +173,7 @@ function LiveIssuerResult({ listing }: { listing: IssuerListing }) {
   );
 }
 
-function SpotlightCompanyTable({ listings }: { listings: SpotlightListing[] }) {
+function SpotlightCompanyTable({ listings }: { listings: DirectoryListing[] }) {
   return (
     <div className="issuer-spotlight-table-wrap">
       <table className="issuer-spotlight-table">
@@ -274,7 +274,7 @@ function LiveSearchResults({
   );
 }
 
-export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSector, initialSort }: { initialMarket?: string; initialQuery?: string; initialSector?: string; initialSort?: string }) {
+export function ConceptDiscoverScreen({ initialMarket, initialPage, initialQuery, initialSector, initialSort, initialView }: { initialMarket?: string; initialPage?: string; initialQuery?: string; initialSector?: string; initialSort?: string; initialView?: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const leavingDiscover = useRef(false);
   const searchRequest = useRef(0);
@@ -283,33 +283,39 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
   const [searchResult, setSearchResult] = useState<DiscoveryQueryResult | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(Boolean(initialQuery?.trim()));
-  const [spotlight, setSpotlight] = useState<IssuerSpotlight | null>(null);
-  const [spotlightError, setSpotlightError] = useState(false);
-  const [spotlightLoading, setSpotlightLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
+  const [directory, setDirectory] = useState<IssuerDirectory | null>(null);
+  const [featured, setFeatured] = useState<DirectoryListing[]>([]);
+  const [directoryError, setDirectoryError] = useState(false);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
+  const [showAll, setShowAll] = useState(initialView === "all" || Number(initialPage) > 1);
+  const [page, setPage] = useState(() => {
+    const value = Number(initialPage);
+    return Number.isSafeInteger(value) && value > 0 ? value : 1;
+  });
   const [sector, setSector] = useState(initialSector ?? "");
   const [market, setMarket] = useState(initialMarket ?? "");
   const [sort, setSort] = useState(initialSort ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const loadSpotlight = useCallback(async () => {
-    setSpotlightLoading(true);
-    setSpotlightError(false);
+  const loadDirectory = useCallback(async () => {
+    setDirectoryLoading(true);
+    setDirectoryError(false);
     try {
-      const result = await apiRequest<IssuerSpotlight>("issuer/spotlight", { cache: "no-store" });
-      setSpotlight(result);
+      const result = await apiRequest<IssuerDirectory>("issuer/directory");
+      setDirectory(result);
+      setFeatured(selectFeaturedCompanies(result.listings));
     } catch {
-      setSpotlightError(true);
+      setDirectoryError(true);
     } finally {
-      setSpotlightLoading(false);
+      setDirectoryLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (searchedQuery || query.trim() || spotlight) return;
-    const timer = window.setTimeout(() => void loadSpotlight(), 0);
+    if (searchedQuery || directory) return;
+    const timer = window.setTimeout(() => void loadDirectory(), 0);
     return () => window.clearTimeout(timer);
-  }, [loadSpotlight, query, searchedQuery, spotlight]);
+  }, [directory, loadDirectory, searchedQuery]);
 
   const runSearch = useCallback(async (term: string) => {
     const trimmed = term.trim();
@@ -375,6 +381,27 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
     };
   }, [filtersOpen]);
 
+  const availableSectors = issuerSectors.filter((candidate) =>
+    directory?.listings.some((listing) => listing.sector === candidate),
+  );
+  const matchingListings = useMemo(() => {
+    const matches = directory?.listings.filter((listing) =>
+      (!sector || listing.sector === sector) &&
+      (!market || (market === "public" ? listing.provider === "xstocks" : listing.provider === "prestocks")),
+    ) ?? [];
+    return sort === "name"
+      ? matches
+      : matches.toSorted((a, b) =>
+        a.provider === b.provider ? a.asset.name.localeCompare(b.asset.name) : a.provider === "xstocks" ? -1 : 1,
+      );
+  }, [directory, market, sector, sort]);
+  const showingFullList = showAll || Boolean(sector || market || sort);
+  const pageCount = Math.max(1, Math.ceil(matchingListings.length / 10));
+  const currentPage = directory ? Math.min(page, pageCount) : page;
+  const pageStart = (currentPage - 1) * 10;
+  const visibleListings = showingFullList
+    ? matchingListings.slice(pageStart, pageStart + 10)
+    : featured;
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (leavingDiscover.current) return;
@@ -383,34 +410,25 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
       if (sector) params.set("sector", sector);
       if (market) params.set("market", market);
       if (sort) params.set("sort", sort);
+      if (showAll) params.set("view", "all");
+      if (currentPage > 1) params.set("page", String(currentPage));
       window.history.replaceState(null, "", params.size ? `/discover?${params}` : "/discover");
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [market, query, sector, sort]);
+  }, [currentPage, market, query, sector, showAll, sort]);
 
-  const availableSectors = issuerSectors.filter((candidate) =>
-    spotlight?.listings.some((listing) => listing.sector === candidate),
-  );
-  const matchingListings = useMemo(() => {
-    const matches = spotlight?.listings.filter((listing) =>
-      (!sector || listing.sector === sector) &&
-      (!market || (market === "public" ? listing.provider === "xstocks" : listing.provider === "prestocks")),
-    ) ?? [];
-    return sort === "name"
-      ? matches.toSorted((a, b) => a.asset.name.localeCompare(b.asset.name))
-      : matches;
-  }, [market, sector, sort, spotlight]);
-  const showingFullList = showAll || Boolean(sector || market || sort);
-  const visibleListings = showingFullList ? matchingListings : spotlight?.featured ?? [];
+  function changeSector(value: string) { setSector(value); setPage(1); }
+  function changeMarket(value: string) { setMarket(value); setPage(1); }
+  function changeSort(value: string) { setSort(value); setPage(1); }
   const activeFilters = [
-    sector ? { label: sector, clear: () => setSector("") } : null,
-    sort ? { label: "Name A–Z", clear: () => setSort("") } : null,
-    market ? { label: market === "public" ? "Public · xStocks" : "PreStocks exposure", clear: () => setMarket("") } : null,
+    sector ? { label: sector, clear: () => changeSector("") } : null,
+    sort ? { label: "Name A–Z", clear: () => changeSort("") } : null,
+    market ? { label: market === "public" ? "Public · xStocks" : "PreStocks exposure", clear: () => changeMarket("") } : null,
   ].filter((filter) => filter !== null);
 
-  function clearFilters() { setSector(""); setMarket(""); setSort(""); setShowAll(false); }
+  function clearFilters() { setSector(""); setMarket(""); setSort(""); setShowAll(false); setPage(1); }
 
-  const filterProps: FilterProps = { market, setMarket, setSort, sort };
+  const filterProps: FilterProps = { market, setMarket: changeMarket, setSort: changeSort, sort };
 
   return (
     <div className="research-discover" onClickCapture={(event) => {
@@ -422,7 +440,6 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
           <h1>Discover</h1>
           <p>Search current xStocks and PreStocks listings. If neither matches, OpenRouter suggests a likely product owner.</p>
         </div>
-        <span>{spotlight ? `${spotlight.listings.length} live spotlight companies` : "Live issuer feeds"}</span>
       </header>
       <div className="discover-command-area">
         <SearchCommand
@@ -453,14 +470,13 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
             <div>
               <p className="eyebrow">Live company discovery</p>
               <h2 id="spotlight-heading">Companies to explore</h2>
-              <p>A changing selection from current xStocks and PreStocks listings. These are familiar names, not a performance ranking or recommendation. Search covers the full issuer feeds.</p>
+              <p>Featured names change when you visit. Browse every current xStocks and PreStocks listing below. This is not a performance ranking or recommendation.</p>
             </div>
-            <button disabled={spotlightLoading} onClick={() => void loadSpotlight()} type="button">Refresh mix</button>
           </div>
-          {spotlight?.unavailable.length ? <p className="live-search-caution">{spotlight.unavailable.join(" and ")} feed unavailable. This selection may be incomplete.</p> : null}
-          {spotlight?.stale.length ? <p className="live-search-caution">{spotlight.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
-          {spotlightError && spotlight ? <p className="live-search-caution">Could not refresh the company mix. Showing the previous selection.</p> : null}
-          <SectorTabs available={availableSectors} onChange={setSector} selected={sector} />
+          {directory?.unavailable.length ? <p className="live-search-caution">{directory.unavailable.join(" and ")} feed unavailable. This directory may be incomplete.</p> : null}
+          {directory?.stale.length ? <p className="live-search-caution">{directory.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
+          {directoryError && directory ? <p className="live-search-caution">Could not update the directory. Showing the previous list.</p> : null}
+          <SectorTabs available={availableSectors} onChange={changeSector} selected={sector} />
           <div className="mobile-filter-command">
             <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
           </div>
@@ -472,26 +488,34 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
               <FilterFields {...filterProps} />
             </aside>
             <div className="result-workspace">
-              <div className="result-workspace-heading">
-                <p><strong>{showingFullList ? "Spotlight directory" : "Featured companies"}</strong></p>
-                <span>{visibleListings.length} companies</span>
+              <div aria-label="Browse companies" className="directory-view-tabs" role="group">
+                <button aria-pressed={!showingFullList} onClick={clearFilters} type="button">Featured</button>
+                <button aria-pressed={showingFullList} onClick={() => { setShowAll(true); setPage(1); }} type="button">All listings</button>
               </div>
-              {spotlightLoading && !spotlight ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
-              {spotlightError && !spotlight ? (
-                <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
+              <div className="result-workspace-heading">
+                <p><strong>{showingFullList ? "All issuer listings" : "Featured companies"}</strong></p>
+                {showingFullList && matchingListings.length ? <span>Showing {pageStart + 1}–{pageStart + visibleListings.length} of {matchingListings.length}</span> : null}
+              </div>
+              {directoryLoading && !directory ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
+              {directoryError && !directory ? (
+                <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadDirectory()} type="button">Retry listings</button></div>
               ) : null}
-              {spotlight && !visibleListings.length ? (
-                spotlight.unavailable.length && !spotlight.listings.length ? (
-                  <div className="research-empty"><h3>Issuer feeds unavailable</h3><p>We could not load current company listings. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
+              {directory && !visibleListings.length ? (
+                directory.unavailable.length && !directory.listings.length ? (
+                  <div className="research-empty"><h3>Issuer feeds unavailable</h3><p>We could not load current company listings. Search and scan remain available.</p><button onClick={() => void loadDirectory()} type="button">Retry listings</button></div>
                 ) : (
-                  <div className="research-empty"><h3>No companies in this selection</h3><p>Try another sector or market. Only current issuer listings appear here.</p><button onClick={clearFilters} type="button">Clear filters</button></div>
+                  <div className="research-empty"><h3>No listings in this group</h3><p>Try another sector or market. Only current issuer listings appear here.</p><button onClick={clearFilters} type="button">Clear filters</button></div>
                 )
               ) : null}
               {visibleListings.length ? <SpotlightCompanyTable listings={visibleListings} /> : null}
-              {spotlight && spotlight.listings.length > spotlight.featured.length && !activeFilters.length ? (
-                <button className="spotlight-more" onClick={() => setShowAll(!showAll)} type="button">
-                  {showAll ? "Show featured mix" : `Show all ${spotlight.listings.length} spotlight companies`}
-                </button>
+              {showingFullList && matchingListings.length > 10 ? (
+                <nav aria-label="Directory pages" className="directory-pagination">
+                  <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} type="button">Previous</button>
+                  <label>Page <select aria-label="Choose directory page" onChange={(event) => setPage(Number(event.target.value))} value={currentPage}>
+                    {Array.from({ length: pageCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+                  </select> of {pageCount}</label>
+                  <button disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} type="button">Next</button>
+                </nav>
               ) : null}
             </div>
           </div>

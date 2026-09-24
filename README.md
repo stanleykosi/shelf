@@ -8,9 +8,11 @@ view, portfolio, records, sharing and deliberate investment workflows.
 Discover uses one search field: it checks both live issuer feeds for a company first, then uses
 OpenRouter automatically to suggest the owner of an unmatched product. The UI labels AI ownership
 as unverified, while stock assets and mints come only from the current issuer feeds. Discover
-shows a rotating, sector-filtered company spotlight built only from current issuer listings,
-including public xStocks and PreStocks exposure. Spotlight names are an editorial discovery
-selection, not a performance ranking. Search still covers the full feeds.
+shows a rotating selection of familiar issuers plus a paginated directory of every current
+xStocks and PreStocks listing. The directory shows ten assets per page, grouped by market and
+filterable by editorial sector. Featured names are not a performance ranking. Search covers the
+same full feeds. The Railway worker keeps a validated directory snapshot in PostgreSQL; Vercel
+and browser caching keep repeat visits fast without freezing the per-visit featured selection.
 
 The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share. Barcode discovery uses public Open Food/Beauty/Products Facts for a product-name clue before the same AI and issuer lookup.
 

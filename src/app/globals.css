@@ -757,8 +757,6 @@ button.quiet-link:hover { background: transparent; color: var(--accent-strong); 
 
 .issuer-spotlight-heading h2 { margin: 5px 0 8px; font-size: 1.7rem; }
 .issuer-spotlight-heading p:last-child { max-width: 700px; margin: 0; color: var(--muted); font-size: 0.86rem; line-height: 1.55; }
-.issuer-spotlight-heading button,
-.spotlight-more,
 .back-to-companies {
   min-height: 40px;
   padding: 9px 13px;
@@ -770,11 +768,26 @@ button.quiet-link:hover { background: transparent; color: var(--accent-strong); 
   font-weight: 650;
 }
 
-.issuer-spotlight-heading button { flex: 0 0 auto; }
-.issuer-spotlight-heading button:disabled { opacity: 0.55; }
 .back-to-companies { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 42px; }
-.spotlight-more { margin-top: 18px; }
 .spotlight-status { padding: 30px 0; color: var(--muted); }
+
+.directory-view-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+.directory-view-tabs button {
+  padding: 11px 15px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 650;
+}
+.directory-view-tabs button[aria-pressed="true"] { border-bottom-color: var(--accent); color: var(--ink); }
+.directory-view-tabs button:hover { background: var(--surface-subtle); }
+.directory-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.directory-pagination button,
+.directory-pagination select { min-height: 40px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: white; color: var(--ink); }
+.directory-pagination button:hover:not(:disabled) { background: var(--surface-subtle); color: var(--ink); }
+.directory-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
+.directory-pagination label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.84rem; }
 
 .issuer-sector-tabs {
   display: flex;
@@ -1054,7 +1067,8 @@ button.quiet-link:hover { background: transparent; color: var(--accent-strong); 
   .issuer-spotlight-heading { align-items: flex-start; }
   .issuer-spotlight-heading h2 { font-size: 1.45rem; }
   .issuer-spotlight-heading p:last-child { font-size: 0.81rem; }
-  .issuer-spotlight-heading button { min-width: 72px; padding: 8px; }
+  .directory-pagination { gap: 6px; }
+  .directory-pagination button { padding: 8px; }
   .issuer-sector-tabs { margin-top: 19px; }
   .issuer-spotlight-table-wrap { overflow: visible; }
   .issuer-spotlight-table,

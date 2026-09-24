@@ -50,6 +50,7 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   const protectedResponse = await request.get("/account", { maxRedirects: 0 });
   expect(protectedResponse.status()).toBe(307);
   expect(protectedResponse.headers().location).toBe("/sign-in?returnTo=%2Faccount");
+  expect((await request.post("/api/internal/issuer-directory-refresh")).status()).toBe(404);
 
   for (const path of [
     "/products/not-a-reviewed-product",

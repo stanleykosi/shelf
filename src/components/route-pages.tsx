@@ -83,9 +83,11 @@ export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery 
     <ConceptDiscoverScreen
       key={first(query.q) ?? ""}
       initialMarket={first(query.market)}
+      initialPage={first(query.page)}
       initialQuery={first(query.q)}
       initialSector={first(query.sector)}
       initialSort={first(query.sort)}
+      initialView={first(query.view)}
     />
   );
 }

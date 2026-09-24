@@ -52,7 +52,8 @@ Status: 200 read/update; 201 new resource; 202 operation accepted/pending; 204 l
 | Method/path | Access / input | Output / behavior |
 |---|---|---|
 | GET /issuer/search?q=&provider=&offset= | guest/member | xStocks and PreStocks Solana listings; 50 per page, total, unavailable and stale feed names; query max 120 chars; provider xstocks/prestocks |
-| GET /issuer/spotlight | guest/member | no-store rotating discovery selection drawn from current xStocks and PreStocks feeds; returns `featured` (up to ten public and two PreStocks), `listings` (the editorial spotlight pool), sector labels, unavailable and stale feed names; not a performance ranking or the full searchable universe |
+| GET /issuer/directory | guest/member | cacheable lightweight list of every current xStocks and PreStocks asset from validated Railway/PostgreSQL snapshots, with direct-feed fallback until snapshots exist; returns `listings`, editorial sectors, unavailable and stale feed names. Browser paginates ten per page and chooses featured names per visit. Exact asset and trading checks bypass this display cache. |
+| POST /api/internal/issuer-directory-refresh | Railway worker only, shared-secret bearer | reads both public issuer feeds through the validated adapters and atomically replaces each successful provider snapshot; reports incomplete refresh if either provider fails |
 | GET /issuer/reviewed | guest/member | reviewed company IDs mapped only to current issuer listings; configured symbols also require the reviewed Solana mint to match; unavailable/stale feed names returned |
 | GET /products/{id} | guest/member | public product/relations + private saved flag only for member, no-store when personalized |
 | GET /companies/{id} | guest/member | CompanyCard, jurisdiction-aware promotion policy |
