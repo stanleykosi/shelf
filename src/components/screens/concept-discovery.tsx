@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
-import { articles, brands, companies, companyById, productById, products } from "@/data/catalog";
-import type { Category } from "@/domain/types";
+import { articles, companies, companyById, productById, products } from "@/data/catalog";
+import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
+import { issuerSectors, type IssuerSector, type IssuerSpotlight, type SpotlightListing } from "@/domain/issuer-spotlight";
+import { apiRequest, postJson } from "@/lib/api-client";
+import { IssuerLogo } from "@/components/issuer-logo";
 import {
-  BrandRow,
   ProductTile,
   RelationshipExplorer,
   ResearchTable,
@@ -16,20 +17,13 @@ import {
   SectionHeader,
 } from "@/components/discovery-patterns";
 
-const categoryLabels: Record<Category, string> = {
-  groceries: "Groceries",
-  beauty: "Beauty",
-  electronics: "Electronics",
-  clothing: "Clothing",
-  household: "Household",
+const searchErrorMessages: Record<string, string> = {
+  AI_PROVIDER_UNAVAILABLE: "Product ownership lookup is temporarily unavailable. Try again later.",
+  AI_PRIVACY_UNAVAILABLE: "Product ownership lookup is unavailable under Shelf's privacy settings.",
+  AI_DAILY_LIMIT_REACHED: "Today's AI search limit has been reached. Direct company searches still work.",
+  AI_MONTHLY_LIMIT_REACHED: "This month's AI search limit has been reached. Direct company searches still work.",
+  AI_USER_LIMIT_REACHED: "You've reached today's AI search limit. Direct company searches still work.",
 };
-
-const entityModes = [
-  ["all", "All"],
-  ["product", "Products"],
-  ["brand", "Brands"],
-  ["company", "Companies"],
-] as const;
 
 export function ConceptHomeScreen() {
   const featuredProducts = [
@@ -53,13 +47,13 @@ export function ConceptHomeScreen() {
           <p className="hero-context">Product-led company research</p>
           <h1 id="home-title">See the company behind what you know.</h1>
           <p className="research-hero-lede">
-            Start with a familiar product. Shelf connects it to the Brand and Company, then keeps
-            market exposure separate from the research.
+            Search a company against current xStocks and PreStocks listings. If neither matches,
+            Shelf sends the term to OpenRouter to suggest a product owner.
           </p>
           <form className="home-search-command" action="/discover" role="search">
             <Search size={20} aria-hidden="true" />
-            <label className="sr-only" htmlFor="home-research-search">Search products, brands, or companies</label>
-            <input id="home-research-search" name="q" placeholder="Search products, brands, or companies" type="search" />
+            <label className="sr-only" htmlFor="home-research-search">Search a company or product</label>
+            <input id="home-research-search" name="q" placeholder="Search a company or product" type="search" />
             <button type="submit"><span>Search</span><ArrowRight size={17} aria-hidden="true" /></button>
           </form>
           <div className="hero-actions">
@@ -76,7 +70,7 @@ export function ConceptHomeScreen() {
         <SectionHeader
           title="Start with something familiar"
           description="Products are the entry point—not tickers."
-          action={<Link className="quiet-link" href="/discover?entity=product">All products <ArrowRight size={15} aria-hidden="true" /></Link>}
+          action={<Link className="quiet-link" href="/discover">Explore companies <ArrowRight size={15} aria-hidden="true" /></Link>}
         />
         <div className="home-product-gallery">
           {featuredProducts.map((product) => <ProductTile key={product.id} product={product} />)}
@@ -86,8 +80,8 @@ export function ConceptHomeScreen() {
       <section className="research-home-section company-research-section">
         <SectionHeader
           title="Companies behind familiar brands"
-          description="Reviewed relationships, market context, and exposure status in one view."
-          action={<Link className="quiet-link" href="/discover?entity=company">Company directory <ArrowRight size={15} aria-hidden="true" /></Link>}
+          description="Reviewed relationships with current issuer availability checked from live feeds."
+          action={<Link className="quiet-link" href="/discover">Explore issuers <ArrowRight size={15} aria-hidden="true" /></Link>}
         />
         <ResearchTable companies={familiarCompanies} />
       </section>
@@ -103,7 +97,7 @@ export function ConceptHomeScreen() {
         </div>
         <dl className="coverage-metrics">
           <div><dt>Reviewed companies</dt><dd>{companies.length}</dd></div>
-          <div><dt>Supported exposure</dt><dd>{supportedCompanyCount}</dd></div>
+          <div><dt>Reviewed issuer records</dt><dd>{supportedCompanyCount}</dd></div>
           <div><dt>Verified relationships</dt><dd>{products.length}</dd></div>
         </dl>
         <div className="methodology-principles" aria-label="Research methodology principles">
@@ -128,52 +122,232 @@ export function ConceptHomeScreen() {
 }
 
 type FilterProps = {
-  availability: string;
-  category: string;
-  entity: string;
   market: string;
-  setAvailability: (value: string) => void;
-  setCategory: (value: string) => void;
   setMarket: (value: string) => void;
   setSort: (value: string) => void;
   sort: string;
 };
 
-function FilterFields({ availability, category, entity, market, setAvailability, setCategory, setMarket, setSort, sort }: FilterProps) {
+function FilterFields({ market, setMarket, setSort, sort }: FilterProps) {
   return (
     <div className="filter-fields">
-      <label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      {entity === "company" ? (
+      <label><span>Market</span><select value={market} onChange={(event) => setMarket(event.target.value)}><option value="">Both markets</option><option value="public">Public · xStocks</option><option value="private">PreStocks exposure</option></select></label>
+      <label><span>Order</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="">Featured order</option><option value="name">Name A–Z</option></select></label>
+    </div>
+  );
+}
+
+function SectorTabs({ available, selected, onChange }: {
+  available: IssuerSector[];
+  selected: string;
+  onChange: (sector: string) => void;
+}) {
+  return (
+    <div aria-label="Filter by sector" className="issuer-sector-tabs">
+      <button aria-pressed={!selected} onClick={() => onChange("")} type="button">All sectors</button>
+      {available.map((sector) => (
+        <button aria-pressed={selected === sector} key={sector} onClick={() => onChange(sector)} type="button">
+          {sector}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LiveIssuerResult({ listing }: { listing: IssuerListing }) {
+  const { provider, asset } = listing;
+  return (
+    <article className="live-issuer-card">
+      <div className="live-issuer-identity">
+        <IssuerLogo imageUrl={asset.logoUrl} name={asset.name} source={provider} />
+        <div>
+          <p className="eyebrow">{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}</p>
+          <h3>{asset.name}</h3>
+        </div>
+      </div>
+      <p>{asset.symbol} · Issuer mint <code className="breakable-code">{asset.mint}</code></p>
+      <Link href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
+        View {asset.symbol} issuer asset <ArrowRight size={15} aria-hidden="true" />
+      </Link>
+    </article>
+  );
+}
+
+function SpotlightCompanyTable({ listings }: { listings: SpotlightListing[] }) {
+  return (
+    <div className="issuer-spotlight-table-wrap">
+      <table className="issuer-spotlight-table">
+        <thead>
+          <tr><th>Company</th><th>Sector</th><th>Market</th><th>Symbol</th><th><span className="sr-only">Details</span></th></tr>
+        </thead>
+        <tbody>
+          {listings.map(({ provider, asset, sector }, index) => {
+            const detailsUrl = `/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route;
+            return (
+              <tr key={asset.companyId}>
+                <td data-label="Company">
+                  <Link aria-label={`View ${asset.name} details`} className="spotlight-company-link" href={detailsUrl}>
+                    <IssuerLogo eager={index < 5} imageUrl={asset.logoUrl} large name={asset.name} source={provider} />
+                    <span><strong>{asset.name}</strong><small>{provider === "xstocks" ? "xStocks issuer asset" : "PreStocks issuer asset"}</small></span>
+                  </Link>
+                </td>
+                <td data-label="Sector"><span className="spotlight-sector">{sector}</span></td>
+                <td data-label="Market">{provider === "xstocks" ? "Public tracker" : "Private exposure"}</td>
+                <td data-label="Symbol"><strong>{asset.symbol}</strong></td>
+                <td className="spotlight-details-cell"><Link aria-label={`Open ${asset.name} details`} href={detailsUrl}><ArrowRight size={18} aria-hidden="true" /></Link></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LiveSearchResults({
+  error,
+  query,
+  result,
+  searching,
+  onRetry,
+}: {
+  error: string | null;
+  query: string | null;
+  result: DiscoveryQueryResult | null;
+  searching: boolean;
+  onRetry: () => void;
+}) {
+  if (!query) return null;
+
+  const matchedAssets = result?.matches.filter((match) => match.issuer && match.symbol) ?? [];
+  const suggestedOwners = Array.from(new Set(result?.matches.map((match) => match.ownerName).filter(Boolean) ?? []));
+
+  return (
+    <section aria-live="polite" className="live-search-results">
+      <div className="result-workspace-heading">
+        <p>Live issuer search for <strong>“{query}”</strong></p>
+        <span>xStocks + PreStocks</span>
+      </div>
+      {searching ? <p role="status">Checking issuer feeds and, if needed, product ownership…</p> : null}
+      {error ? <div className="research-empty"><h2>Search unavailable</h2><p>{error}</p><button onClick={onRetry} type="button">Retry search</button></div> : null}
+      {result?.unavailable.length ? <p className="live-search-caution">{result.unavailable.join(" and ")} feed unavailable. Results may be incomplete.</p> : null}
+      {result?.stale.length ? <p className="live-search-caution">{result.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
+      {result?.kind === "company" ? (
+        <div className="live-issuer-grid">
+          {result.listings.map((listing) => <LiveIssuerResult key={listing.asset.companyId} listing={listing} />)}
+        </div>
+      ) : null}
+      {result?.kind === "product" && matchedAssets.length ? (
         <>
-          <label><span>Market status</span><select value={market} onChange={(event) => setMarket(event.target.value)}><option value="">All companies</option><option value="public">Public</option><option value="private">Private</option></select></label>
-          <label><span>Exposure</span><select value={availability} onChange={(event) => setAvailability(event.target.value)}><option value="">Any availability</option><option value="available">Available</option><option value="research">Research only</option></select></label>
+          <p className="live-search-caution">AI suggested the product owner; the issuer feed confirms only the asset. Verify the relationship before acting.</p>
+          <div className="live-issuer-grid">
+            {matchedAssets.map((match) => (
+              <article className="live-issuer-card" key={match.candidateId}>
+                <div className="live-issuer-identity">
+                  <IssuerLogo imageUrl={match.logoUrl} name={match.matchedIssuerName ?? match.ownerName ?? "Issuer"} source={match.issuer!} />
+                  <div>
+                    <p className="eyebrow">AI suggested owner: {match.ownerName}</p>
+                    <h3>{match.matchedIssuerName ?? match.ownerName}</h3>
+                  </div>
+                </div>
+                <p>{match.issuer === "xstocks" ? "Public · xStocks" : "Private · PreStocks"} · {match.symbol}</p>
+                <p>Issuer mint <code className="breakable-code">{match.mint}</code></p>
+                <Link href={`/assets/${match.issuer}/${encodeURIComponent(match.symbol!)}` as Route}>
+                  View {match.symbol} issuer asset <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
         </>
       ) : null}
-      <label><span>Sort</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="">Catalog order</option><option value="name">Name A–Z</option></select></label>
-    </div>
+      {result?.kind === "product" && !matchedAssets.length ? (
+        <div className="research-empty">
+          <h2>{suggestedOwners.length && result.unavailable.length
+            ? "Issuer availability unconfirmed"
+            : suggestedOwners.length ? "No supported asset available" : "No company found"}</h2>
+          <p>{suggestedOwners.length
+            ? `AI suggested ${suggestedOwners.join(", ")}, but no matching current xStocks or PreStocks asset was confirmed.`
+            : "AI could not identify a reliable company behind this product. Try a more specific name."}</p>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
-function EntityTabs({ entity, onChange }: { entity: string; onChange: (value: string) => void }) {
-  return (
-    <div className="research-entity-tabs" aria-label="Entity type">
-      {entityModes.map(([value, label]) => <button aria-pressed={entity === value} className={entity === value ? "active" : ""} key={value} onClick={() => onChange(value)} type="button">{label}</button>)}
-    </div>
-  );
-}
-
-export function ConceptDiscoverScreen({ concept = "1", initialAvailability, initialCategory, initialEntity, initialMarket, initialQuery, initialSort }: { concept?: "1" | "2"; initialAvailability?: string; initialCategory?: string; initialEntity?: string; initialMarket?: string; initialQuery?: string; initialSort?: string }) {
-  const router = useRouter();
+export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSector, initialSort }: { initialMarket?: string; initialQuery?: string; initialSector?: string; initialSort?: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
-  const filterSheetRef = useRef<HTMLElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const leavingDiscover = useRef(false);
+  const searchRequest = useRef(0);
   const [query, setQuery] = useState(initialQuery ?? "");
-  const [category, setCategory] = useState(initialCategory ?? "");
-  const [entity, setEntity] = useState(initialEntity ?? "all");
+  const [searchedQuery, setSearchedQuery] = useState<string | null>(initialQuery?.trim() || null);
+  const [searchResult, setSearchResult] = useState<DiscoveryQueryResult | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(Boolean(initialQuery?.trim()));
+  const [spotlight, setSpotlight] = useState<IssuerSpotlight | null>(null);
+  const [spotlightError, setSpotlightError] = useState(false);
+  const [spotlightLoading, setSpotlightLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const [sector, setSector] = useState(initialSector ?? "");
   const [market, setMarket] = useState(initialMarket ?? "");
-  const [availability, setAvailability] = useState(initialAvailability ?? "");
   const [sort, setSort] = useState(initialSort ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const loadSpotlight = useCallback(async () => {
+    setSpotlightLoading(true);
+    setSpotlightError(false);
+    try {
+      const result = await apiRequest<IssuerSpotlight>("issuer/spotlight", { cache: "no-store" });
+      setSpotlight(result);
+    } catch {
+      setSpotlightError(true);
+    } finally {
+      setSpotlightLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchedQuery || query.trim() || spotlight) return;
+    const timer = window.setTimeout(() => void loadSpotlight(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadSpotlight, query, searchedQuery, spotlight]);
+
+  const runSearch = useCallback(async (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+
+    const requestId = ++searchRequest.current;
+    setSearchedQuery(trimmed);
+    setSearchResult(null);
+    setSearchError(null);
+    setSearching(true);
+    setFiltersOpen(false);
+    try {
+      const result = await postJson<DiscoveryQueryResult>("discovery/query", { query: trimmed });
+      if (requestId === searchRequest.current) setSearchResult(result);
+    } catch (reason) {
+      if (requestId === searchRequest.current) {
+        const code = reason instanceof Error ? reason.message : "";
+        setSearchError(searchErrorMessages[code] ?? "Search failed. Please try again.");
+      }
+    } finally {
+      if (requestId === searchRequest.current) setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!initialQuery?.trim()) return;
+    const timer = window.setTimeout(() => void runSearch(initialQuery), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialQuery, runSearch]);
+
+  function changeQuery(value: string) {
+    searchRequest.current += 1;
+    setQuery(value);
+    setSearchedQuery(null);
+    setSearchResult(null);
+    setSearchError(null);
+    setSearching(false);
+  }
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("focus") === "search") searchRef.current?.focus();
@@ -190,146 +364,146 @@ export function ConceptDiscoverScreen({ concept = "1", initialAvailability, init
   useEffect(() => {
     if (!filtersOpen) return;
     const previousOverflow = document.body.style.overflow;
-    const trigger = filterButtonRef.current;
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setFiltersOpen(false);
-      if (event.key === "Tab") {
-        const controls = filterSheetRef.current?.querySelectorAll<HTMLElement>("button, select");
-        if (!controls?.length) return;
-        const first = controls[0];
-        const last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
     }
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
-      trigger?.focus();
     };
   }, [filtersOpen]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (leavingDiscover.current) return;
       const params = new URLSearchParams();
-      if (concept === "2") params.set("concept", "2");
       if (query.trim()) params.set("q", query.trim());
-      if (category) params.set("category", category);
-      if (entity !== "all") params.set("entity", entity);
-      if (entity === "company" && market) params.set("market", market);
-      if (entity === "company" && availability) params.set("availability", availability);
+      if (sector) params.set("sector", sector);
+      if (market) params.set("market", market);
       if (sort) params.set("sort", sort);
-      router.replace((params.size ? "/discover?" + params : "/discover") as Route, { scroll: false });
+      window.history.replaceState(null, "", params.size ? `/discover?${params}` : "/discover");
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [availability, category, concept, entity, market, query, router, sort]);
+  }, [market, query, sector, sort]);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const productResults = useMemo(() => {
-    const matches = products.filter((product) => {
-      const company = companyById(product.companyId);
-      const matchesQuery = !normalizedQuery || [product.name, product.brand, company?.name].filter(Boolean).some((value) => value!.toLowerCase().includes(normalizedQuery));
-      return matchesQuery && (!category || product.category === category);
-    });
-    return sort === "name" ? matches.toSorted((a, b) => a.name.localeCompare(b.name)) : matches;
-  }, [category, normalizedQuery, sort]);
-  const brandResults = useMemo(() => {
-    const matches = brands.filter((brand) => {
-      const items = brand.productIds.map((id) => productById(id)).filter((product) => product !== undefined);
-      const matchesQuery = !normalizedQuery || brand.name.toLowerCase().includes(normalizedQuery) || items.some((product) => product.name.toLowerCase().includes(normalizedQuery));
-      return matchesQuery && (!category || items.some((product) => product.category === category));
-    });
-    return sort === "name" ? matches.toSorted((a, b) => a.name.localeCompare(b.name)) : matches;
-  }, [category, normalizedQuery, sort]);
-  const companyResults = useMemo(() => {
-    const matches = companies.filter((company) => {
-      const relatedProducts = products.filter((product) => product.companyId === company.id);
-      const matchesQuery = !normalizedQuery || [company.name, company.ticker, ...relatedProducts.map((product) => product.brand)].filter(Boolean).some((value) => value!.toLowerCase().includes(normalizedQuery));
-      const matchesCategory = !category || relatedProducts.some((product) => product.category === category);
-      const matchesMarket = !market || (market === "public" && company.instrument?.provider === "xstocks") || (market === "private" && company.instrument?.provider === "prestocks");
-      const matchesAvailability = !availability || (availability === "available" && Boolean(company.instrument)) || (availability === "research" && !company.instrument);
-      return matchesQuery && matchesCategory && matchesMarket && matchesAvailability;
-    });
-    return sort === "name" ? matches.toSorted((a, b) => a.name.localeCompare(b.name)) : matches;
-  }, [availability, category, market, normalizedQuery, sort]);
-
-  const resultCount = (entity === "all" || entity === "product" ? productResults.length : 0) + (entity === "all" || entity === "brand" ? brandResults.length : 0) + (entity === "all" || entity === "company" ? companyResults.length : 0);
-  const visibleProducts = entity === "all" ? productResults.slice(0, normalizedQuery ? 8 : 8) : productResults;
-  const visibleBrands = entity === "all" ? brandResults.slice(0, 6) : brandResults;
-  const visibleCompanies = entity === "all" ? companyResults.slice(0, 6) : companyResults;
+  const availableSectors = issuerSectors.filter((candidate) =>
+    spotlight?.listings.some((listing) => listing.sector === candidate),
+  );
+  const matchingListings = useMemo(() => {
+    const matches = spotlight?.listings.filter((listing) =>
+      (!sector || listing.sector === sector) &&
+      (!market || (market === "public" ? listing.provider === "xstocks" : listing.provider === "prestocks")),
+    ) ?? [];
+    return sort === "name"
+      ? matches.toSorted((a, b) => a.asset.name.localeCompare(b.asset.name))
+      : matches;
+  }, [market, sector, sort, spotlight]);
+  const showingFullList = showAll || Boolean(sector || market || sort);
+  const visibleListings = showingFullList ? matchingListings : spotlight?.featured ?? [];
   const activeFilters = [
-    category ? { label: categoryLabels[category as Category] ?? category, clear: () => setCategory("") } : null,
+    sector ? { label: sector, clear: () => setSector("") } : null,
     sort ? { label: "Name A–Z", clear: () => setSort("") } : null,
-    entity === "company" && market ? { label: market === "public" ? "Public" : "Private", clear: () => setMarket("") } : null,
-    entity === "company" && availability ? { label: availability === "available" ? "Exposure available" : "Research only", clear: () => setAvailability("") } : null,
+    market ? { label: market === "public" ? "Public · xStocks" : "PreStocks exposure", clear: () => setMarket("") } : null,
   ].filter((filter) => filter !== null);
 
-  function changeEntity(value: string) {
-    setEntity(value);
-    if (value !== "company") { setMarket(""); setAvailability(""); }
-  }
+  function clearFilters() { setSector(""); setMarket(""); setSort(""); setShowAll(false); }
 
-  function clearAll() { setQuery(""); setCategory(""); setMarket(""); setAvailability(""); setSort(""); }
-
-  const filterProps: FilterProps = { availability, category, entity, market, setAvailability, setCategory, setMarket, setSort, sort };
+  const filterProps: FilterProps = { market, setMarket, setSort, sort };
 
   return (
-    <div className="research-discover">
-      <header className="discover-title-row"><div><h1>Discover</h1><p>Research Products, Brands, and Companies from a reviewed catalog.</p></div><span>{resultCount} results</span></header>
+    <div className="research-discover" onClickCapture={(event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest("a[href]")) leavingDiscover.current = true;
+    }}>
+      <header className="discover-title-row">
+        <div>
+          <h1>Discover</h1>
+          <p>Search current xStocks and PreStocks listings. If neither matches, OpenRouter suggests a likely product owner.</p>
+        </div>
+        <span>{spotlight ? `${spotlight.listings.length} live spotlight companies` : "Live issuer feeds"}</span>
+      </header>
       <div className="discover-command-area">
-        <SearchCommand inputRef={searchRef} onChange={setQuery} onClear={() => setQuery("")} value={query} />
-        <EntityTabs entity={entity} onChange={changeEntity} />
+        <SearchCommand
+          inputRef={searchRef}
+          onChange={changeQuery}
+          onClear={() => changeQuery("")}
+          onSubmit={() => void runSearch(query)}
+          searching={searching}
+          value={query}
+        />
       </div>
-      <div className="mobile-filter-command">
-        <button ref={filterButtonRef} aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
-      </div>
-      {activeFilters.length ? <div className="active-filter-list" aria-label="Active filters">{activeFilters.map((filter) => <button key={filter.label} onClick={filter.clear} type="button">{filter.label}<X size={13} aria-hidden="true" /></button>)}</div> : null}
+      {searchedQuery ? (
+        <>
+          <LiveSearchResults
+            error={searchError}
+            onRetry={() => void runSearch(query)}
+            query={searchedQuery}
+            result={searchResult}
+            searching={searching}
+          />
+          <button className="back-to-companies" onClick={() => changeQuery("")} type="button">
+            Explore featured companies <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        </>
+      ) : (
+        <section aria-labelledby="spotlight-heading" className="issuer-spotlight">
+          <div className="issuer-spotlight-heading">
+            <div>
+              <p className="eyebrow">Live company discovery</p>
+              <h2 id="spotlight-heading">Companies to explore</h2>
+              <p>A changing selection from current xStocks and PreStocks listings. These are familiar names, not a performance ranking or recommendation. Search covers the full issuer feeds.</p>
+            </div>
+            <button disabled={spotlightLoading} onClick={() => void loadSpotlight()} type="button">Refresh mix</button>
+          </div>
+          {spotlight?.unavailable.length ? <p className="live-search-caution">{spotlight.unavailable.join(" and ")} feed unavailable. This selection may be incomplete.</p> : null}
+          {spotlight?.stale.length ? <p className="live-search-caution">{spotlight.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
+          {spotlightError && spotlight ? <p className="live-search-caution">Could not refresh the company mix. Showing the previous selection.</p> : null}
+          <SectorTabs available={availableSectors} onChange={setSector} selected={sector} />
+          <div className="mobile-filter-command">
+            <button aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
+          </div>
+          {activeFilters.length ? <div className="active-filter-list" aria-label="Active filters">{activeFilters.map((filter) => <button key={filter.label} onClick={filter.clear} type="button">{filter.label}<X size={13} aria-hidden="true" /></button>)}</div> : null}
 
-      <div className="discover-workspace">
-        <aside className="filter-rail" aria-label="Discover filters">
-          <div className="filter-rail-heading"><strong>Filters</strong>{activeFilters.length || query ? <button onClick={clearAll} type="button">Reset</button> : null}</div>
-          <FilterFields {...filterProps} />
-        </aside>
-
-        <div className="result-workspace">
-          <div className="result-workspace-heading"><p>{normalizedQuery ? <>Results for <strong>“{query.trim()}”</strong></> : "Reviewed catalog"}</p><span>{resultCount} matches</span></div>
-          {resultCount ? (
-            <div className="entity-result-groups">
-              {(entity === "all" || entity === "product") && visibleProducts.length ? (
-                <section className="database-section">
-                  <SectionHeader title="Products" action={entity === "all" ? <button className="quiet-link" onClick={() => changeEntity("product")} type="button">View all {productResults.length}</button> : null} />
-                  <div className="discover-product-grid">{visibleProducts.map((product) => <ProductTile key={product.id} product={product} />)}</div>
-                </section>
+          <div className="discover-workspace">
+            <aside className="filter-rail" aria-label="Discover filters">
+              <div className="filter-rail-heading"><strong>Filters</strong>{activeFilters.length || showAll ? <button onClick={clearFilters} type="button">Reset</button> : null}</div>
+              <FilterFields {...filterProps} />
+            </aside>
+            <div className="result-workspace">
+              <div className="result-workspace-heading">
+                <p><strong>{showingFullList ? "Spotlight directory" : "Featured companies"}</strong></p>
+                <span>{visibleListings.length} companies</span>
+              </div>
+              {spotlightLoading && !spotlight ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
+              {spotlightError && !spotlight ? (
+                <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
               ) : null}
-              {(entity === "all" || entity === "brand") && visibleBrands.length ? (
-                <section className="database-section">
-                  <SectionHeader title="Brands" action={entity === "all" ? <button className="quiet-link" onClick={() => changeEntity("brand")} type="button">View all {brandResults.length}</button> : null} />
-                  <div className="brand-result-list"><div className="brand-row brand-row-header"><span /><span>Brand</span><span>Products</span><span>Company</span></div>{visibleBrands.map((brand) => <BrandRow brand={brand} key={brand.slug} />)}</div>
-                </section>
+              {spotlight && !visibleListings.length ? (
+                spotlight.unavailable.length && !spotlight.listings.length ? (
+                  <div className="research-empty"><h3>Issuer feeds unavailable</h3><p>We could not load current company listings. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
+                ) : (
+                  <div className="research-empty"><h3>No companies in this selection</h3><p>Try another sector or market. Only current issuer listings appear here.</p><button onClick={clearFilters} type="button">Clear filters</button></div>
+                )
               ) : null}
-              {(entity === "all" || entity === "company") && visibleCompanies.length ? (
-                <section className="database-section"><SectionHeader title="Companies" action={entity === "all" ? <button className="quiet-link" onClick={() => changeEntity("company")} type="button">View all {companyResults.length}</button> : null} /><ResearchTable companies={visibleCompanies} /></section>
+              {visibleListings.length ? <SpotlightCompanyTable listings={visibleListings} /> : null}
+              {spotlight && spotlight.listings.length > spotlight.featured.length && !activeFilters.length ? (
+                <button className="spotlight-more" onClick={() => setShowAll(!showAll)} type="button">
+                  {showAll ? "Show featured mix" : `Show all ${spotlight.listings.length} spotlight companies`}
+                </button>
               ) : null}
             </div>
-          ) : (
-            <div className="research-empty"><h2>No reviewed match</h2><p>Try another spelling or clear the current filters. Shelf will not infer a Company from an unverified name.</p><div><button onClick={clearAll} type="button">Clear filters</button><Link href="/scan">Scan a product</Link></div></div>
-          )}
-        </div>
-      </div>
+          </div>
+        </section>
+      )}
 
-      {filtersOpen ? (
+      {filtersOpen && !searchedQuery ? (
         <div className="mobile-filter-layer" role="presentation" onMouseDown={() => setFiltersOpen(false)}>
-          <section ref={filterSheetRef} aria-label="Discover filters" aria-modal="true" className="mobile-filter-sheet" id="mobile-discover-filters" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+          <section aria-label="Discover filters" aria-modal="true" className="mobile-filter-sheet" id="mobile-discover-filters" onMouseDown={(event) => event.stopPropagation()} role="dialog">
             <header><strong>Filters</strong><button aria-label="Close filters" autoFocus onClick={() => setFiltersOpen(false)} type="button"><X size={20} aria-hidden="true" /></button></header>
             <FilterFields {...filterProps} />
-            <footer><button className="sheet-reset" onClick={clearAll} type="button">Reset</button><button className="sheet-apply" onClick={() => setFiltersOpen(false)} type="button">Show {resultCount} results</button></footer>
+            <footer><button className="sheet-reset" onClick={clearFilters} type="button">Reset</button><button className="sheet-apply" onClick={() => setFiltersOpen(false)} type="button">Show {visibleListings.length} companies</button></footer>
           </section>
         </div>
       ) : null}

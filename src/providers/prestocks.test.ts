@@ -5,6 +5,7 @@ const validRow = {
   name: "OpenAI PreStocks",
   symbol: "OPENAI",
   description: "Pre-IPO exposure",
+  image: "https://www.prestocks.com/logos/openai.png",
   external_url: "https://www.prestocks.com/openai",
   contract_address: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
   markPrice: 996.02,
@@ -15,14 +16,15 @@ const validRow = {
 };
 
 describe("PreStocks providers", () => {
-  it("accepts only a reviewed symbol and exact mint pair", async () => {
+  it("uses every valid current PreStocks asset, including new symbols", async () => {
     const send: typeof fetch = async () => new Response(
         JSON.stringify([
           validRow,
           {
             ...validRow,
             symbol: "UNREVIEWED",
-            contract_address: "UnknownMint111111111111111111111111111111",
+            image: "https://example.invalid/logo.png",
+            contract_address: "11111111111111111111111111111111",
           },
         ]),
         { status: 200 },
@@ -31,14 +33,17 @@ describe("PreStocks providers", () => {
 
     const listings = await provider.listings();
 
-    expect(listings).toHaveLength(1);
+    expect(listings).toHaveLength(2);
     expect(listings[0]).toMatchObject({
-      companyId: "company-openai",
+      companyId: "issuer:prestocks:OPENAI",
       symbol: "OPENAI",
       mint: validRow.contract_address,
+      logoUrl: "https://prestocks.com/logos/openai.png",
       markPriceUsd: "996.02",
       premiumLabel: "10.93% premium",
     });
+    expect(listings[1].companyId).toBe("issuer:prestocks:UNREVIEWED");
+    expect(listings[1].logoUrl).toBeUndefined();
   });
 
   it("rejects a configured endpoint outside the issuer host", () => {

@@ -2,7 +2,7 @@ import { companies } from "@/data/catalog";
 import type { HeliusChainProvider } from "@/providers/live";
 import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
 import { reconcileOutstandingPreparations } from "./transaction-orchestration";
-import { reconcileInstrumentBalance, state, type UserState } from "./store";
+import { reconcileMintBalance, state, type UserState } from "./store";
 
 const chainPendingStatuses = new Set(["signed", "submitted", "confirmed", "outcome_unknown"]);
 
@@ -29,14 +29,25 @@ export async function refreshVerifiedWalletBalances(chain: HeliusChainProvider, 
 
   const balances = await chain.balances(user.walletAddress);
   user.cashRaw = balances[SOLANA_MAINNET_USDC_MINT] ?? "0";
-  for (const company of companies) {
+  const instrumentsByMint = new Map<string, typeof companies>();
+  for (const company of [...companies, ...state.issuerCompanies.values()]) {
     const instrument = company.instrument;
     if (!instrument) continue;
-    const total = BigInt(balances[instrument.mint] ?? "0");
-    reconcileInstrumentBalance(user, instrument.id, total.toString());
-    if (user.reconciliationRequiredAssets.includes(instrument.id)) continue;
-    const holding = user.holdings.find((candidate) => candidate.instrumentId === instrument.id);
+    const grouped = instrumentsByMint.get(instrument.mint) ?? [];
+    if (!grouped.some((candidate) => candidate.instrument?.id === instrument.id)) {
+      grouped.push(company);
+    }
+    instrumentsByMint.set(instrument.mint, grouped);
+  }
+  for (const [mint, grouped] of instrumentsByMint) {
+    const instrumentIds = grouped.flatMap((company) => company.instrument ? [company.instrument.id] : []);
+    const total = BigInt(balances[mint] ?? "0");
+    reconcileMintBalance(user, instrumentIds, total.toString());
+    if (instrumentIds.some((id) => user.reconciliationRequiredAssets.includes(id))) continue;
+    const holding = user.holdings.find((candidate) => instrumentIds.includes(candidate.instrumentId));
     if (!holding && total > 0n) {
+      const company = grouped.at(-1)!;
+      const instrument = company.instrument!;
       user.holdings.push({
         instrumentId: instrument.id,
         companyId: company.id,

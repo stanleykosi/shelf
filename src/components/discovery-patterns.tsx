@@ -1,9 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, Check, Search } from "lucide-react";
-import { companyById, productById, products, sources } from "@/data/catalog";
-import type { Brand, Company, Product } from "@/domain/types";
+import { companyById, products, sources } from "@/data/catalog";
+import type { Company, Product } from "@/domain/types";
+import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
 
 const reviewedProductImages: Partial<
   Record<Product["slug"], { alt: string; src: string; fit: "cover" | "contain" }>
@@ -119,37 +122,18 @@ export function ProductTile({ product }: { product: Product }) {
   );
 }
 
-export function BrandRow({ brand }: { brand: Brand }) {
-  const brandProducts = brand.productIds
-    .map((id) => productById(id))
-    .filter((product) => product !== undefined);
-  const companyNames = brand.companyRelationships
-    .map((relationship) => companyById(relationship.companyId)?.name)
-    .filter(Boolean);
-
-  return (
-    <Link className="brand-row" href={("/brands/" + brand.slug) as Route}>
-      <span className="brand-row-identity" aria-hidden="true">{initials(brand.name)}</span>
-      <span className="brand-row-name"><strong>{brand.name}</strong><small>Brand</small></span>
-      <span className="brand-row-products">{brandProducts.slice(0, 3).map((item) => item.name).join(" · ")}</span>
-      <span className="brand-row-company">{companyNames.join(", ")}</span>
-    </Link>
-  );
-}
-
 function companyDetails(company: Company) {
   const relatedProducts = products.filter((product) => product.companyId === company.id);
   const knownBrands = Array.from(new Set(relatedProducts.map((product) => product.brand)));
   const source = sources.find((candidate) =>
     relatedProducts.some((product) => product.sourceIds.includes(candidate.id)),
   );
-  const market = company.instrument
-    ? company.instrument.assetClass === "pre_ipo_exposure" ? "Private" : "Public"
-    : "Research";
-  return { knownBrands, market, source };
+  return { knownBrands, source };
 }
 
 export function ResearchTable({ companies: rows }: { companies: Company[] }) {
+  const { links, error } = useReviewedIssuerLinks();
+
   return (
     <div className="research-table-wrap">
       <table className="research-table">
@@ -157,16 +141,26 @@ export function ResearchTable({ companies: rows }: { companies: Company[] }) {
         <tbody>
           {rows.map((company) => {
             const details = companyDetails(company);
+            const matched = links?.byCompany[company.id] ?? [];
+            const feedIncomplete = Boolean(links?.unavailable.length || links?.stale.length);
             return (
               <tr key={company.id}>
                 <td data-label="Company">
-                  <Link className="company-identity" href={("/companies/" + company.slug) as Route}>
+                  <Link className="company-identity" href={`/discover?q=${encodeURIComponent(company.name)}` as Route}>
                     <span aria-hidden="true">{initials(company.name)}</span><strong>{company.name}</strong>
                   </Link>
                 </td>
                 <td data-label="Known for">{details.knownBrands.slice(0, 4).join(" · ") || "Company research"}</td>
-                <td data-label="Market">{details.market}</td>
-                <td data-label="Exposure"><StatusText verified={Boolean(company.instrument)}>{company.instrument ? "Available" : "Research only"}</StatusText></td>
+                <td data-label="Market">{matched.length
+                  ? Array.from(new Set(matched.map(({ provider }) => provider === "xstocks" ? "Public" : "Private"))).join(" · ")
+                  : "Research"}</td>
+                <td data-label="Exposure">{matched.length ? matched.map(({ provider, asset }) => (
+                  <Link key={asset.companyId} href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>
+                    <StatusText verified={!links?.stale.includes(provider === "xstocks" ? "xStocks" : "PreStocks")}>
+                      {asset.symbol} · {provider === "xstocks" ? "xStocks" : "PreStocks"}
+                    </StatusText>
+                  </Link>
+                )) : <StatusText>{error ? "Feed unavailable" : !links ? "Checking live feeds" : feedIncomplete ? "Unconfirmed" : "No current asset"}</StatusText>}</td>
                 <td data-label="Reviewed">{details.source?.verifiedAt ?? "Issuer registry"}</td>
               </tr>
             );
@@ -216,19 +210,29 @@ export function SearchCommand({
   inputRef,
   onChange,
   onClear,
+  onSubmit,
+  searching = false,
   value,
 }: {
   inputRef?: React.RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onClear: () => void;
+  onSubmit: () => void;
+  searching?: boolean;
   value: string;
 }) {
   return (
-    <div className="search-command" role="search">
+    <form className="search-command" role="search" onSubmit={(event) => {
+      event.preventDefault();
+      onSubmit();
+    }}>
       <Search size={20} aria-hidden="true" />
-      <label className="sr-only" htmlFor="catalog-search">Search products, brands, or companies</label>
-      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Search products, brands, or companies" ref={inputRef} type="search" value={value} />
+      <label className="sr-only" htmlFor="catalog-search">Search a company or product</label>
+      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Search a company or product" ref={inputRef} type="search" value={value} />
       {value ? <button onClick={onClear} type="button">Clear</button> : <kbd>⌘ K</kbd>}
-    </div>
+      <button className="search-submit" disabled={!value.trim() || searching} type="submit">
+        {searching ? "Searching…" : "Search"}
+      </button>
+    </form>
   );
 }

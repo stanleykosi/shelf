@@ -1,11 +1,12 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { PublicKey } from "@solana/web3.js";
-import { companies, companyById, productById, products } from "@/data/catalog";
+import { companies, companyById, productById } from "@/data/catalog";
 import { SOLANA_MAINNET_USDC_MINT } from "@/providers/solana-constants";
 import { feeFor, splitBudget } from "./money";
 import type {
   FinancialRecord,
+  Company,
   Holding,
   Order,
   OrderLeg,
@@ -131,6 +132,7 @@ type AuditEvent = {
 };
 
 export type StoreState = {
+  issuerCompanies: Map<string, Company>;
   users: Map<string, UserState>;
   orders: Map<string, Order>;
   intents: Map<string, string>;
@@ -159,7 +161,7 @@ export type StoreState = {
   }>;
   pauses: { buys: boolean; submissions: boolean; suggestions: boolean };
   audits: AuditEvent[];
-  aiUsage: Array<{ at: string; costMicrousd: number; subjectHash?: string }>;
+  aiUsage: Array<{ id?: string; at: string; costMicrousd: number; subjectHash?: string }>;
 };
 
 export type ExecutionPreparation = {
@@ -207,6 +209,7 @@ export type SponsorReservation = {
 };
 
 const initialState: StoreState = {
+  issuerCompanies: new Map(),
   users: new Map(),
   orders: new Map(),
   intents: new Map(),
@@ -232,6 +235,10 @@ const initialState: StoreState = {
 const globalStore = globalThis as typeof globalThis & { __shelfStore?: StoreState };
 export const state = globalStore.__shelfStore ?? initialState;
 globalStore.__shelfStore = state;
+
+export function findCompany(companyId: string): Company | undefined {
+  return state.issuerCompanies.get(companyId) ?? companyById(companyId);
+}
 
 export function replaceStoreState(nextState: StoreState): void {
   Object.assign(state, nextState);
@@ -408,37 +415,6 @@ export function userForMagicIdentity(identity: {
   return user;
 }
 
-export function searchCatalog(query = "", category?: string): Product[] {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  return products.filter((product) => {
-    const companyName = companyById(product.companyId)?.name ?? "";
-    const searchable = `${product.name} ${product.brand} ${companyName}`.toLowerCase();
-    const matchesCategory = !category || product.category === category;
-    const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
-    return matchesCategory && matchesQuery;
-  });
-}
-
-export function searchCompanies(query = "", provider?: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  return companies.filter((company) => {
-    const instrument = company.instrument;
-    const matchesProvider = !provider || instrument?.provider === provider;
-    const searchable = [
-      company.name,
-      company.ticker,
-      company.exchange,
-      ...(company.aliases ?? []),
-      instrument?.symbol ?? "",
-      instrument?.issuer ?? "",
-    ]
-      .join(" ")
-      .toLowerCase();
-    return matchesProvider && (!normalizedQuery || searchable.includes(normalizedQuery));
-  });
-}
-
 export function shelfView(user: UserState) {
   const items = user.shelfProductIds
     .map(productById)
@@ -470,11 +446,11 @@ export function updateShelf(
 }
 
 export function watchlistView(user: UserState) {
-  return user.watchCompanyIds.map(companyById).filter(Boolean);
+  return user.watchCompanyIds.map(findCompany).filter(Boolean);
 }
 
 export function updateWatchlist(user: UserState, companyId: string, watched: boolean) {
-  const company = companyById(companyId);
+  const company = findCompany(companyId);
   if (!company?.instrument) throw new Error("ASSET_UNSUPPORTED");
   user.watchCompanyIds = watched
     ? [...new Set([...user.watchCompanyIds, companyId])].slice(0, 50)
@@ -530,8 +506,9 @@ function requestHash(body: CreateOrderInput): string {
 }
 
 function buyLeg(companyId: string, amountRaw: string, position = 0): OrderLeg {
-  const company = companyById(companyId);
+  const company = findCompany(companyId);
   if (!company?.instrument) throw new Error("ASSET_UNSUPPORTED");
+  if (!company.instrument.capabilities.buy) throw new Error("ISSUER_INSTRUMENT_UNAVAILABLE");
 
   return {
     id: randomUUID(),
@@ -615,6 +592,7 @@ export function validateTransferDestinationAddress(
   const forbiddenMints = new Set([
     SOLANA_MAINNET_USDC_MINT,
     ...companies.flatMap((company) => company.instrument?.mint ?? []),
+    ...[...state.issuerCompanies.values()].flatMap((company) => company.instrument?.mint ?? []),
   ]);
   if (forbiddenMints.has(recipient.toBase58())) throw new Error("RECIPIENT_ACCOUNT_UNSAFE");
   return recipient;
@@ -625,29 +603,44 @@ export function reconcileInstrumentBalance(
   instrumentId: string,
   totalRaw: string,
 ): void {
-  const holding = user.holdings.find((candidate) => candidate.instrumentId === instrumentId);
+  reconcileMintBalance(user, [instrumentId], totalRaw);
+}
+
+export function reconcileMintBalance(
+  user: UserState,
+  instrumentIds: string[],
+  totalRaw: string,
+): void {
+  const ids = new Set(instrumentIds);
+  const holdings = user.holdings.filter((holding) => ids.has(holding.instrumentId));
   const total = BigInt(totalRaw);
-  const tracked = BigInt(holding?.rawAmount ?? "0") + BigInt(holding?.reservedRaw ?? "0");
+  const tracked = holdings.reduce(
+    (sum, holding) => sum + BigInt(holding.rawAmount) + BigInt(holding.reservedRaw),
+    0n,
+  );
   if (total < tracked) {
-    if (!user.reconciliationRequiredAssets.includes(instrumentId)) {
-      user.reconciliationRequiredAssets.push(instrumentId);
-      state.audits.push({
-        action: "wallet:reconciliation_required",
-        actorId: user.id,
-        reference: instrumentId,
-        reason: `Finalized balance ${total} is below tracked and reserved inventory ${tracked}`,
-        at: new Date().toISOString(),
-      });
+    for (const holding of holdings) {
+      const instrumentId = holding.instrumentId;
+      if (!user.reconciliationRequiredAssets.includes(instrumentId)) {
+        user.reconciliationRequiredAssets.push(instrumentId);
+        state.audits.push({
+          action: "wallet:reconciliation_required",
+          actorId: user.id,
+          reference: instrumentId,
+          reason: `Finalized shared-mint balance ${total} is below combined tracked and reserved inventory ${tracked}`,
+          at: new Date().toISOString(),
+        });
+      }
+      holding.externalRaw = "0";
     }
-    if (holding) holding.externalRaw = "0";
     return;
   }
 
   user.reconciliationRequiredAssets = user.reconciliationRequiredAssets.filter(
-    (assetId) => assetId !== instrumentId,
+    (assetId) => !ids.has(assetId),
   );
-  const external = total - tracked;
-  if (holding) holding.externalRaw = external.toString();
+  for (const holding of holdings) holding.externalRaw = "0";
+  if (holdings[0]) holdings[0].externalRaw = (total - tracked).toString();
 }
 
 function orderLegs(
@@ -880,7 +873,7 @@ function recordBuy(user: UserState, leg: OrderLeg, input: FinalizedLegInput): vo
     return;
   }
 
-  const company = companyById(leg.companyId!);
+  const company = findCompany(leg.companyId!);
   user.holdings.push({
     instrumentId: leg.instrumentId!,
     companyId: leg.companyId!,
@@ -1136,7 +1129,7 @@ export function readShare(token: string) {
   return {
     productIds: share.productIds,
     products: share.productIds.map(productById).filter(Boolean),
-    companies: share.companyIds.map(companyById).filter(Boolean),
+    companies: share.companyIds.map(findCompany).filter(Boolean),
     expiresAt: share.expiresAt,
   };
 }

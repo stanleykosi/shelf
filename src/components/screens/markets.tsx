@@ -24,7 +24,7 @@ function compactUsd(value: string): string {
 
 function laneLink(lane: MarketLane, current: MarketLane, label: string) {
   const href =
-    lane === "all" ? "/discover?entity=company" : `/discover?entity=company&market=${lane}`;
+    lane === "all" ? "/discover" : `/discover?market=${lane}`;
   return (
     <Link className={`market-tab ${lane === current ? "active" : ""}`} href={href as Route}>
       {label}
@@ -137,7 +137,7 @@ function MarketComparison() {
           </div>
         </dl>
         <p className="muted">Economic exposure only; no shareholder voting rights.</p>
-        <CtaLink id="market-public" href="/discover?entity=company&market=public">
+        <CtaLink id="market-public" href="/discover?market=public">
           Explore public companies
         </CtaLink>
       </Card>
@@ -160,7 +160,7 @@ function MarketComparison() {
           </div>
         </dl>
         <p className="muted">No company shares, voting, dividend, or information rights.</p>
-        <CtaLink id="market-private" href="/discover?entity=company&market=private">
+        <CtaLink id="market-private" href="/discover?market=private">
           Explore private companies
         </CtaLink>
       </Card>
@@ -208,6 +208,7 @@ function PublicMarketSection({
               </p>
               <MarketCardActions
                 companyId={listing.companyId}
+                provider="xstocks"
                 symbol={listing.symbol}
                 watched={watched.includes(listing.companyId)}
                 onWatch={onWatch}
@@ -280,6 +281,7 @@ function PrivateMarketSection({
                 ) : null}
                 <MarketCardActions
                   companyId={listing.companyId}
+                  provider="prestocks"
                   symbol={listing.symbol}
                   watched={watched.includes(listing.companyId)}
                   onWatch={onWatch}
@@ -307,21 +309,23 @@ function PrivateMarketSection({
 
 function MarketCardActions({
   companyId,
+  provider,
   symbol,
   watched,
   onWatch,
 }: {
   companyId: string;
+  provider: "xstocks" | "prestocks";
   symbol: string;
   watched: boolean;
   onWatch: (companyId: string) => Promise<void>;
 }) {
   return (
     <div className="actions market-actions">
-      <Link className="button" href={`/invest/buy?companyId=${companyId}`}>
+      <Link className="button" href={`/assets/${provider}/${encodeURIComponent(symbol)}/buy` as Route}>
         Buy {symbol}
       </Link>
-      <Link className="button secondary" href={`/companies/${companyId}`}>
+      <Link className="button secondary" href={`/assets/${provider}/${encodeURIComponent(symbol)}` as Route}>
         Research
       </Link>
       <button className="ghost" disabled={watched} onClick={() => onWatch(companyId)}>

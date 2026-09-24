@@ -1,29 +1,39 @@
+import { PublicKey } from "@solana/web3.js";
 import { z } from "zod";
-import { companies } from "@/data/catalog";
+import { issuerLogoUrl } from "./issuer-logo";
 
 const assetSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
-  underlyingSymbol: z.string().min(1),
+  description: z.string().default(""),
+  logo: z.unknown().optional(),
+  underlyingSymbol: z.string().optional(),
+  underlying: z.object({ symbol: z.string() }).nullable().optional(),
   isTradingHalted: z.boolean(),
   trading: z.object({
-    currentPeriod: z.string().min(1),
+    currentPeriod: z.string(),
     openNow: z.boolean(),
-    nextChangeAt: z.string().datetime(),
-    exchange: z.object({ name: z.string().min(1), abbreviation: z.string().min(1) }),
-  }),
-  deployments: z.array(
-    z.object({
-      address: z.string().min(1),
-      network: z.string().min(1),
-      supportsAtomicSwaps: z.boolean(),
-    }),
-  ),
+    nextChangeAt: z.string(),
+    isTradingHalted: z.boolean().optional(),
+    exchange: z.object({ name: z.string(), abbreviation: z.string() }),
+  }).nullable(),
+  deployments: z.array(z.object({
+    address: z.string(),
+    network: z.string(),
+    supportsAtomicSwaps: z.boolean(),
+  })),
+});
+
+const pageSchema = z.object({
+  nodes: z.array(assetSchema),
+  page: z.object({ currentPage: z.number().int(), hasNextPage: z.boolean() }),
 });
 
 export type XStocksListing = {
   companyId: string;
   name: string;
+  description: string;
+  logoUrl?: string;
   symbol: string;
   underlyingSymbol: string;
   mint: string;
@@ -36,13 +46,37 @@ export type XStocksListing = {
   observedAt: string;
 };
 
-interface XStocksProvider {
-  listings(): Promise<XStocksListing[]>;
+function listingForAsset(
+  asset: z.infer<typeof assetSchema>,
+  observedAt: string,
+): XStocksListing | null {
+  if (!/^[A-Za-z0-9.-]{1,32}$/.test(asset.symbol)) return null;
+  const solana = asset.deployments.find((deployment) => deployment.network === "Solana");
+  if (!solana) return null;
+  try {
+    new PublicKey(solana.address);
+  } catch {
+    return null;
+  }
+  return {
+    companyId: `issuer:xstocks:${asset.symbol}`,
+    name: asset.name.replace(/\s+xstock$/i, ""),
+    description: asset.description,
+    logoUrl: issuerLogoUrl(asset.logo, "xstocks"),
+    symbol: asset.symbol,
+    underlyingSymbol: asset.underlying?.symbol || asset.underlyingSymbol || "",
+    mint: solana.address,
+    exchange: asset.trading?.exchange.name ?? "Exchange unavailable",
+    marketOpen: asset.trading?.openNow ?? false,
+    marketPeriod: asset.trading?.currentPeriod ?? "unavailable",
+    nextChangeAt: asset.trading?.nextChangeAt ?? "",
+    tradingHalted: asset.isTradingHalted || asset.trading?.isTradingHalted === true,
+    supportsAtomicSwaps: solana.supportsAtomicSwaps,
+    observedAt,
+  };
 }
 
-const reviewedCompanies = companies.filter((company) => company.instrument?.provider === "xstocks");
-
-export class LiveXStocksProvider implements XStocksProvider {
+export class LiveXStocksProvider {
   private readonly send: typeof fetch;
   private readonly baseUrl: URL;
 
@@ -54,42 +88,70 @@ export class LiveXStocksProvider implements XStocksProvider {
     this.send = send ?? fetch;
   }
 
+  async listing(symbol: string): Promise<XStocksListing | null> {
+    if (!/^[A-Za-z0-9.-]{1,32}$/.test(symbol)) throw new Error("XSTOCKS_SYMBOL_INVALID");
+    const endpoint = new URL(`public/assets/${encodeURIComponent(symbol)}`, this.baseUrl);
+    const response = await this.send(endpoint, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error("XSTOCKS_UNAVAILABLE");
+    const asset = assetSchema.parse(await response.json());
+    if (asset.symbol !== symbol) throw new Error("XSTOCKS_ASSET_MISMATCH");
+    return listingForAsset(asset, new Date().toISOString());
+  }
+
   async listings(): Promise<XStocksListing[]> {
     const observedAt = new Date().toISOString();
-    return Promise.all(
-      reviewedCompanies.map(async (company) => {
-        const instrument = company.instrument!;
-        const endpoint = new URL(
-          `public/assets/${encodeURIComponent(instrument.symbol)}`,
-          this.baseUrl,
-        );
-        const response = await this.send(endpoint, {
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(8_000),
-        });
-        if (!response.ok) throw new Error("XSTOCKS_UNAVAILABLE");
+    const listings: XStocksListing[] = [];
+    const maxPages = 20;
+    const pagesPerBatch = 3;
 
-        const asset = assetSchema.parse(await response.json());
-        const solana = asset.deployments.find((deployment) => deployment.network === "Solana");
-        if (asset.symbol !== instrument.symbol || solana?.address !== instrument.mint) {
-          throw new Error("XSTOCKS_ASSET_MISMATCH");
+    const fetchPage = async (pageNumber: number) => {
+      const endpoint = new URL("public/assets", this.baseUrl);
+      endpoint.searchParams.set("page", String(pageNumber));
+      endpoint.searchParams.set("pageSize", "100");
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          response = await this.send(endpoint, {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(12_000),
+          });
+        } catch {
+          response = null;
         }
+        if (response?.ok || (response && response.status < 500)) break;
+      }
+      if (!response?.ok) throw new Error("XSTOCKS_UNAVAILABLE");
+      const page = pageSchema.parse(await response.json());
+      if (page.page.currentPage !== pageNumber) throw new Error("XSTOCKS_INVALID_PAGE");
+      return page;
+    };
 
-        return {
-          companyId: company.id,
-          name: company.name,
-          symbol: asset.symbol,
-          underlyingSymbol: asset.underlyingSymbol,
-          mint: solana.address,
-          exchange: asset.trading.exchange.name,
-          marketOpen: asset.trading.openNow,
-          marketPeriod: asset.trading.currentPeriod,
-          nextChangeAt: asset.trading.nextChangeAt,
-          tradingHalted: asset.isTradingHalted,
-          supportsAtomicSwaps: solana.supportsAtomicSwaps,
-          observedAt,
-        };
-      }),
-    );
+    // Responses stay in page order. Speculative requests after the final page
+    // are ignored, while any missing page before it fails the whole feed.
+    for (let firstPage = 0; firstPage < maxPages; firstPage += pagesPerBatch) {
+      const pageNumbers = Array.from(
+        { length: Math.min(pagesPerBatch, maxPages - firstPage) },
+        (_, index) => firstPage + index,
+      );
+      const results = await Promise.allSettled(pageNumbers.map(fetchPage));
+
+      for (const result of results) {
+        if (result.status === "rejected") throw result.reason;
+        for (const asset of result.value.nodes) {
+          const listing = listingForAsset(asset, observedAt);
+          if (listing) listings.push(listing);
+        }
+        if (result.value.page.hasNextPage) continue;
+        if (new Set(listings.map((listing) => listing.companyId)).size !== listings.length) {
+          throw new Error("XSTOCKS_DUPLICATE_ASSET");
+        }
+        return listings;
+      }
+    }
+    throw new Error("XSTOCKS_PAGE_LIMIT");
   }
 }

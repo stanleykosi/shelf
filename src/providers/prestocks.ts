@@ -1,14 +1,16 @@
+import { PublicKey } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { z } from "zod";
-import { preStocksSeeds } from "@/data/prestocks";
 import { premiumBps, premiumLabel } from "@/domain/market-data";
+import { issuerLogoUrl } from "./issuer-logo";
 
 const listingSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().default(""),
+  image: z.unknown().optional(),
   external_url: z.string().url(),
-  contract_address: z.string().min(32),
+  contract_address: z.string(),
   markPrice: z.number().finite().nonnegative(),
   markValuation: z.number().finite().nonnegative(),
   tokenPrice: z.number().finite().nonnegative(),
@@ -19,6 +21,8 @@ const listingSchema = z.object({
 export type PreStocksListing = {
   companyId: string;
   name: string;
+  description: string;
+  logoUrl?: string;
   symbol: string;
   mint: string;
   issuerUrl: string;
@@ -32,15 +36,11 @@ export type PreStocksListing = {
   observedAt: string;
 };
 
-interface PreStocksProvider {
-  listings(): Promise<PreStocksListing[]>;
-}
-
 function decimal(value: number): string {
   return new Decimal(value.toString()).toString();
 }
 
-export class LivePreStocksProvider implements PreStocksProvider {
+export class LivePreStocksProvider {
   private readonly send: typeof fetch;
 
   constructor(
@@ -63,35 +63,37 @@ export class LivePreStocksProvider implements PreStocksProvider {
 
     const rows = z.array(listingSchema).parse(await response.json());
     const observedAt = new Date().toISOString();
-
-    return preStocksSeeds.flatMap((seed) => {
-      const instrument = seed.company.instrument!;
-      const row = rows.find(
-        (candidate) =>
-          candidate.symbol === instrument.symbol && candidate.contract_address === instrument.mint,
-      );
-      if (!row) return [];
-
+    const listings = rows.flatMap((row) => {
+      if (!/^[A-Za-z0-9.-]{1,32}$/.test(row.symbol)) return [];
+      try {
+        new PublicKey(row.contract_address);
+      } catch {
+        return [];
+      }
       const markPriceUsd = decimal(row.markPrice);
       const tokenPriceUsd = decimal(row.tokenPrice);
       const basisPoints = premiumBps(markPriceUsd, tokenPriceUsd);
-      return [
-        {
-          companyId: seed.company.id,
-          name: seed.company.name,
-          symbol: row.symbol,
-          mint: row.contract_address,
-          issuerUrl: row.external_url,
-          markPriceUsd,
-          tokenPriceUsd,
-          markValuationUsd: decimal(row.markValuation),
-          impliedValuationUsd: decimal(row.impliedValuation),
-          supplyUi: decimal(row.supply),
-          premiumBps: basisPoints,
-          premiumLabel: premiumLabel(basisPoints),
-          observedAt,
-        },
-      ];
+      return [{
+        companyId: `issuer:prestocks:${row.symbol}`,
+        name: row.name.replace(/\s+prestocks$/i, ""),
+        description: row.description,
+        logoUrl: issuerLogoUrl(row.image, "prestocks"),
+        symbol: row.symbol,
+        mint: row.contract_address,
+        issuerUrl: row.external_url,
+        markPriceUsd,
+        tokenPriceUsd,
+        markValuationUsd: decimal(row.markValuation),
+        impliedValuationUsd: decimal(row.impliedValuation),
+        supplyUi: decimal(row.supply),
+        premiumBps: basisPoints,
+        premiumLabel: premiumLabel(basisPoints),
+        observedAt,
+      }];
     });
+    if (new Set(listings.map((listing) => listing.companyId)).size !== listings.length) {
+      throw new Error("PRESTOCKS_DUPLICATE_ASSET");
+    }
+    return listings;
   }
 }

@@ -219,7 +219,7 @@ export function WelcomeScreen() {
           Skip for now
         </CtaLink>
         {merged ? (
-          <ResultMessage>Your confirmed guest catalog items were merged once.</ResultMessage>
+          <ResultMessage>Your previously saved guest products were merged once.</ResultMessage>
         ) : null}
       </Card>
     </>

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { companies, companyById, corporateActions } from "@/data/catalog";
+import { companyById } from "@/data/catalog";
+import type { CorporateActionView } from "@/domain/issuer-assets";
 import { formatRaw, parseTokenAmount, parseUsdc } from "@/domain/money";
-import type { FinancialRecord, Holding, Order, Quote } from "@/domain/types";
+import type { Company, FinancialRecord, Holding, Order, Quote } from "@/domain/types";
 import { apiRequest, freshApiRequest, freshPostJson, postJson } from "@/lib/api-client";
 import { financialRecordsCsv } from "@/lib/csv";
 import { signMagicSolanaTransaction } from "@/providers/magic-browser";
@@ -26,155 +27,39 @@ function messageFrom(error: unknown) {
     : "Request failed";
 }
 
-export function BuyScreen({ companyId }: { companyId: string }) {
-  const router = useRouter();
-  const company = companyById(companyId);
-  const [amount, setAmount] = useState("10");
-  const [error, setError] = useState<string | null>(null);
-
-  if (!company) {
-    return <EmptyState title="Company unavailable">This reviewed company could not be found.</EmptyState>;
-  }
-  const selectedCompanyId = company.id;
-
-  async function createPurchase() {
-    try {
-      const order = await postJson<Order>("orders", {
-        clientIntentId: crypto.randomUUID(),
-        type: "buy",
-        companyId: selectedCompanyId,
-        amountUsdcRaw: parseUsdc(amount).toString(),
-        slippageBps: 50,
-      });
-      router.push(`/orders/${order.id}/review`);
-    } catch (requestError) {
-      setError(messageFrom(requestError));
-    }
-  }
-
-  return (
-    <>
-      <PageIntro
-        eyebrow={`Buy ${company.ticker} exposure`}
-        title={`Choose an amount for ${company.name}`}
-      >
-        <p>
-          {company.instrument?.provider === "prestocks"
-            ? "PreStocks supplies the reviewed private-company token identity and reference data. Jupiter supplies the live USDC swap route."
-            : "xStocks supplies the reviewed public-company token identity. Jupiter supplies the live USDC swap route."}{" "}
-          Nothing is purchased until you review and approve.
-        </p>
-      </PageIntro>
-      <Card className="stack">
-        {company.instrument?.assetClass === "pre_ipo_exposure" ? (
-          <p className="notice">
-            This is an issuer-defined pre-IPO exposure token, not company stock. It does not grant
-            ordinary ownership, voting, information, or dividend rights, and liquidity is not
-            guaranteed.
-          </p>
-        ) : (
-          <p className="notice">
-            This xStocks tracker certificate provides economic exposure to a public equity. It is
-            backed under the issuer’s terms but is not an ordinary voting share. A fresh Jupiter
-            quote determines executable secondary-market terms.
-          </p>
-        )}
-        {company.instrument ? (
-          <dl className="facts">
-            <div>
-              <dt>Instrument source</dt>
-              <dd>{company.instrument.provider === "prestocks" ? "PreStocks" : "xStocks"}</dd>
-            </div>
-            <div>
-              <dt>Token</dt>
-              <dd>{company.instrument.symbol}</dd>
-            </div>
-            <div>
-              <dt>Mint</dt>
-              <dd className="address">{company.instrument.mint}</dd>
-            </div>
-            <div>
-              <dt>Execution route</dt>
-              <dd>Jupiter · exact-input USDC</dd>
-            </div>
-          </dl>
-        ) : null}
-        <p>
-          The amount is your maximum total USDC debit, including Shelf’s 0.50% fee. Funding remains
-          disabled until the live-money activation run.
-        </p>
-        <Field
-          label="Amount in USDC"
-          htmlFor="buy-amount"
-          hint="Minimum 5 USDC · beta maximum 100 USDC"
-        >
-          <input
-            id="buy-amount"
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-          />
-        </Field>
-        <div className="chips">
-          {["5", "10", "25"].map((preset) => (
-            <button className="secondary" onClick={() => setAmount(preset)} key={preset}>
-              {preset} USDC
-            </button>
-          ))}
-        </div>
-        <div className="actions">
-          <button data-cta="C57" onClick={createPurchase}>
-            Review purchase
-          </button>
-          <CtaLink id="C58" href="/account/wallet/deposit" secondary>
-            Deposit USDC
-          </CtaLink>
-        </div>
-        <ErrorMessage message={error} />
-      </Card>
-    </>
-  );
-}
-
 type Allocation = { companyId: string; amount: string; selected: boolean };
 
 export function BasketScreen({ market }: { market?: string }) {
   const router = useRouter();
-  const eligibleCompanies = companies
-    .filter((company) => company.instrument?.capabilities.buy)
-    .filter((company) => {
-      if (market === "private") return company.instrument?.provider === "prestocks";
-      if (market === "public") return company.instrument?.provider === "xstocks";
-      return true;
-    });
+  const [eligibleCompanies, setEligibleCompanies] = useState<Company[]>([]);
   const [budget, setBudget] = useState("30");
-  const [allocations, setAllocations] = useState<Allocation[]>(() => {
-    if (typeof window === "undefined") {
-      return eligibleCompanies.map((company, index) => ({
-        companyId: company.id,
-        amount: "10",
-        selected: index < 3,
-      }));
-    }
-    const saved = sessionStorage.getItem("shelf:allocation-draft");
-    if (!saved) {
-      return eligibleCompanies.map((company, index) => ({
-        companyId: company.id,
-        amount: "10",
-        selected: index < 3,
-      }));
-    }
-    const draft = JSON.parse(saved) as Array<{ companyId: string; amountUsdcRaw: string }>;
-    return eligibleCompanies.map((company) => {
-      const proposed = draft.find((item) => item.companyId === company.id);
-      return {
-        companyId: company.id,
-        amount: proposed ? formatRaw(proposed.amountUsdcRaw) : "10",
-        selected: Boolean(proposed),
-      };
-    });
-  });
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiRequest<Company[]>("watchlist")
+      .then((watched) => {
+        const eligible = watched.filter((company) => {
+          if (!company.instrument?.capabilities.buy) return false;
+          if (market === "private") return company.instrument.provider === "prestocks";
+          if (market === "public") return company.instrument.provider === "xstocks";
+          return true;
+        });
+        setEligibleCompanies(eligible);
+        const saved = JSON.parse(
+          sessionStorage.getItem("shelf:allocation-draft") ?? "[]",
+        ) as Array<{ companyId: string; amountUsdcRaw: string }>;
+        setAllocations(eligible.map((company) => {
+          const proposed = saved.find((item) => item.companyId === company.id);
+          return {
+            companyId: company.id,
+            amount: proposed ? formatRaw(proposed.amountUsdcRaw) : "10",
+            selected: Boolean(proposed),
+          };
+        }));
+      })
+      .catch((reason: unknown) => setError(messageFrom(reason)));
+  }, [market]);
 
   function splitEqually() {
     const selected = allocations.filter((item) => item.selected);
@@ -212,6 +97,26 @@ export function BasketScreen({ market }: { market?: string }) {
     }
   }
 
+  async function suggestAllocation() {
+    const companyIds = allocations.filter((item) => item.selected).map((item) => item.companyId);
+    if (!companyIds.length || companyIds.length > 5) return;
+    try {
+      const draft = await postJson<{ allocations: Array<{ companyId: string; amountUsdcRaw: string }> }>(
+        "ai/allocation-drafts",
+        { budgetUsdcRaw: parseUsdc(budget).toString(), companyIds },
+      );
+      setAllocations((current) => current.map((item) => {
+        const suggestion = draft.allocations.find((entry) => entry.companyId === item.companyId);
+        return suggestion
+          ? { ...item, amount: formatRaw(suggestion.amountUsdcRaw), selected: true }
+          : { ...item, selected: false };
+      }));
+      setError(null);
+    } catch (reason) {
+      setError(messageFrom(reason));
+    }
+  }
+
   function removeCompany(companyId: string) {
     setAllocations((current) =>
       current.map((item) => {
@@ -232,6 +137,21 @@ export function BasketScreen({ market }: { market?: string }) {
         </p>
       </PageIntro>
       <Card className="stack">
+        <p className="muted">Choose up to five assets from your saved issuer watchlist. Add more through a scan or issuer search.</p>
+        <div className="chips">
+          {eligibleCompanies.map((company) => (
+            <button key={company.id} className={allocations.some((item) =>
+              item.companyId === company.id && item.selected) ? "" : "secondary"}
+              onClick={() => setAllocations((current) => current.map((item) =>
+                item.companyId === company.id ? { ...item, selected: !item.selected } : item,
+              ))}>
+              {company.name} · {company.instrument?.symbol}
+            </button>
+          ))}
+        </div>
+        {!eligibleCompanies.length ? <CtaLink id="basket-discover" href="/discover" secondary>
+          Find an issuer asset
+        </CtaLink> : null}
         <Field label="Total budget in USDC" htmlFor="basket-budget">
           <input
             id="basket-budget"
@@ -244,9 +164,9 @@ export function BasketScreen({ market }: { market?: string }) {
           .filter((item) => item.selected)
           .map((item) => (
             <div className="card" key={item.companyId}>
-              <h3>{companyById(item.companyId)?.name}</h3>
+              <h3>{eligibleCompanies.find((company) => company.id === item.companyId)?.name}</h3>
               <p className="muted">
-                {companyById(item.companyId)?.instrument?.provider === "prestocks"
+                {eligibleCompanies.find((company) => company.id === item.companyId)?.instrument?.provider === "prestocks"
                   ? "Private exposure · PreStocks"
                   : "Public equity tracker · xStocks"}
               </p>
@@ -279,12 +199,14 @@ export function BasketScreen({ market }: { market?: string }) {
           <button className="secondary" data-cta="C59" onClick={splitEqually}>
             Split equally
           </button>
-          <button data-cta="C61" onClick={createBasket}>
+          <button data-cta="C61" disabled={!allocations.some((item) => item.selected) ||
+            allocations.filter((item) => item.selected).length > 5} onClick={createBasket}>
             Review basket
           </button>
-          <CtaLink id="C62" href="/invest/basket?source=ai" secondary>
-            Get an AI draft
-          </CtaLink>
+          <button className="secondary" data-cta="C62"
+            disabled={!allocations.some((item) => item.selected) ||
+              allocations.filter((item) => item.selected).length > 5}
+            onClick={suggestAllocation}>Get an AI draft</button>
         </div>
         <ErrorMessage message={error} />
       </Card>
@@ -296,7 +218,13 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState("1");
   const [error, setError] = useState<string | null>(null);
-  const instrument = companies.find((company) => company.instrument?.id === instrumentId)?.instrument;
+  const [holding, setHolding] = useState<Holding | null>(null);
+
+  useEffect(() => {
+    apiRequest<Holding>(`portfolio/${encodeURIComponent(instrumentId)}`)
+      .then(setHolding)
+      .catch((reason: unknown) => setError(messageFrom(reason)));
+  }, [instrumentId]);
 
   async function createSale(sellAll = false) {
     try {
@@ -306,7 +234,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
         instrumentId,
         ...(sellAll
           ? { sellAll: true }
-          : { amountRaw: parseTokenAmount(quantity, instrument?.decimals ?? 0).toString() }),
+          : { amountRaw: parseTokenAmount(quantity, holding?.decimals ?? 0).toString() }),
       });
       router.push(`/orders/${order.id}/review`);
     } catch (requestError) {
@@ -335,7 +263,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
           <button className="secondary" data-cta="C80" onClick={() => createSale(true)}>
             Sell all
           </button>
-          <button data-cta="C81" onClick={() => createSale(false)}>
+          <button data-cta="C81" disabled={!holding} onClick={() => createSale(false)}>
             Review sale
           </button>
         </div>
@@ -352,6 +280,13 @@ export function TransferScreen() {
   const [amount, setAmount] = useState("2.5");
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+
+  useEffect(() => {
+    apiRequest<{ holdings: Holding[] }>("portfolio")
+      .then((data) => setHoldings(data.holdings))
+      .catch((reason: unknown) => setError(messageFrom(reason)));
+  }, []);
 
   async function approveTransfer() {
     try {
@@ -359,7 +294,7 @@ export function TransferScreen() {
       const decimals =
         assetId === "usdc"
           ? 6
-          : companies.find((company) => company.instrument?.id === assetId)?.instrument?.decimals;
+          : holdings.find((holding) => holding.instrumentId === assetId)?.decimals;
       if (decimals === undefined) throw new Error("ASSET_UNSUPPORTED");
       const order = await freshPostJson<Order>("orders", "transfer", {
         clientIntentId: crypto.randomUUID(),
@@ -388,7 +323,11 @@ export function TransferScreen() {
             onChange={(event) => setAssetId(event.target.value)}
           >
             <option value="usdc">USDC</option>
-            <option value="instrument-pepx">Tracked PEPx</option>
+            {holdings.filter((holding) => BigInt(holding.rawAmount) > 0n).map((holding) => (
+              <option value={holding.instrumentId} key={holding.instrumentId}>
+                Tracked {holding.symbol}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Destination Solana address" htmlFor="recipient">
@@ -497,12 +436,21 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
+  const [issuerCompany, setIssuerCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     apiRequest<Order>(`orders/${orderId}`)
       .then(setOrder)
       .catch((requestError) => setError(messageFrom(requestError)));
   }, [orderId]);
+
+  useEffect(() => {
+    const companyId = order?.legs.find((leg) => leg.status !== "finalized")?.companyId;
+    if (!companyId?.startsWith("issuer:")) return;
+    apiRequest<Company>(`companies/${encodeURIComponent(companyId)}`)
+      .then(setIssuerCompany)
+      .catch(() => setIssuerCompany(null));
+  }, [order]);
 
   async function loadQuote() {
     if (!order) return;
@@ -555,7 +503,8 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
     return <EmptyState title="Loading order">The private order is being retrieved.</EmptyState>;
   const actionId = order.type === "sell" ? "C64" : "C63";
   const activeLeg = order.legs.find((leg) => leg.status !== "finalized") ?? order.legs[0];
-  const activeCompany = activeLeg.companyId ? companyById(activeLeg.companyId) : undefined;
+  const activeCompany = issuerCompany ??
+    (activeLeg.companyId ? companyById(activeLeg.companyId) : undefined);
 
   return (
     <>
@@ -588,6 +537,13 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
               : "No shareholder voting rights; issuer and secondary-market terms apply."}
           </p>
         ) : null}
+        {activeCompany?.instrument?.lifecycle ? <p className="notice" role="status">
+          <strong>{activeCompany.instrument.lifecycle.title}</strong><br />
+          {activeCompany.instrument.lifecycle.description}
+          {activeCompany.instrument.lifecycle.deadline
+            ? ` Deadline: ${new Date(activeCompany.instrument.lifecycle.deadline).toLocaleString()}.` : ""}
+          <br /><a href={activeCompany.instrument.lifecycle.sourceUrl} target="_blank" rel="noreferrer">Read issuer notice</a>
+        </p> : null}
         {quote ? (
           <>
             <QuoteFacts order={order} quote={quote} />
@@ -692,7 +648,9 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
           <Card key={leg.id}>
             <span className="badge">{leg.status}</span>
             <h3>Leg {leg.position + 1}</h3>
-            <p>{leg.companyId ? companyById(leg.companyId)?.name : "Transfer"}</p>
+            <p>{leg.companyId
+              ? companyById(leg.companyId)?.name ?? leg.companyId.split(":").at(-1)?.toUpperCase()
+              : "Transfer"}</p>
             <p className="muted">Input raw: {leg.requestedInputRaw}</p>
           </Card>
         ))}
@@ -770,14 +728,16 @@ export function PortfolioScreen() {
             {holdings.map((holding) => (
               <Card
                 className={
-                  companyById(holding.companyId)?.instrument?.provider === "prestocks"
+                  (holding.companyId.startsWith("issuer:prestocks:") ||
+                    companyById(holding.companyId)?.instrument?.provider === "prestocks")
                     ? "private-market-card"
                     : "public-market-card"
                 }
                 key={holding.instrumentId}
               >
                 <span className="badge">
-                  {companyById(holding.companyId)?.instrument?.provider === "prestocks"
+                  {(holding.companyId.startsWith("issuer:prestocks:") ||
+                    companyById(holding.companyId)?.instrument?.provider === "prestocks")
                     ? "Private · PreStocks"
                     : "Public · xStocks"}
                 </span>
@@ -817,6 +777,7 @@ export function PortfolioScreen() {
 
 export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
   const [holding, setHolding] = useState<Holding | null>(null);
+  const [relevantActions, setRelevantActions] = useState<CorporateActionView[]>([]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     apiRequest<Holding>(`portfolio/${instrumentId}`)
@@ -825,6 +786,9 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
         setError(null);
       })
       .catch((requestError: unknown) => setError(messageFrom(requestError)));
+    apiRequest<CorporateActionView[]>(
+      `corporate-actions?instrumentId=${encodeURIComponent(instrumentId)}`,
+    ).then(setRelevantActions).catch(() => setRelevantActions([]));
   }, [instrumentId]);
   if (error)
     return (
@@ -836,7 +800,6 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
     return (
       <EmptyState title="Loading holding">Shelf is retrieving the current tracked position.</EmptyState>
     );
-  const relevantActions = corporateActions.filter((action) => action.instrumentId === instrumentId);
   return (
     <>
       <PageIntro eyebrow="Tracked holding" title={holding.symbol}>
@@ -877,7 +840,9 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
           </CtaLink>
           <CtaLink
             id="C78"
-            href={`/companies/${companyById(holding.companyId)?.slug ?? holding.companyId}`}
+            href={holding.companyId.startsWith("issuer:")
+              ? `/assets/${holding.companyId.split(":")[1]}/${encodeURIComponent(holding.symbol)}`
+              : `/companies/${companyById(holding.companyId)?.slug ?? holding.companyId}`}
             secondary
           >
             View company

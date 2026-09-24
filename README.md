@@ -1,8 +1,18 @@
 # Shelf
 
-Shelf connects familiar products and services to reviewed companies, then gives signed-in members a private shelf, watchlist, wallet view, portfolio, records, sharing, AI-assisted discovery, and deliberate investment workflows.
+Shelf uses AI to suggest the company behind a familiar product, then checks current xStocks and
+PreStocks issuer feeds for that company. The ownership suggestion is unverified; the token symbol
+and Solana mint come from the issuer. Signed-in members have a private shelf, watchlist, wallet
+view, portfolio, records, sharing and deliberate investment workflows.
 
-The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share.
+Discover uses one search field: it checks both live issuer feeds for a company first, then uses
+OpenRouter automatically to suggest the owner of an unmatched product. The UI labels AI ownership
+as unverified, while stock assets and mints come only from the current issuer feeds. Discover
+shows a rotating, sector-filtered company spotlight built only from current issuer listings,
+including public xStocks and PreStocks exposure. Spotlight names are an editorial discovery
+selection, not a performance ranking. Search still covers the full feeds.
+
+The Markets experience clearly separates xStocks public-equity tracker certificates from PreStocks private-company exposure tokens. PreStocks supplies issuer reference prices and lifecycle notices. xStocks supplies public-market instrument metadata. Jupiter supplies executable-market quotes. Shelf never presents either instrument as an ordinary voting share. Barcode discovery uses public Open Food/Beauty/Products Facts for a product-name clue before the same AI and issuer lookup.
 
 Production runs as a full Next.js application on Vercel. Railway supplies PostgreSQL and the scheduled issuer-data and transaction-reconciliation worker. Magic supplies email/Google identity and an embedded Solana wallet. OpenRouter runs recognition and education through the pinned GLM model. Helius supplies Solana RPC access.
 
@@ -34,6 +44,8 @@ PLAYWRIGHT_BASE_URL=https://shelf-one-phi.vercel.app npm run test:browser
 ```
 
 Browser tests are read-only and use the installed Linux Chromium. They do not install or use Windows Chrome, Firefox, or WebKit.
+
+Live issuer results and the Discover company table use optional logo images supplied by xStocks and PreStocks. Shelf accepts only their known HTTPS logo paths and shows initials when a provider omits an image or it fails to load. Logos do not establish product ownership.
 
 ## Repository map
 

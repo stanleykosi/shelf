@@ -1,7 +1,9 @@
 # Phase 0–2 Route Verification
 
-Date: 2026-09-23  
-Contract: `docs/PRODUCT_DESIGN_GUIDE.md`  
+Date: 2026-09-23
+
+Contract: `docs/PRODUCT_DESIGN_GUIDE.md`
+
 Scope: Phase 0–2 routing, entity, access, navigation, and consent structure only. Phase 3 page design was not reviewed or started.
 
 ## Overall result

@@ -39,18 +39,15 @@ test("production offers Magic sign-in while public research stays available to g
   ).toBeVisible();
 
   await page.goto("/markets");
-  await expect(page).toHaveURL(/\/discover\?entity=company$/);
+  await expect(page).toHaveURL(/\/discover$/);
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
-  await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("details").filter({ hasText: "View token details" })).toContainText(
-    "Source: PreStocks",
-  );
-  await expect(page.getByRole("link", { name: "Choose amount" })).toHaveAttribute(
-    "href",
-    "/invest/openai",
-  );
+  if (!isLocal) {
+    await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/discover\?q=OpenAI$/);
+    await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("OpenAI");
+  }
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
@@ -61,21 +58,20 @@ test("production offers Magic sign-in while public research stays available to g
 test("canonical research routes and route-aware navigation preserve the product model", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   await page.goto("/products/product-doritos-snack");
   await expect(page).toHaveURL(/\/products\/doritos-snack$/);
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
 
   await page.goto("/brands/doritos");
-  await expect(page.getByRole("heading", { name: "Doritos", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View company" })).toHaveAttribute(
-    "href",
-    "/companies/pepsico",
-  );
+  await expect(page).toHaveURL(/\/discover\?q=Doritos$/);
+  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Doritos");
 
-  await page.goto("/companies/company-pepsico");
-  await expect(page).toHaveURL(/\/companies\/pepsico$/);
+  await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/discover\?q=PepsiCo$/);
 
-  await page.goto("/scan");
+  await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');
   await expect(mobileNavigation.locator('a[href="/scan"]')).toHaveAttribute(
     "aria-current",

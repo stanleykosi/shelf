@@ -18,6 +18,7 @@ const legacyMemberRoutes = new Set([
 
 export function pageAccess(pathname: string): PageAccess {
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return "owner";
+  if (/^\/assets\/(xstocks|prestocks)\/[^/]+\/buy$/.test(pathname)) return "member";
   if (
     legacyMemberRoutes.has(pathname) ||
     pathname === "/saved/share" ||

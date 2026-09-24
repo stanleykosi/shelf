@@ -2,29 +2,304 @@
 
 Updated: 2026-09-24
 
-## Active frontend phase — Scan / Scan Results
+## U30 live company spotlight — production
 
-Concept 2 is the accepted visual contract for this phase. Implemented local Scan intake, memory-only result verification, in-flow correction, and exact shared Home Relationship Explorer extraction. Compliance review: `docs/SCAN_CONCEPT_2_REVIEW.md`; Scan-only guide extension: `docs/PRODUCT_DESIGN_GUIDE.md`. No entity-detail, Saved or Portfolio redesign.
+Discover now replaces its reviewed product, brand and company browse tables with one rotating
+company table. Each request selects up to ten recognizable public-company xStocks assets and two
+PreStocks assets from the current issuer feeds. The selection changes per request; the source
+feeds remain the only source for displayed assets, symbols, mints and provider logos. xStocks
+does not supply a popularity, performance or sector ranking, so this is explicitly an editorial
+selection of familiar names, not a claim of top performance or a recommendation. Sector labels
+are editorial. The new `/api/v1/issuer/spotlight` response is no-store and carries stale and
+unavailable feed warnings. Search still covers the full feeds and automatically uses OpenRouter
+for unmatched product terms. Company rows lead to the current issuer detail pages. The table has
+sector and public/private filters, name ordering, a refresh action, mobile controls, and loading,
+empty and provider-failure states. Missing or slow logos display company initials; PreStocks
+logos load directly from validated provider URLs because the local Next image proxy timed out on
+some otherwise available images.
 
-Phase complete for visual review, not yet user-accepted. ESLint, TypeScript, 15 Vitest files/93 tests, production build, and `git diff --check` pass. `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3200 npx playwright test`: 41 passed, 7 expected project/viewport skips, including all 20 Scan desktop/mobile cases. Reviewed production captures at 390/430/768/1280/1440; gallery and reproduction command: `artifacts/scan-concept-2/README.md`. Capture produced no browser page errors. Build emitted a non-fatal existing Magic SDK network-initialization warning in the restricted environment; it exited successfully. Tests ran on the available Node 24.12.0 runtime (package target remains Node 22).
+`npm run check` passed ESLint, strict TypeScript, 100 Vitest tests in 16 files and the Next.js
+16.3.5 production build. Against an isolated migrated PostgreSQL 16 test database,
+`PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 npm run test:browser --
+tests/e2e/concept-one.spec.ts tests/e2e/live-discovery.spec.ts
+tests/e2e/route-architecture.spec.ts` passed 23 desktop/mobile Chromium checks with five
+intentional project-specific skips. The browser checks cover company logos and failure fallback,
+sector/market filters, issuer detail routing, direct-first/AI-fallback search, responsive layout
+and legacy routes. `git diff --check` passed. Two real local spotlight requests each returned
+12 assets (ten public, two PreStocks) with different mixes and no missing logo URLs. The final
+local Chromium page loaded all 12 provider logos at nonzero natural width. No paid AI call,
+wallet funding, quote, trade or transaction was made for this release.
 
-Camera lifecycle was verified using browser-generated media tracks, not physical hardware. Native BarcodeDetector availability and real-device permission UI still require device QA; live recognition accuracy and authenticated persistence were not exercised by this visual phase. No deployment, paid recognition, wallet signing or money movement. Next task: wait for explicit user review/acceptance of Scan and Scan Results. Do not start Product/Brand/Company Detail, Saved or Portfolio redesign.
+Vercel deployment `dpl_AwbptuDDf5b3igPuFwcH4ysqQam6` is Ready at
+`https://shelf-one-phi.vercel.app`. Production `/readyz` reports PostgreSQL, Magic, OpenRouter,
+Jupiter and Helius ready while real trading remains disabled. Two read-only spotlight requests
+returned 12 assets (ten public, two PreStocks), no missing logo URLs or feed warnings, and
+different mixes. Production Chromium loaded all 12 logos at nonzero width and found no old
+reviewed-reference section. The release was deployed directly from this local tree. Next task:
+preserve the local commit in remote Git when the user authorizes a push; real-money activation
+remains a separate user-approved gate.
+
+## U29 automatic Discover product ownership lookup — production
+
+Discover now accepts one company-or-product search without an AI consent checkbox or second
+search action. The server checks current xStocks and PreStocks issuer listings first. A direct
+company or symbol result returns without an AI request. Only an unmatched term goes to OpenRouter
+under the existing no-data-collection/ZDR policy and quota limits. AI suggests an owner; the
+issuer feed alone supplies the linked asset, symbol and mint. The unused consent-gated
+`/discovery/search` endpoint was removed; scan image, barcode and URL consent flows are unchanged.
+Home and Discover explain the automatic routing, and Discover shows a clear provider or quota
+failure instead of a consent-required state.
+
+`npm run check` passed ESLint, strict TypeScript, all 99 Vitest tests in 15 files and the Next.js
+16.3.5 production build. After the final UI copy change, lint, typecheck and the production build
+passed again. The final built app passed all eight `live-discovery.spec.ts` Chromium checks on
+desktop and mobile, including a single request per query, direct xStocks results, automatic
+xStocks/PreStocks ownership links, unsupported owners and the separate scan consent flow.
+`git diff --check` passed. The first browser attempt was blocked by the local filesystem sandbox
+from launching Chromium and binding a local port; rerunning with the local server and browser
+outside that sandbox passed.
+
+Vercel deployment `dpl_FuE9Zf4KrxuGePdXAexAkMg5shUN` is Ready on
+`https://shelf-one-phi.vercel.app`. Production `/readyz` reports PostgreSQL and OpenRouter ready
+with trade execution disabled. A real direct Disney query sent only `{query}` and returned The
+Walt Disney / DISx without AI. One previously authorized paid synthetic “Spiderman” query sent
+only `{query}` and automatically returned AI-suggested owner The Walt Disney Company joined to
+the current xStocks DISx mint `Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`. No funded
+wallet, quote, trade or transaction was used. This direct Vercel deployment is not yet preserved
+in remote Git.
+
+## U28 issuer-provided logos — production
+
+The current xStocks asset response includes a `logo` URL and the PreStocks feed includes an
+`image` URL. Their adapters now expose optional `logoUrl` fields only after checking HTTPS,
+the provider-owned image host and its expected PNG path. PreStocks `www` URLs are normalized to
+its canonical host. Missing, malformed or failed images fall back to company initials. Direct
+issuer results, AI-matched product results, scan matches and issuer detail pages show the same
+source logo; no logo is treated as ownership evidence or kept in Shelf's catalog.
+
+Read-only provider checks found publicly fetchable DISx and OPENAI logos. Both passed through
+the local Next.js image optimizer as HTTP 200 PNGs; an unexpected query URL returned HTTP 400.
+Desktop/mobile screenshots showed the logo in the search card. The xStocks and PreStocks
+exact-asset API responses carried the validated URLs. ESLint, strict TypeScript, all 99 unit
+tests in 15 files and the final Next.js 16.3.5 production build passed. The final local
+`live-discovery.spec.ts` browser run passed all eight desktop/mobile checks. An earlier combined
+22-case run passed 16 checks, skipped five project-specific checks and exposed one older
+Discover test that depended on an unmocked live feed; its focused desktop/mobile rerun passed
+after the test received deterministic reviewed-issuer data. `git diff --check` passed. No
+trading or paid AI call was made for this image work.
+
+Vercel deployment `dpl_An5eDmgNq4RhTEiTgaZnsiNSCvcx` is Ready on
+`https://shelf-one-phi.vercel.app`. Production `/readyz` still reports PostgreSQL, Magic,
+OpenRouter, Jupiter and Helius with trade execution disabled. Exact xStocks DISx and PreStocks
+OPENAI asset APIs returned their validated `logoUrl` values. Both production optimized image
+requests returned HTTP 200 PNGs, and a real production Chromium search for Disney and OpenAI
+loaded each matching logo at a nonzero natural width. This release was deployed directly from
+the local working tree and still needs a remote Git push to survive future Git deployments.
+
+## U27 unified live and reviewed Discover — production
+
+Home and Discover now use one company-or-product search. The server checks current xStocks and
+PreStocks issuer listings first. A direct company or symbol result needs no AI request. When
+neither feed matches, the same query can continue through OpenRouter after the user explicitly
+opts in; the suggested owner is joined to current issuer listings before an asset link appears.
+Unknown owners, unsupported assets, stale feeds and unavailable feeds have distinct states.
+The old `/discover?source=issuer` bookmark redirects into this unified search.
+
+PR #3's reviewed product and brand examples remain in Home and Discover. Their company/product
+paths now check current issuer data. A reviewed instrument receives a direct asset link only
+when its provider, symbol and mint still match the feed; otherwise it stays a research example.
+Product pages and the reviewed company table show that status without using the static catalog
+as the live asset source. Brand and company URLs open the unified search. Scan results also link
+there. Real trading and deposits remain disabled.
+
+`npm run check` passed on the final implementation: ESLint, strict TypeScript, 99 Vitest tests
+in 15 files and the Next.js 16.3.5 production build. `git diff --check` passed. Local Chromium
+checks against the built app and an isolated migrated PostgreSQL 16 database passed: six route
+and shelf checks plus 21 Home/Discover/scan/identity checks on desktop and mobile (five
+suite-specific skips). An earlier route run used the stale local database password and got
+HTTP 500; the same exact route suite passed against the isolated database. Issuer and AI browser
+responses were intercepted. Read-only local API checks found Disney → DISx and put Spiderman at
+the AI-consent step without calling OpenRouter.
+
+Vercel deployment `dpl_3EpyWSpTFzb2C4JdRi952JqTCFq8` was Ready on
+`https://shelf-one-phi.vercel.app` at the U27 release and is superseded by U28.
+Production `/readyz` reported Magic, OpenRouter, Jupiter,
+Helius and PostgreSQL with trade execution disabled. A production feed query returned The Walt
+Disney / DISx with the expected mint and no unavailable or stale feed. A Spiderman query without
+consent returned `consent_required`, with no paid AI call. Production reviewed-link data mapped
+PepsiCo to PEPx and OpenAI to the PreStocks OPENAI token with no feed warnings. All eight
+desktop/mobile production Chromium discovery checks passed with issuer and AI responses
+intercepted. One previously authorized, consented production OpenRouter query for synthetic
+“Spiderman” returned “Spider-Man” with owner “The Walt Disney Company”; Shelf joined it to the
+current xStocks DISx mint `Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`, with no feed
+warnings. That call used AI only and made no trade. This release was originally deployed
+directly from the local working tree; its U27 commit is now on `origin/main`.
+
+## PR #3 and earlier local discovery integration — historical
+
+PR #3 introduced the research-led Home and Discover screens. The five reviewed product
+categories and canonical product/shelf journeys were restored there. At that release, the live
+issuer directory and consent-based product-owner search from U25/U26 were separate at
+`/discover?source=issuer`. U27 above supersedes that route and search behavior. Real trading and
+deposits remained disabled.
+The catalog filter URL uses Next.js-supported native history updates, and navigation out of
+Discover cancels pending filter updates so result links cannot be reversed by a delayed update.
+`npm run check` passed: ESLint, strict TypeScript, 98 Vitest tests in 15 files, and the
+Next.js 16.3.5 production build. All four local Playwright suites passed against that build
+and an isolated migrated PostgreSQL 16 database: 27 desktop/mobile checks passed and five
+project-specific checks were intentionally skipped. AI and issuer responses were intercepted
+where those browser tests required them. `git diff --check` passed. The verified commits were
+pushed non-force to `origin/main` on top of PR #3. No real-money operation, paid AI request,
+manual deployment, or production activation was performed; any automatic deployment from the
+push still needs separate confirmation.
+
+## Review follow-up — category and product shelf restoration
+
+The reviewed five-category product collections are accessible through Discover. Canonical
+product pages again save reviewed product IDs to a guest session or member shelf, while current
+issuer searches remain separate from reviewed relationships. Legacy product IDs redirect to their
+canonical product pages, and legacy company IDs redirect through the canonical company URL before
+the instrument destination. Brand URLs continue to open live product search. Route and journey
+browser contracts now cover category browsing, guest/member product saves and the brand redirect.
+`npm run check` passed: ESLint, strict TypeScript, 98 Vitest tests in 15 files and the
+Next.js 16.3.5 production build. The focused local browser run passed live discovery and
+identity journeys on desktop and mobile (12 checks). The route suite passed all six checks on
+desktop and mobile against that build with a disposable PostgreSQL 16 database, including the
+category, guest-save, member-save and exact redirect contracts. The first route-suite run used
+an invalid local database password and returned HTTP 500 for `/account`; connecting the
+disposable migrated database resolved that setup failure. Browser API responses for issuer,
+AI and member shelf writes were intercepted where the test required them. No live-money action,
+paid AI request or external deployment was part of this review fix. The local implementation
+still needs a separately authorized deployment before production reflects these changes.
+
+## U26 AI ownership to live issuer asset — deployed
+
+Discover now keeps a failed direct-search query when a user chooses consent-based product
+search. AI ownership and both live issuer feeds are fetched concurrently, and the response
+includes the matching issuer asset, symbol and mint without a second user action. Exact
+normalized company names take priority; a unique issuer name ending in the AI's shorter
+company name may also match. Ambiguous or unrelated names remain unlisted and receive no
+asset or purchase link. A product with an identified owner but no matching issuer asset now
+shows a distinct no-available-asset message. This fixes `Disney` joining the observed
+`The Walt Disney` xStocks listing (`DISx`, Solana mint
+`Xsg93jDV656ULQ5u9yT2x5DS9b4xGD8aDCtfESSW6Bb`) while preserving the different AI
+owner and issuer names in the UI. A read-only production issuer search confirmed the listing.
+
+`npm run check` passed: lint, strict TypeScript, 98 Vitest tests across 15 files and the
+Next.js 16.3.5 production build. The eight Discover Chromium checks passed on desktop and
+mobile against the local server with intercepted AI/feed responses. The first cold run had
+one asset-page navigation timeout during initial Next.js compilation; the same case passed
+on rerun after compilation. No paid AI request, funding, trade or onchain write was made.
+Vercel deployment `dpl_8SFbMLfeoZ4UaaskdgKtXWTdt4Np` is Ready and owns the production
+alias. Production `/readyz` reports PostgreSQL, Magic, OpenRouter, Jupiter and Helius with
+trade execution disabled. The product-search page returned HTTP 200; read-only issuer search
+returned The Walt Disney / DISx with the expected mint and no unavailable or stale feed.
+The linked `/assets/xstocks/DISx` page returned HTTP 200.
+The consent-based Spiderman → Disney → DISx and unsupported-owner states passed on the
+production desktop and mobile browser with AI/issuer responses intercepted. No paid
+production AI call was made in this milestone. A real AI response can still vary in its
+ownership suggestion, which the UI labels as unverified; the deterministic issuer join
+only links a sufficiently specific, unambiguous current listing.
+
+## U25 live-only Discover flow — deployed
+
+Discover now has two explicit paths. Company search reads the current xStocks and PreStocks
+issuer feeds without an AI request; product search requires OpenRouter consent, asks for the
+current controlling parent, and joins that answer to both live issuer feeds. Results show the AI
+owner separately from the matched issuer name, source, symbol and mint, with a direct link to
+the exact issuer asset page. Missing, stale and unavailable feed states remain distinct, and
+an unconfirmed AI suggestion has no issuer asset or purchase link.
+
+The home and Discover pages no longer show saved product examples or category filters. Historical
+product, brand and company detail URLs redirect to consent-based product search, direct live
+company search, or an issuer asset. Previously saved user product rows remain readable only on
+that user's shelf and invite a fresh lookup; they no longer assert a presaved ownership path.
+The unused static allocation screen was removed; editable basket allocation remains.
+
+The OpenRouter ownership prompt now uses a system instruction, asks for a single current
+controlling parent, rejects investor/partner/subsidiary shortcuts and token-driven guesses,
+and explicitly abstains on uncertainty. The server keeps the AI owner and issuer name
+separate. npm run check passed: ESLint, strict TypeScript, 98 tests in 15 files, and the
+Next.js 16.3.5 production build. Eight desktop/mobile Chromium checks passed using intercepted
+AI and issuer responses; no paid AI call, live trade, funding or onchain write was made.
+The xStocks full feed now fetches pages in small ordered batches, retries transient page failures,
+and fails closed on a missing required page. A read-only local run returned 1,124 Solana listings
+and the expected AAPLx mint in about 20 seconds. The issuer documents a 100-asset maximum page
+size at https://docs.xstocks.fi/apis/openapi/assets/list_public_assets.
+
+Production deployment dpl_B7TmAdtULiRCLLjY3hMVMwFn3Ee1 is Ready on the Shelf alias.
+Production /readyz reports PostgreSQL, Magic, OpenRouter, Jupiter and Helius configured, with
+tradeExecution disabled. The revised product Discover page serves HTTP 200 and no saved examples;
+read-only issuer search returned AAPLx and OPENAI with the expected mints and no unavailable feeds.
+The cold xStocks search took about 20 seconds, down from about 48 seconds before batching; the
+private-only search took about two seconds after it stopped fetching xStocks unnecessarily.
+Historical product and brand URLs redirect to live product search. No paid AI call was made for
+this release. Two residual UI references to the old catalog were replaced with saved-product
+and relationship-report wording in the final deployment; lint, TypeScript and production build
+passed again after that copy change. Issuer mints in result cards now wrap on narrow screens;
+lint, TypeScript and production build passed after this final UI edit. The funded activation
+test and operational launch decisions remain separate gates.
+
+## U24 live issuer-feed discovery — deployed
+
+The application now replaces presaved-catalog matching in typed search and image scans. The
+OpenRouter structured response identifies a product and suggests likely owner names; the server
+joins only those names to current full xStocks and PreStocks feeds. AI ownership is visibly
+unverified. Barcode mode obtains a product-name clue from public Open Food/Beauty/Products Facts
+before the same AI and issuer join; unknown barcodes stay unresolved. If one feed is unavailable,
+results say that a token may have been missed. The UI has issuer asset and purchase pages with
+source-specific disclosures and the current PreStocks valuation and supply fields. Order creation
+re-fetches the issuer mint, inspects its Solana token program and decimals through Helius, and
+persists the selected company.
+Jupiter quoting continues to recheck the unchanged mint immediately before a build. Wallet
+reconciliation now includes dynamically registered assets. Halted xStocks assets can still be
+saved, while new purchases fail closed. Historical saved product rows remain readable, but the old
+catalog search endpoints were removed.
+
+Public read-only checks returned 1,026 xStocks Solana listings and eight PreStocks listings; a
+public barcode lookup resolved a product name. `npm run lint`, `npm run typecheck`, 93 Vitest
+tests in 15 files, `npm run build`, and `git diff --check` pass. Local search/image browser flows
+and protected-route HTTP contracts pass on desktop and mobile using a disposable PostgreSQL
+cluster. The same four mocked search/image browser checks pass on production. No paid AI call,
+onchain transaction, funding, or mainnet write was made at that U24 deployment milestone.
+
+## OpenRouter recognition verification — 2026-09-23
+
+User-authorized real production requests returned `iPhone → Apple → xStocks AAPLx` for typed
+search and a synthetic image. A ChatGPT request then returned one HTTP 500, and a repeat returned
+the incorrect AI suggestion `ChatGPT → Microsoft`. Direct OpenRouter isolation returned the legal
+name `OpenAI Group PBC`, which the previous exact-name issuer join missed. The recognition prompt
+now asks for one actual product operator and excludes investors and partners; issuer matching
+normalizes ordinary legal suffixes such as `Group PBC`. Direct real text and image retests returned
+`ChatGPT → OpenAI` and `iPhone → Apple`. Discovery AI reservations and usage settlement now use
+separate short database transactions instead of holding a transaction through the provider and
+issuer-feed calls.
+
+Deployment `dpl_GJjdYAkaAVxaJov4mFaMz3phbWmf` is Ready on the production alias. Two consecutive
+real ChatGPT requests on it returned HTTP 201 and matched PreStocks OPENAI with mint
+`PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF`. A further production image attempt hit the
+expected five-request guest quota (HTTP 429) before reaching OpenRouter. The revised image prompt
+passed a real direct OpenRouter call; the deployed image UI passed both desktop and mobile
+browser checks with AI mocked. Automatic approval review rejected using a new guest identity to
+evade the quota, so no further paid production image request was made. The earlier transient 500
+could not be conclusively diagnosed from historical Vercel logs; it did not recur in the two
+post-fix ChatGPT requests. No trading, funding, or onchain write occurred.
 
 ## Current release
 
-Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_GgLXwLwDPD7awf59HDqPz5zzRCQ8` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
+Shelf is deployed at https://shelf-one-phi.vercel.app as a production-only Next.js application. Vercel deployment `dpl_FuE9Zf4KrxuGePdXAexAkMg5shUN` is Ready and owns the production alias. Railway PostgreSQL is the only runtime store. Railway worker deployment `f0d24072-dd94-4450-9772-295dc450c1a4` refreshes issuer data and calls Shelf's narrowly authenticated transaction reconciler.
 
-The current deployment contains the merged frontend, execution-safety work, and the corrected Magic wallet parser. It has not been exercised with funded wallets.
+The current deployment contains the merged frontend, execution-safety work, corrected Magic wallet parser, U24 live issuer-feed discovery, U26 instant AI-to-issuer linking, U27 unified Discover, U28 issuer-provided logos and U29 automatic Discover AI fallback. It has not been exercised with funded wallets. PR #2's exact route-response contracts passed locally against the production build and disposable PostgreSQL database.
 
-`/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. A production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
+`/readyz` reports Magic, OpenRouter, Jupiter, Helius, PostgreSQL, and `tradeExecution: disabled`. Read-only production issuer search returns AAPLx and OPENAI with their issuer Solana mints and no unavailable feeds. Anonymous `/api/v1/me` returns 401. A prior production mutation persisted the one-way cleanup of any legacy user without a verified Magic issuer and any order without a Jupiter quote.
 
 ## Implemented product
 
-- Guest discovery across seven inputs and five categories, reviewed product/company relationships, public learning, and distinct xStocks and PreStocks market lanes
+- Guest discovery across seven inputs and five categories, AI owner suggestions joined to full live issuer feeds, public learning, and distinct xStocks and PreStocks market lanes
 - Magic email/Google identity, signed HttpOnly sessions, wallet binding, recovery, global logout, owner binding, signing approval and cancellation
 - One private shelf, watchlist, revocable bearer shares, reports, exports, deletion controls, and privacy boundaries
 - OpenRouter recognition and grounded education using `z-ai/glm-5.3-flash`, strict schemas, no-data-collection routing, zero-data-retention routing, quotas, and spend caps
-- Live PreStocks issuer reference data and stored history; live xStocks reviewed symbol/mint metadata
+- Live PreStocks issuer reference data and stored history; the full paginated xStocks public directory and exact-symbol mint metadata
 - Direct buy paths from both market lanes; each executable quote fetches fresh issuer listings (bypassing the five-minute display cache) and rechecks the selected company and exact mint before asking Jupiter for a route
 - Jupiter exact-input transaction assembly with exact terms, fee account, signer, program, and no-tip validation; encrypted preparations and signed bytes; exact-message Magic signing; bounded sponsor co-signing; Helius simulation, broadcast, finality checks, and exact token-delta accounting
 - Restart-safe, deadline-bounded reconciliation through the Railway scheduler; signed transactions can only be rebroadcast byte-for-byte, non-final chain errors retain the wallet lock, and finalized holdings come from finalized Helius transaction facts
@@ -38,15 +313,18 @@ There are no runtime substitutes for identity, balances, provider data, signatur
 
 - `npm run lint` — passed with no warnings
 - `npm run typecheck` — passed
-- `npm test` — 10 files, 44 focused tests passed
-- `npm test` — 14 files, 90 focused tests passed on the merged local tree
+- `npm run check` — ESLint, strict TypeScript, 15 Vitest files/98 tests, and the Next.js 16.3.5 Webpack production build passed on the final U25 tree
 - `npm run build` — passed with Next.js 16.3.5
-- Local production route/browser verification — 6/6 desktop and Pixel 7 checks passed, including exact 307/308/404 response contracts
-- Production `/readyz` — passed against the deployment
-- Production PreStocks endpoint — returned current reviewed listings
+- Local production-build browser verification with disposable PostgreSQL — search/image flows passed on desktop and Pixel 7; exact 307/308/404 route contracts passed on both projects
+- Local production-build browser verification for the review fixes — `live-discovery.spec.ts` passed 3/3 desktop Chromium and 3/3 Pixel 7 tests with issuer/API responses mocked; no live provider call was made by these checks
+- Production `/readyz` — passed on deployment `dpl_4qf4YjBAzJ1f3kixhEJxaiVigTBM`, with trading disabled
+- Production issuer search — AAPLx from xStocks and OPENAI from PreStocks, with the expected Solana mints and no unavailable feeds
 - Anonymous `/api/v1/me` — returned 401
-- Prior production Chromium — desktop and Pixel 7 projects, 2/2 passed against the earlier deployment, not this local merge
-- Local Playwright on the merged tree — targeted identity, canonical-route, and PreStocks buy-path checks, desktop and Pixel 7 projects, 4/4 passed. Authenticated local checks remain unavailable without local PostgreSQL.
+- Production Chromium — four mocked search/image flow checks passed on desktop and Pixel 7; those browser checks made no paid OpenRouter request
+- U25 local Chromium — four Discover/scan checks passed on desktop and Pixel 7, including the xStocks and PreStocks product-result links; issuer and AI responses were intercepted
+- U25 production read-only — both issuer searches returned current mints, the new Discover page served HTTP 200, historical product/brand routes redirected to live search, and /readyz reported trading disabled
+- Real OpenRouter recognition — typed iPhone and synthetic-image iPhone passed before the prompt fix; revised prompt passed direct text and image calls; two post-fix production ChatGPT requests passed and matched PreStocks OPENAI
+- Post-fix production image request — expected HTTP 429 guest-quota block; no provider call made. Desktop and Pixel 7 image browser checks passed with AI mocked.
 - Railway scheduled run at 2026-09-22 11:45 UTC — completed issuer refresh and Shelf reconciliation, two checked jobs, zero failures
 - No sponsor funding, fee-account creation, simulation, investment signing, submission, broadcast, or money movement was performed
 
@@ -60,11 +338,17 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-The frontend refactor is complete through Phases 0–2. Phase 3 now has two local visual comparison candidates for the shell, Home and Discover: the existing editorial Concept 1 and the Capital/Rho-inspired Concept 2 (`/?concept=2`, `/discover?concept=2`). Next: user compares the candidates and selects a direction; do not begin Scan or entity-detail redesign yet. Before enabling trading, obtain approval for any paid read-only Jupiter build verification and confirm representative routes satisfy the strict transaction policy. Only after separate owner approval for funding and live-money testing, execute the activation checklist without widening its limits.
+Preserve U29 in remote Git before a future automatic Git deployment can replace the direct
+Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
+another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
+fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate
+approval gates. Only after separate owner approval for funding and live-money testing, execute
+the activation checklist without widening its limits.
 
 ## Recent maintenance
 
-- 2026-09-23: Implemented a separately selectable Capital/Rho-inspired Concept 2 for Home, Discover and their shell, preserving Concept 1 and canonical routing/filter behavior. Added a real-catalog relationship explorer, reviewed imagery, dark/mint visual foundation, scroll/entrance motion, pause and reduced-motion handling, and keyboard focus containment/restoration for mobile filters. See `docs/CONCEPT_2.md`, `src/components/screens/concept-two.tsx`, `src/app/concept-two.css`, and `artifacts/concept-2/`. Final ESLint and TypeScript pass; 14 Vitest files/90 tests pass; production build passes. Local production Playwright: 21 passed, 7 intentional project-specific skips, covering both concepts, canonical routes, 390/430/1280/1440 widths and mobile clearance. Screenshot capture reported no browser page errors. Build emitted nonfatal cache-space and Magic initialization/network warnings; neither is evidence of authenticated/provider readiness. No deployment, paid request, provider mutation or money action was performed. Concept 2 is a comparison candidate, not an approved replacement.
+- 2026-09-23: Fixed the seven follow-up issuer/discovery findings locally. Wallet refresh now reconciles the combined tracked and reserved holdings of every instrument sharing a mint before assigning external inventory, marking all affected holdings on a shortfall. Legacy buy and basket IDs must pass fresh issuer and on-chain mint/program/decimal checks before an order draft. Dynamically registered issuer companies preserve corporate-action lifecycle context only for an exact reviewed provider/symbol/mint match; holding actions are mapped to the matching reviewed instrument and purchase review displays lifecycle warnings. Exact `/assets/{provider}/{symbol}` and purchase return paths are recognized safely; asset details use a provider-specific exact-symbol endpoint instead of the first mixed search page. All five product categories can again be browsed and filtered, clearly separated from live issuer results. xStocks pagination stops at the first terminal page. Added regression tests and updated browser mocks. `npm run check` passed: ESLint, strict TypeScript, 15 Vitest files/97 tests, and the Next.js 16.3.5 Webpack production build. The local production build also passed 3/3 desktop Chromium and 3/3 Pixel 7 browser checks. `git diff --check` passed. No deployment, paid provider call, signing, broadcast, funding, or money movement occurred; real trading and deposits remain disabled.
+- 2026-09-23: Integrated PR #2's Phase 0–2 route-response and strict return-path corrections into local `main`. Preserved the deliberate removal of the global loading boundary, retained its local-production HTTP regression suite, removed documentation trailing spaces, and restored `next-env.d.ts` to production-generated type imports. `npm run check` passed on the combined tree: ESLint, strict TypeScript, 14 Vitest files/90 tests, and the Next.js 16.3.5 Webpack production build. The PR branch's 6/6 isolated PostgreSQL-backed browser result was reviewed but not rerun in this merge; no provider call, deployment confirmation, signing, funding, or money movement occurred.
 - 2026-09-23: Audited the complete Phase 0–2 frontend route architecture against the Product Design Guide and recorded fail-first plus final evidence in `docs/PHASE_0_2_ROUTE_VERIFICATION.md`. Corrected two in-scope defects: removed the global loading boundary that committed HTTP 200 before redirects/not-found, and replaced broad auth return-path prefixes with exact canonical shapes and safe segment validation. Added local-production HTTP regression coverage for all 19 guide-listed legacy redirects, invalid entities, guest access, and canonical ID migrations. ESLint, strict TypeScript, 10 Vitest files/44 tests, the Next.js production build, and 6/6 local desktop/Pixel 7 browser checks pass; authenticated probes return 200 for owned resources and indistinguishable 404s for foreign/missing/non-owner resources. No Phase 3 redesign, deployment, provider call, signing, or money action was performed.
 - 2026-09-23: Diagnosed the remaining production Magic callback failure against the actual Vercel and Railway instances. Vercel successfully connected to Railway PostgreSQL, loaded a stored Magic issuer, and called Magic Admin. The runtime response contained a valid Solana wallet with `wallet_type` and `public_address`, while Magic Admin 2.8.2 declares camelCase fields but passes the nested API object through unchanged. Normalized both runtime snake_case and declared camelCase shapes while retaining exact browser/server address matching and fail-closed wallet-type checks. Removed the short-lived protected diagnostic before the final deployment. ESLint, strict TypeScript, 14 Vitest files/90 tests, and the Next.js production build pass. Vercel deployment `dpl_GgLXwLwDPD7awf59HDqPz5zzRCQ8` is Ready on the production alias; `/readyz` confirms Magic and PostgreSQL, and the removed diagnostic returns 404. Real trading remains disabled.
 - 2026-09-23: Locally merged the execution-safety branch with `origin/main`'s Product Design Guide Phases 0–2. Resolved the two text conflicts by preserving both status histories and updating the production identity browser test for canonical `/discover` routing while retaining the OpenAI PreStocks purchase-path assertion. Removed a trailing whitespace defect in the incoming summary. `npm run check` passed: ESLint, strict TypeScript, 14 Vitest files/90 tests, and the Next.js 16.3.5 Webpack production build. Targeted local Playwright passed 4/4 desktop and Pixel 7 checks. No remote push, deployment, paid provider request, signing, broadcast, funding, or money movement was performed.

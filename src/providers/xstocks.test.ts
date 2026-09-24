@@ -1,65 +1,79 @@
 import { describe, expect, it } from "vitest";
 import { LiveXStocksProvider } from "./xstocks";
 
-function asset(symbol: string, underlyingSymbol: string, mint: string) {
+function asset(symbol: string, mint: string) {
   return {
-    name: `${underlyingSymbol} xStock`,
+    name: `${symbol} xStock`,
     symbol,
-    underlyingSymbol,
+    logo: `https://xstocks-metadata.backed.fi/logos/tokens/${symbol}.png`,
+    underlying: { symbol: symbol.slice(0, -1) },
     isTradingHalted: false,
-    trading: {
-      currentPeriod: "market",
-      openNow: true,
-      nextChangeAt: "2026-09-21T20:00:00.000Z",
-      exchange: { name: "Nasdaq Stock Market", abbreviation: "NASDAQ" },
-    },
+    trading: null,
     deployments: [{ address: mint, network: "Solana", supportsAtomicSwaps: true }],
   };
 }
 
-const reviewedAssets = {
-  PEPx: asset("PEPx", "PEP", "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF"),
-  PGx: asset("PGx", "PG", "XsYdjDjNUygZ7yGKfQaB6TxLh2gC6RRjzLtLAGJrhzV"),
-  AAPLx: asset("AAPLx", "AAPL", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp"),
-};
-
-describe("xStocks providers", () => {
-  it("accepts only the reviewed Solana mint for each symbol", async () => {
+describe("xStocks provider", () => {
+  it("reads every page and uses issuer-listed Solana mints", async () => {
+    const pages = [
+      { nodes: [asset("AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp")],
+        page: { currentPage: 0, hasNextPage: true } },
+      { nodes: [{ ...asset("PEPx", "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF"), logo: "https://xstocks-metadata.backed.fi/other/PEPx.png" }],
+        page: { currentPage: 1, hasNextPage: false } },
+    ];
+    const requestedPages: number[] = [];
     const send: typeof fetch = async (input) => {
-      const symbol = new URL(String(input)).pathname
-        .split("/")
-        .at(-1) as keyof typeof reviewedAssets;
-      return new Response(JSON.stringify(reviewedAssets[symbol]), { status: 200 });
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      requestedPages.push(page);
+      if (page >= pages.length) return new Response(null, { status: 404 });
+      return new Response(JSON.stringify(pages[page]), { status: 200 });
     };
-
     const listings = await new LiveXStocksProvider(undefined, send).listings();
 
-    expect(listings).toHaveLength(3);
-    expect(listings.find((listing) => listing.symbol === "AAPLx")).toMatchObject({
-      companyId: "company-apple",
-      underlyingSymbol: "AAPL",
-      marketOpen: true,
-    });
+    expect(listings.map((listing) => listing.companyId)).toEqual([
+      "issuer:xstocks:AAPLx",
+      "issuer:xstocks:PEPx",
+    ]);
+    expect(listings[0].mint).toBe("XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp");
+    expect(listings[0].logoUrl).toBe("https://xstocks-metadata.backed.fi/logos/tokens/AAPLx.png");
+    expect(listings[1].logoUrl).toBeUndefined();
+    expect(requestedPages).toEqual([0, 1, 2]);
   });
 
-  it("rejects a mismatched mint from the issuer response", async () => {
+  it("does not accept a later page when an earlier required page fails", async () => {
     const send: typeof fetch = async (input) => {
-      const symbol = new URL(String(input)).pathname
-        .split("/")
-        .at(-1) as keyof typeof reviewedAssets;
-      const response = structuredClone(reviewedAssets[symbol]);
-      response.deployments[0].address = "WrongMint111111111111111111111111111111111";
-      return new Response(JSON.stringify(response), { status: 200 });
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      if (page === 1) return new Response(null, { status: 503 });
+      return new Response(JSON.stringify({
+        nodes: [],
+        page: { currentPage: page, hasNextPage: page === 0 },
+      }));
     };
 
-    await expect(new LiveXStocksProvider(undefined, send).listings()).rejects.toThrow(
-      "XSTOCKS_ASSET_MISMATCH",
-    );
+    await expect(new LiveXStocksProvider(undefined, send).listings())
+      .rejects.toThrow("XSTOCKS_UNAVAILABLE");
   });
 
-  it("rejects endpoints outside the xStocks API host", () => {
+  it("rejects an unexpected page and foreign API host", async () => {
+    const send: typeof fetch = async () => new Response(JSON.stringify({
+      nodes: [], page: { currentPage: 4, hasNextPage: false },
+    }));
+    await expect(new LiveXStocksProvider(undefined, send).listings()).rejects.toThrow(
+      "XSTOCKS_INVALID_PAGE",
+    );
     expect(() => new LiveXStocksProvider("https://attacker.invalid/api/")).toThrow(
       "XSTOCKS_ENDPOINT_NOT_ALLOWED",
     );
+  });
+
+  it("fetches one exact symbol for financial verification", async () => {
+    const send: typeof fetch = async (input) => {
+      expect(String(input)).toContain("/public/assets/AAPLx");
+      return new Response(JSON.stringify(asset(
+        "AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      )));
+    };
+    const listing = await new LiveXStocksProvider(undefined, send).listing("AAPLx");
+    expect(listing?.companyId).toBe("issuer:xstocks:AAPLx");
   });
 });

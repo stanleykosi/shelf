@@ -6,6 +6,13 @@ These are functional UX decisions, not a visual identity. The frontend teammate 
 
 Mobile primary navigation: **Discover · Scan · Shelf · Portfolio**. Scan is visually prominent but still has a text label. Account/wallet/settings live in the account menu. Learning content is reached from Discover, products, companies and the assistant. Desktop uses the same destinations in a header/sidebar; preserve route meaning.
 
+In Discover, the active U30 browse view is a rotating table of current xStocks and PreStocks
+company assets. Sector labels are editorial; the selection does not imply strong performance or
+trading eligibility. Product and company queries use the same full-feed search, with automatic
+AI ownership lookup only when the issuer feeds have no direct match. Browse filters do not limit
+search results. Reviewed products remain in the educational and saved-product journeys, not in
+Discover's company browse table.
+
 Guests see Portfolio's explanation and sign-in CTA, never fabricated balances. Existing members see a pending-transaction banner across financial screens until resolution. Do not put market tickers or flashing price charts above the scanner.
 
 Content hierarchy:
@@ -150,7 +157,7 @@ Declined invitation or unavailable Google leaves the temporary shelf intact. Ema
 
 ## J09 — Learn and discover again
 
-Discover shows curated catalog collections by category and short source-backed explainers: what a parent company is, why brands overlap, what a stock token represents, how fees work, and how dividends/splits affect displayed quantities. No personalized purchase recommendation is smuggled into “education.” Saving and learning remain useful without funding.
+Home and learning pages retain source-backed product and company explainers: what a parent company is, why brands overlap, what a stock token represents, how fees work, and how dividends/splits affect displayed quantities. Discover's active browse area is the live company spotlight described above. No personalized purchase recommendation is smuggled into “education.” Saving and learning remain useful without funding.
 
 ## Global behavior
 

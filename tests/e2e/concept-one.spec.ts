@@ -7,6 +7,38 @@ const isLocal = selectedBaseUrl
 
 test.skip(!isLocal, "Concept #1 browser verification runs against the local implementation");
 
+const spotlightListings = [
+  { provider: "xstocks", sector: "Technology", asset: {
+    companyId: "issuer:xstocks:AAPLx", name: "Apple", symbol: "AAPLx",
+    logoUrl: "https://xstocks-metadata.backed.fi/logos/tokens/AAPLx.png",
+  } },
+  { provider: "xstocks", sector: "Food & drink", asset: {
+    companyId: "issuer:xstocks:PEPx", name: "PepsiCo", symbol: "PEPx",
+    logoUrl: "https://xstocks-metadata.backed.fi/logos/tokens/PEPx.png",
+  } },
+  { provider: "prestocks", sector: "Technology", asset: {
+    companyId: "issuer:prestocks:OPENAI", name: "OpenAI", symbol: "OPENAI",
+    logoUrl: "https://prestocks.com/logos/openai.png",
+  } },
+  { provider: "prestocks", sector: "Industrials", asset: {
+    companyId: "issuer:prestocks:SPACEX", name: "SpaceX", symbol: "SPACEX",
+    logoUrl: "https://prestocks.com/logos/spacex.png",
+  } },
+];
+
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/issuer/spotlight", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: {
+      featured: spotlightListings,
+      listings: spotlightListings,
+      unavailable: [],
+      stale: [],
+    } }),
+  }));
+});
+
 test("Home teaches the entity path and starts discovery without a financial CTA", async ({
   page,
 }) => {
@@ -29,35 +61,89 @@ test("Home teaches the entity path and starts discovery without a financial CTA"
   expect(hasDocumentOverflow).toBe(false);
 });
 
-test("Discover distinguishes entity modes and preserves contextual Company filters", async ({
+test("Discover shows live company logos, sector filters, search, and issuer details", async ({
   page,
 }, testInfo) => {
+  await page.route("**/api/v1/discovery/query", (route) => route.fulfill({
+    status: 201,
+    contentType: "application/json",
+    body: JSON.stringify({ data: {
+      kind: "company",
+      listings: [{ provider: "prestocks", asset: {
+        companyId: "issuer:prestocks:OPENAI",
+        name: "OpenAI",
+        symbol: "OPENAI",
+        mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
+      } }],
+      matches: [],
+      unavailable: [],
+      stale: [],
+    } }),
+  }));
+  await page.route("https://prestocks.com/logos/spacex.png", (route) => route.abort());
+  await page.route("**/api/v1/issuer/asset/xstocks/PEPx", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: { listing: { provider: "xstocks", asset: {
+      ...spotlightListings[1].asset,
+      description: "PepsiCo issuer asset",
+      mint: "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF",
+      exchange: "Nasdaq",
+      marketOpen: true,
+      marketPeriod: "market",
+      nextChangeAt: "",
+      tradingHalted: false,
+      observedAt: "2026-09-24T00:00:00.000Z",
+    } }, lifecycle: null } }),
+  }));
   await page.goto("/discover");
 
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
-  await expect(page.getByText("Research Products, Brands, and Companies from a reviewed catalog."))
-    .toBeVisible();
+  await expect(page.getByRole("heading", { name: "Companies to explore" })).toBeVisible();
+  await expect(page.getByText("Reviewed product references")).toHaveCount(0);
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(4);
+  await expect(page.getByRole("link", { name: "View PepsiCo details" }).locator("img"))
+    .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);
+  await expect(page.getByRole("link", { name: "View OpenAI details" }).locator("img"))
+    .toHaveAttribute("src", /prestocks\.com/);
+  await expect(page.getByRole("link", { name: "View SpaceX details" }).locator(".issuer-logo"))
+    .toHaveText("S");
 
-  await page.getByRole("button", { name: "Companies", exact: true }).click();
-  await expect(page).toHaveURL(/\/discover\?entity=company$/);
+  await page.getByRole("button", { name: "Food & drink" }).click();
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("link", { name: "View PepsiCo details" })).toBeVisible();
+  await page.getByRole("button", { name: "All sectors" }).click();
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("dialog").getByLabel("Market status").selectOption("private");
-    await page.getByRole("dialog").getByRole("button", { name: /Show .* results/ }).click();
+    await page.getByRole("dialog").getByLabel("Market").selectOption("private");
+    await page.getByRole("dialog").getByRole("button", { name: /Show .* companies/ }).click();
   } else {
-    await page.getByLabel("Market status").selectOption("private");
+    await page.getByLabel("Market").selectOption("private");
   }
-  await expect(page).toHaveURL(/entity=company&market=private/);
-  await expect(page.locator(".research-table td").getByText("Private", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "View SpaceX details" })).toBeVisible();
 
-  await page.getByPlaceholder("Search products, brands, or companies").fill("OpenAI");
+  await page.getByPlaceholder("Search a company or product").fill("OpenAI");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=OpenAI/);
-  await expect(page.getByRole("link", { name: /OpenAI/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /View OPENAI issuer asset/ })).toBeVisible();
+  await expect(page.locator(".issuer-spotlight-table")).toHaveCount(0);
+  await page.getByRole("button", { name: "Explore featured companies" }).click();
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: "PreStocks exposure" }).click();
+  } else {
+    await page.getByLabel("Market").selectOption("");
+  }
 
   const hasDocumentOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );
   expect(hasDocumentOverflow).toBe(false);
+
+  await page.getByRole("link", { name: "View PepsiCo details" }).click();
+  await expect(page).toHaveURL(/\/assets\/xstocks\/PEPx$/);
+  await expect(page.getByRole("heading", { name: "PepsiCo" })).toBeVisible();
 });
 
 test("mobile shell keeps the approved destinations and active state", async ({ page }, testInfo) => {
@@ -84,31 +170,32 @@ test("mobile shell keeps the approved destinations and active state", async ({ p
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 });
 
-test("mobile Discover keeps entity modes visible and discloses lower-priority filters", async ({
+test("mobile Discover exposes sectors and market filters without hiding company images", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "Mobile-only filter assertion");
   await page.goto("/discover");
 
-  await expect(page.getByRole("button", { name: "Products", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Brands", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Companies", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Category")).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Technology" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Food & drink" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View OpenAI details" }).locator("img")).toBeVisible();
+  await expect(page.getByLabel("Market")).not.toBeVisible();
 
   await page.getByRole("button", { name: /^Filters/ }).click();
   const filterDialog = page.getByRole("dialog");
-  await filterDialog.getByLabel("Category").selectOption("groceries");
-  await expect(page).toHaveURL(/category=groceries/);
+  await filterDialog.getByLabel("Market").selectOption("private");
+  await expect(page).toHaveURL(/market=private/);
   await expect(page.getByLabel("1 active filters")).toBeVisible();
-  await filterDialog.getByRole("button", { name: /Show .* results/ }).click();
-  await expect(page.getByLabel("Category")).not.toBeVisible();
+  await filterDialog.getByRole("button", { name: /Show .* companies/ }).click();
+  await expect(page.getByLabel("Market")).not.toBeVisible();
+  await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
 });
 
 for (const route of ["/", "/discover"] as const) {
   test("mobile bottom navigation clears final content on " + route, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile-only clearance assertion");
     await page.goto(route);
-    const finalContent = route === "/" ? page.locator(".learning-section") : page.locator(".entity-result-groups");
+    const finalContent = route === "/" ? page.locator(".learning-section") : page.locator(".issuer-spotlight-table");
     await finalContent.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
@@ -117,7 +204,7 @@ for (const route of ["/", "/discover"] as const) {
       const navigation = document.querySelector(".mobile-navigation");
       if (!content || !navigation) return -1;
       return navigation.getBoundingClientRect().top - content.getBoundingClientRect().bottom;
-    }, route === "/" ? ".learning-section" : ".entity-result-groups");
+    }, route === "/" ? ".learning-section" : ".issuer-spotlight-table");
     expect(clearance).toBeGreaterThanOrEqual(0);
   });
 }

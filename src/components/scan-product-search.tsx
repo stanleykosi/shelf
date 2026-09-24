@@ -10,7 +10,7 @@ export function ScanProductSearch({ onSelect }: { onSelect: (product: Product) =
   const [query, setQuery] = useState("");
   const matches = products.filter((product) => `${product.name} ${product.brand}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className="scan-product-search">
-    <SearchCommand value={query} onChange={setQuery} onClear={() => setQuery("")} />
+    <SearchCommand value={query} onChange={setQuery} onClear={() => setQuery("")} onSubmit={() => undefined} />
     <p className="scan-meta" role="status">{matches.length} reviewed Products · select one to check the match</p>
     <div className="scan-search-list">{matches.map((product) => <button type="button" key={product.id} onClick={() => onSelect(product)}>
       <ProductArtwork product={product} sizes="64px" />

@@ -13,6 +13,7 @@ type StoredMap<Value> = Array<[string, Value]>;
 export type StoredState = Omit<
   StoreState,
   | "users"
+  | "issuerCompanies"
   | "orders"
   | "intents"
   | "intentHashes"
@@ -25,6 +26,7 @@ export type StoredState = Omit<
   | "preparations"
 > & {
   users: StoredMap<UserState>;
+  issuerCompanies: StoredMap<StoreState["issuerCompanies"] extends Map<string, infer Value> ? Value : never>;
   orders: StoredMap<Order>;
   intents: StoredMap<string>;
   intentHashes: StoredMap<string>;
@@ -43,6 +45,7 @@ export function serializeState(state: StoreState): StoredState {
   return {
     ...state,
     users: [...state.users],
+    issuerCompanies: [...state.issuerCompanies],
     orders: [...state.orders],
     intents: [...state.intents],
     intentHashes: [...state.intentHashes],
@@ -62,6 +65,7 @@ export function deserializeState(stored: StoredState): StoreState {
     retainedFinancialRecords: stored.retainedFinancialRecords ?? [],
     sponsorReservations: stored.sponsorReservations ?? [],
     users: new Map(stored.users),
+    issuerCompanies: new Map(stored.issuerCompanies ?? []),
     orders: new Map(stored.orders),
     intents: new Map(stored.intents),
     intentHashes: new Map(stored.intentHashes),

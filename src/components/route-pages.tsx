@@ -2,8 +2,6 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
 import {
   AssistantScreen,
-  BrandScreen,
-  CompanyScreen,
   LearnScreen,
   ProductScreen,
   ShelfScreen,
@@ -25,7 +23,6 @@ import {
 } from "@/components/screens/account";
 import {
   BasketScreen,
-  BuyScreen,
   HistoryScreen,
   HoldingScreen,
   OrderReviewScreen,
@@ -79,14 +76,17 @@ export async function HomePage({ searchParams }: { searchParams: AsyncQuery }) {
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
+  if (first(query.source) === "issuer") {
+    const currentQuery = { ...query };
+    delete currentQuery.source;
+    permanentRedirect(withQuery("/discover", { ...currentQuery, focus: "search" }) as Route);
+  }
   return (
     <ConceptDiscoverScreen
-      concept={first(query.concept) === "2" ? "2" : "1"}
-      initialAvailability={first(query.availability)}
-      initialCategory={first(query.category)}
-      initialEntity={first(query.entity)}
+      key={first(query.q) ?? ""}
       initialMarket={first(query.market)}
       initialQuery={first(query.q)}
+      initialSector={first(query.sector)}
       initialSort={first(query.sort)}
     />
   );
@@ -104,7 +104,6 @@ export async function ProductPage({ params }: { params: AsyncParams<{ slug: stri
   const { slug } = await params;
   const product = productBySlug(slug);
   if (product) return <ProductScreen productId={product.id} />;
-
   const legacyProduct = productById(slug);
   if (legacyProduct) permanentRedirect(`/products/${legacyProduct.slug}`);
   notFound();
@@ -114,17 +113,18 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  return <BrandScreen brand={brand} />;
+  permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const company = companyBySlug(slug);
-  if (company) return <CompanyScreen companyId={company.id} />;
-
-  const legacyCompany = companyById(slug);
-  if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
-  notFound();
+  if (!company) {
+    const legacyCompany = companyById(slug);
+    if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
+    notFound();
+  }
+  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
 }
 
 export function LearnPage() {
@@ -211,8 +211,10 @@ export async function InvestmentPage({ params }: { params: AsyncParams<{ company
     if (legacyCompany) permanentRedirect(`/invest/${legacyCompany.slug}`);
     notFound();
   }
-  await requirePageUser(`/invest/${company.slug}`);
-  return <BuyScreen companyId={company.id} />;
+  if (company.instrument) {
+    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}/buy` as Route);
+  }
+  notFound();
 }
 
 export async function BasketPage({ searchParams }: { searchParams: AsyncQuery }) {

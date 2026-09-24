@@ -250,7 +250,7 @@ export function AdminScreen() {
     apiRequest<{ pending: CatalogReport[] }>("admin/catalog/review")
       .then(({ pending }) => setPendingReports(pending))
       .catch((requestError: unknown) => {
-        setError(requestError instanceof Error ? requestError.message : "Catalog review failed");
+        setError(requestError instanceof Error ? requestError.message : "Relationship review failed");
       });
   }, []);
 
@@ -264,10 +264,10 @@ export function AdminScreen() {
       setPendingReports((reports) => reports.filter((report) => report.id !== selectedReportId));
       setSelectedReportId("");
       setReason("");
-      setMessage(`Catalog report ${decision}.`);
+      setMessage(`Relationship report ${decision}.`);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Catalog review failed");
+      setError(requestError instanceof Error ? requestError.message : "Relationship review failed");
     }
   }
 
@@ -369,9 +369,9 @@ export function AdminScreen() {
       ) : null}
       <Card className="section stack">
         <Field
-          label="Catalog report to review"
+          label="Relationship report to review"
           htmlFor="catalog-report"
-          hint={pendingReports.length ? undefined : "There are no open catalog reports."}
+          hint={pendingReports.length ? undefined : "There are no open relationship reports."}
         >
           <select
             id="catalog-report"
