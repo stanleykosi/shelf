@@ -3,12 +3,13 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, RefreshCw, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
 import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
 import { issuerSectors, type IssuerSector, type IssuerSpotlight, type SpotlightListing } from "@/domain/issuer-spotlight";
 import { apiRequest, postJson } from "@/lib/api-client";
 import { IssuerLogo } from "@/components/issuer-logo";
+import { DiscoveryFootnote, DiscoveryScanLink, DiscoveryThemes } from "@/components/discovery-editorial";
 import {
   ProductTile,
   RelationshipExplorer,
@@ -192,9 +193,9 @@ function SpotlightCompanyTable({ listings }: { listings: SpotlightListing[] }) {
                   </Link>
                 </td>
                 <td data-label="Sector"><span className="spotlight-sector">{sector}</span></td>
-                <td data-label="Market">{provider === "xstocks" ? "Public tracker" : "Private exposure"}</td>
-                <td data-label="Symbol"><strong>{asset.symbol}</strong></td>
-                <td className="spotlight-details-cell"><Link aria-label={`Open ${asset.name} details`} href={detailsUrl}><ArrowRight size={18} aria-hidden="true" /></Link></td>
+                <td data-label="Market"><span className={`discovery-market-badge ${provider}`}>{provider === "xstocks" ? "Public tracker" : "Private exposure"}</span></td>
+                <td data-label="Symbol"><strong className="discovery-symbol">{asset.symbol}</strong></td>
+                <td className="spotlight-details-cell"><Link aria-label={`Open ${asset.name} details`} href={detailsUrl}><ArrowUpRight size={18} aria-hidden="true" /></Link></td>
               </tr>
             );
           })}
@@ -276,6 +277,7 @@ function LiveSearchResults({
 
 export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSector, initialSort }: { initialMarket?: string; initialQuery?: string; initialSector?: string; initialSort?: string }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const directoryRef = useRef<HTMLHeadingElement>(null);
   const leavingDiscover = useRef(false);
   const searchRequest = useRef(0);
   const [query, setQuery] = useState(initialQuery ?? "");
@@ -417,18 +419,19 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
   const filterProps: FilterProps = { market, setMarket, setSort, sort };
 
   return (
-    <div className="research-discover" onClickCapture={(event) => {
+    <div className="research-discover discovery-studio" onClickCapture={(event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       if (event.target instanceof Element && event.target.closest("a[href]")) leavingDiscover.current = true;
     }}>
-      <header className="discover-title-row">
-        <div>
-          <h1>Discover</h1>
-          <p>Search current xStocks and PreStocks listings. If neither matches, OpenRouter suggests a likely product owner.</p>
+      <header className="discovery-masthead">
+        <div className="discovery-masthead-copy">
+          <p className="studio-eyebrow"><span className="studio-marker" />Discover / A different starting point</p>
+          <h1>A world of companies.<br /><span>Already part of your world.</span></h1>
+          <p>Follow your curiosity. Find the companies behind the things you know.</p>
         </div>
-        <span>{spotlight ? `${spotlight.listings.length} live spotlight companies` : "Live issuer feeds"}</span>
+        <DiscoveryScanLink />
       </header>
-      <div className="discover-command-area">
+      <div className="discover-command-area discovery-search-area">
         <SearchCommand
           inputRef={searchRef}
           onChange={changeQuery}
@@ -437,6 +440,10 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
           searching={searching}
           value={query}
         />
+        <div className="discovery-search-context">
+          <p>Company names check issuer feeds first. Unmatched terms go to OpenRouter for an AI ownership suggestion.</p>
+          <div aria-label="Example searches"><span>Try</span>{["Apple", "Nike", "OpenAI"].map((term) => <button key={term} onClick={() => { changeQuery(term); searchRef.current?.focus(); }} type="button">{term}<ArrowUpRight size={12} aria-hidden="true" /></button>)}</div>
+        </div>
       </div>
       {searchedQuery ? (
         <>
@@ -448,39 +455,50 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
             searching={searching}
           />
           <button className="back-to-companies" onClick={() => changeQuery("")} type="button">
-            Explore featured companies <ArrowRight size={16} aria-hidden="true" />
+            <ArrowLeft size={16} aria-hidden="true" />Explore featured companies
           </button>
         </>
       ) : (
+        <>
+        <div className="discovery-section-label"><span>Follow a thread</span><span>Three ways into the bigger picture</span></div>
+        <DiscoveryThemes spotlight={spotlight} onSelect={(nextSector, nextMarket) => {
+          changeQuery("");
+          setSector(nextSector); setMarket(nextMarket); setSort(""); setShowAll(true);
+          directoryRef.current?.focus({ preventScroll: true });
+          directoryRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+        }} />
         <section aria-labelledby="spotlight-heading" className="issuer-spotlight">
           <div className="issuer-spotlight-heading">
             <div>
-              <p className="eyebrow">Live company discovery</p>
-              <h2 id="spotlight-heading">Companies to explore</h2>
-              <p>A changing selection from current xStocks and PreStocks listings. These are familiar names, not a performance ranking or recommendation. Search covers the full issuer feeds.</p>
+              <p className="studio-eyebrow">The company directory</p>
+              <h2 id="spotlight-heading" ref={directoryRef} tabIndex={-1}>Companies to explore<span className="discovery-count">{spotlight?.listings.length ?? "—"}</span></h2>
+              <p>A rotating spotlight from xStocks and PreStocks. An invitation to research, not a performance ranking.</p>
             </div>
-            <button disabled={spotlightLoading} onClick={() => void loadSpotlight()} type="button">Refresh mix</button>
+            <button disabled={spotlightLoading} onClick={() => void loadSpotlight()} type="button"><RefreshCw size={14} aria-hidden="true" />{spotlightLoading && spotlight ? "Refreshing…" : "Refresh mix"}</button>
           </div>
           {spotlight?.unavailable.length ? <p className="live-search-caution">{spotlight.unavailable.join(" and ")} feed unavailable. This selection may be incomplete.</p> : null}
           {spotlight?.stale.length ? <p className="live-search-caution">{spotlight.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
           {spotlightError && spotlight ? <p className="live-search-caution">Could not refresh the company mix. Showing the previous selection.</p> : null}
+          <div className="discovery-directory-controls">
           <SectorTabs available={availableSectors} onChange={setSector} selected={sector} />
           <div className="mobile-filter-command">
             <button ref={filterTriggerRef} aria-controls="mobile-discover-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)} type="button"><SlidersHorizontal size={17} aria-hidden="true" />Filters{activeFilters.length ? <span aria-label={activeFilters.length + " active filters"}>{activeFilters.length}</span> : null}</button>
           </div>
+          </div>
           {activeFilters.length ? <div className="active-filter-list" aria-label="Active filters">{activeFilters.map((filter) => <button key={filter.label} onClick={filter.clear} type="button">{filter.label}<X size={13} aria-hidden="true" /></button>)}</div> : null}
 
           <div className="discover-workspace">
-            <aside className="filter-rail" aria-label="Discover filters">
-              <div className="filter-rail-heading"><strong>Filters</strong>{activeFilters.length || showAll ? <button onClick={clearFilters} type="button">Reset</button> : null}</div>
+            <div className="discovery-desktop-filters" aria-label="Discover filters">
+              <span className="discovery-directory-caption">{showingFullList ? "Spotlight directory" : "Featured companies"}<span>{visibleListings.length} companies</span></span>
               <FilterFields {...filterProps} />
-            </aside>
+              {activeFilters.length || showAll ? <button className="discovery-reset" onClick={clearFilters} type="button">Reset</button> : null}
+            </div>
             <div className="result-workspace">
               <div className="result-workspace-heading">
                 <p><strong>{showingFullList ? "Spotlight directory" : "Featured companies"}</strong></p>
                 <span>{visibleListings.length} companies</span>
               </div>
-              {spotlightLoading && !spotlight ? <p className="spotlight-status" role="status">Loading current issuer listings…</p> : null}
+              {spotlightLoading && !spotlight ? <div className="discovery-loading" role="status"><span>Loading current issuer listings…</span><div aria-hidden="true">{[0, 1, 2, 3].map((row) => <div key={row}><i /><span /><span /><span /></div>)}</div></div> : null}
               {spotlightError && !spotlight ? (
                 <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
               ) : null}
@@ -497,10 +515,14 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
                   {showAll ? "Show featured mix" : `Show all ${spotlight.listings.length} spotlight companies`}
                 </button>
               ) : null}
+              {spotlight && visibleListings.length ? <div className="discovery-directory-note"><span><i />{spotlight.unavailable.length || spotlight.stale.length ? "Some feeds need a refresh" : "Sourced from issuer feeds"}</span><span>Sector labels are editorial. Search covers the full feeds.</span></div> : null}
             </div>
           </div>
         </section>
+        </>
       )}
+
+      <DiscoveryFootnote />
 
       {filtersOpen && !searchedQuery ? (
         <dialog ref={filterDialogRef} aria-label="Discover filters" id="mobile-discover-filters" className="mobile-filter-layer" style={{ margin: 0, padding: 0, border: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none" }} onCancel={() => setFiltersOpen(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setFiltersOpen(false); }}>

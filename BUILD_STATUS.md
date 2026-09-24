@@ -1,6 +1,40 @@
 # Shelf build status
 
-Updated: 2026-09-24
+Updated: 2026-09-25
+
+## Discover and Scan — redesigned and verified locally
+
+The latest user request authorizes a fresh design of Discover and Scan for the hackathon,
+using Simply Wall St and Quartr as references. This supersedes the previous review stop for
+these two pages. Other screens retain their existing work.
+
+Implemented an editorial Discover masthead, scoped visual themes with real sector/market
+filter actions, a denser issuer directory, deliberate search suggestions and clearer status
+surfaces. Scan now has a capture/review/identify sequence, a focused media stage, original
+vector artwork, drag/drop feedback, direct upload alternative and contextual input choices.
+Existing camera cleanup, input validation, explicit per-input consent and issuer contracts
+are retained. Motion is limited to bounded entrance, hover and press feedback with reduced
+motion variants; no extra dependency or simulated market data is added to the application.
+
+Files: `src/app/discovery-studio.css`, `src/components/discovery-editorial.tsx`,
+`src/components/screens/concept-discovery.tsx`, `src/components/screens/scan.tsx`,
+`tests/e2e/discover-scan-studio.spec.ts`. Checklist: `docs/DISCOVER_SCAN_REDESIGN.md`.
+Final checks: lint, strict TypeScript and production build pass. All 120 unit/contract tests
+across 21 files pass. The final production-browser run passes 49 checks with three intentional
+project-specific skips and no failures. It includes automated WCAG checks, keyboard focus,
+360/390/430/768/1280/1440px layouts, reduced motion, real filter actions, issuer navigation,
+preview consent and the existing Scan camera/recovery/cancellation regressions. Initial contrast
+and mobile text-size findings were corrected. Development chunk-loading failures did not recur
+against the production build. `git diff --check` passes.
+
+Eight refreshed desktop/mobile screenshots and limitations are recorded in
+`artifacts/discover-scan/README.md`; screenshot company data is synthetic localhost test data.
+The final production preview is available at `http://127.0.0.1:3101/discover` and `/scan` while
+the local server remains running. Paid provider credentials and real-money flags are disabled
+for this preview. No deployment, provider activation, paid calls or live money.
+
+Exact next task: user review of Discover and Scan. Continue refinement from this implementation
+if requested; do not propagate this design to other screens or activate live services automatically.
 
 ## Platform art-direction reset — five screens ready for review
 

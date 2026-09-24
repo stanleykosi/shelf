@@ -5,6 +5,7 @@ import "./concept-two.css";
 import "./scan.css";
 import "./research-workspace.css";
 import "./platform-composition.css";
+import "./discovery-studio.css";
 import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";
 import { SESSION_COOKIE_NAME } from "@/lib/session";

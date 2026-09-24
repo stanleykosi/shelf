@@ -1,15 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Barcode, Camera, CameraOff, Link as LinkIcon, ReceiptText, Search, ShieldCheck, SwitchCamera, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Barcode, Camera, CameraOff, Check, Link as LinkIcon, LockKeyhole, ReceiptText, Search, ShieldCheck, SwitchCamera, Upload } from "lucide-react";
 import type { RecognitionMatch } from "@/domain/types";
 import { apiRequest } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { beginScanSession, proposeProduct, scanErrorMessage } from "@/lib/scan-session";
 import { prepareScanImage } from "@/lib/scan-image";
 import { ScanProductSearch } from "@/components/scan-product-search";
+import { ScanExplainer, ScanIllustration } from "@/components/discovery-editorial";
 
 const methods = ["camera", "upload", "screenshot", "barcode", "receipt", "link", "search"] as const;
 type Method = typeof methods[number];
@@ -21,7 +23,9 @@ export function ScanScreen() {
   const params = useSearchParams();
   const requested = params.get("method");
   const mode: Method = methods.includes(requested as Method) ? requested as Method : "camera";
-  return <ScanWorkspace key={mode} mode={mode} />;
+  // Keep the entrance outside the keyed workspace: changing input methods should
+  // be immediate, especially when navigating with the keyboard.
+  return <div className="scan-studio-entry"><ScanWorkspace key={mode} mode={mode} /></div>;
 }
 
 function ScanWorkspace({ mode }: { mode: Method }) {
@@ -38,6 +42,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -172,8 +177,15 @@ function ScanWorkspace({ mode }: { mode: Method }) {
   const visual = ["camera", "upload", "screenshot", "receipt"].includes(mode);
   const title = image ? "Check your image" : mode === "receipt" ? "Read a receipt" : mode === "barcode" ? "Find by barcode" : mode === "link" ? "Use an approved link" : mode === "search" ? "Search the reviewed catalog" : "Start with what you see";
 
-  return <div className="scan-page scan-intake platform-scan">
-    <header className="scan-page-heading"><h1>Identify a product</h1><p>From something familiar to the company behind it.</p></header>
+  return <div className="scan-page scan-intake platform-scan scan-studio">
+    <div className="scan-studio-topline"><Link href="/discover"><ArrowLeft size={14} aria-hidden="true" />Back to Discover</Link><span><LockKeyhole size={13} aria-hidden="true" />Your curiosity. Your control.</span></div>
+    <header className="scan-page-heading"><div><p className="studio-eyebrow"><span className="studio-marker" />The discovery lens</p><h1>See the familiar.<br /><span>Discover what’s behind it.</span></h1></div><p>A product is just the beginning. <br />Let’s find its company.</p></header>
+    <ol className="scan-journey" aria-label="Identification progress">
+      {["Choose input", "Review & consent", "Identify"].map((step, index) => {
+        const currentStep = busy ? 2 : image || mode === "barcode" || mode === "link" ? 1 : 0;
+        return <li key={step} aria-current={index === currentStep ? "step" : undefined} data-complete={index < currentStep}><span>{index < currentStep ? <Check size={12} aria-hidden="true" /> : `0${index + 1}`}</span>{step}</li>;
+      })}
+    </ol>
     <nav className="scan-mobile-shortcuts" aria-label="Quick identification methods">
       <button className="scan-secondary" disabled={busy} aria-pressed={mode === "camera"} onClick={() => selectMethod("camera")}><Camera size={17} aria-hidden="true" />Camera</button>
       <button className="scan-secondary" disabled={busy} aria-pressed={mode === "upload" || mode === "screenshot"} onClick={() => selectMethod("upload")}><Upload size={17} aria-hidden="true" />Upload</button>
@@ -183,17 +195,22 @@ function ScanWorkspace({ mode }: { mode: Method }) {
       <section className="scan-input" aria-labelledby="scan-input-title">
         <div className="scan-section-heading"><h2 id="scan-input-title">{title}</h2><span className="scan-stage-label">{image ? "Preview / on your device" : "Product identification"}</span></div>
         {visual || mode === "barcode" ? <>
-          <div className={"scan-media" + (camera === "active" || camera === "requesting" ? " is-camera" : "") + (image ? " has-preview" : "")}
-            onDragOver={(event) => { event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (visual) void chooseImage(event.dataTransfer.files[0]); }}>
+          <div className={"scan-media" + (camera === "active" || camera === "requesting" ? " is-camera" : "") + (image ? " has-preview" : "") + (dragging ? " is-dragging" : "")}
+            aria-busy={preparing || busy}
+            onDragOver={(event) => { event.preventDefault(); if (visual && !busy) setDragging(true); }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+            onDrop={(event) => { event.preventDefault(); setDragging(false); if (visual) void chooseImage(event.dataTransfer.files[0]); }}>
+            {dragging ? <div className="scan-drop-feedback"><Upload size={26} /><strong>Drop to preview</strong><span>Nothing is sent until you give permission.</span></div> : null}
             <video ref={videoRef} autoPlay muted playsInline aria-label="Camera preview" hidden={camera !== "active"} />
             {image ? <Image src={image} alt="Your image, kept only for this identification request" width={800} height={600} unoptimized /> : camera !== "active" ? <div className="scan-media-prompt" aria-live="polite">
-              {camera === "denied" || camera === "unavailable" ? <CameraOff size={28} aria-hidden="true" /> : mode === "upload" || mode === "screenshot" || mode === "receipt" ? <Upload size={28} aria-hidden="true" /> : <Camera size={28} aria-hidden="true" />}
+              {camera === "idle" && !preparing && mode === "camera" ? <ScanIllustration /> : camera === "denied" || camera === "unavailable" ? <CameraOff size={28} aria-hidden="true" /> : mode === "upload" || mode === "screenshot" || mode === "receipt" ? <span className="scan-upload-symbol"><Upload size={30} aria-hidden="true" /></span> : <Camera size={28} aria-hidden="true" />}
               <h3>{preparing ? "Preparing image" : camera === "requesting" ? "Waiting for camera permission" : camera === "denied" ? "Camera access is blocked" : camera === "unavailable" ? "No camera available" : mode === "receipt" ? "Keep just the product lines" : mode === "upload" || mode === "screenshot" ? "Choose a photo or screenshot" : "Show the product"}</h3>
               <p>{camera === "denied" ? "Allow camera access in your browser’s site settings, or upload an image." : camera === "unavailable" ? "Connect a camera, upload an image, or search manually." : mode === "receipt" ? "Remove names, addresses and payment details before choosing your image." : mode === "upload" || mode === "screenshot" ? "Drop an image here, or choose one from your device." : "Keep the product name and packaging in view. Nothing is sent when you open the camera."}</p>
               {camera === "requesting" ? <button className="scan-secondary" onClick={() => { stopCamera(); setCamera("idle"); }}>Cancel camera request</button> : mode !== "upload" && mode !== "screenshot" && mode !== "receipt" ? <button className="scan-primary" data-cta="C05" onClick={() => openCamera()} disabled={busy}><Camera size={17} aria-hidden="true" />{camera === "idle" ? "Open camera" : "Try camera again"}</button> : <button className="scan-primary" data-cta="C10" onClick={() => fileRef.current?.click()} disabled={preparing || busy}><Upload size={17} aria-hidden="true" />Choose image</button>}
+              {camera !== "requesting" && mode === "camera" ? <button className="scan-upload-alternative" disabled={busy || preparing} onClick={() => fileRef.current?.click()} type="button">or upload an image <ArrowRight size={13} aria-hidden="true" /></button> : null}
             </div> : null}
           </div>
-          {!image && camera === "idle" && visual ? <div className="scan-capture-guidance" aria-label="Image guidance"><span>Product name in view</span><span>Even light, no glare</span><span>{mode === "receipt" ? "Remove private details" : "Keep packaging in frame"}</span></div> : null}
+          {!image && camera === "idle" && visual ? <div className="scan-capture-guidance" aria-label="Image guidance"><span><Check size={12} aria-hidden="true" />Product name in view</span><span><Check size={12} aria-hidden="true" />Even light, no glare</span><span><Check size={12} aria-hidden="true" />{mode === "receipt" ? "Remove private details" : "Keep packaging in frame"}</span></div> : null}
           <div className="scan-media-controls">
           <p className="scan-camera-status" role="status">{camera === "active" ? mode === "barcode" ? "Camera active · reading barcodes locally" : "Camera active · preview stays on your device" : camera === "requesting" ? "Your browser is asking for camera permission." : image ? "Local preview · cleared when you leave this scan" : mode === "barcode" ? "Read a barcode locally, or enter its digits below" : mode === "camera" ? "Camera preview stays on your device" : "JPEG, PNG or WebP · up to 8 MiB / 20 megapixels"}</p>
           <div className="scan-actions">
@@ -219,10 +236,12 @@ function ScanWorkspace({ mode }: { mode: Method }) {
         {busy ? <div className="scan-actions"><button className="scan-secondary" onClick={() => requestRef.current?.abort()}>Cancel identification</button><small>Cancellation is best effort once processing has started.</small></div> : (image && visual) || mode === "barcode" || mode === "link" ? <button className="scan-primary scan-identify" aria-describedby="scan-consent-state" data-cta={mode === "barcode" ? "C09" : mode === "link" ? "C12" : mode === "receipt" ? "C11" : "C08"} disabled={offline || preparing || !consent || (mode === "barcode" && !barcode) || (mode === "link" && !url.trim())} onClick={identify}>{mode === "barcode" || mode === "link" ? "Find product" : "Identify products"}<ArrowRight size={18} aria-hidden="true" /></button> : null}
       </section>
       <aside className="scan-methods" aria-label="Identification methods">
-        <h2>Choose an input</h2>
+        <p className="studio-eyebrow">Make a connection</p><h2>Your starting point</h2>
         <div className="scan-method-list">{[{ id: "camera", name: "Camera", note: "Identify what’s in front of you", icon: Camera }, { id: "upload", name: "Upload image", note: "Photos and screenshots", icon: Upload }, { id: "search", name: "Search manually", note: "Find a reviewed Product by name", icon: Search }].map(({ id, name, note, icon: Icon }) => <button key={id} disabled={busy} aria-pressed={mode === id || (id === "upload" && mode === "screenshot")} onClick={() => selectMethod(id as Method)}><Icon size={20} aria-hidden="true" /><span><strong>{name}</strong><small>{note}</small></span><ArrowRight size={16} aria-hidden="true" /></button>)}</div>
         <details className="scan-other" open={["barcode", "receipt", "link"].includes(mode) || undefined}><summary>Other ways</summary><div className="scan-method-list">{[{ id: "barcode", name: "Barcode", note: "Scan or enter the digits", icon: Barcode }, { id: "receipt", name: "Receipt", note: "Product lines, without private details", icon: ReceiptText }, { id: "link", name: "Approved link", note: "A supported product page", icon: LinkIcon }].map(({ id, name, note, icon: Icon }) => <button key={id} disabled={busy} aria-pressed={mode === id} onClick={() => selectMethod(id as Method)}><Icon size={20} aria-hidden="true" /><span><strong>{name}</strong><small>{note}</small></span></button>)}</div></details>
+        <ScanExplainer />
       </aside>
     </div>
+    <footer className="scan-studio-privacy"><ShieldCheck size={19} aria-hidden="true" /><div><strong>Explore with peace of mind.</strong><p>Your image stays on your device until you choose to identify it. Shelf doesn’t retain your images or raw receipt text.</p></div><Link href="/learn/brands-and-companies">How products connect to companies <ArrowRight size={14} aria-hidden="true" /></Link></footer>
   </div>;
 }

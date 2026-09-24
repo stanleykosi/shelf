@@ -1,8 +1,8 @@
 # Shelf Product Design & Experience Guide
 
-Status: Concept 2 Home accepted; five-screen internal art-direction reset locally verified, awaiting user review
-Last updated: 2026-09-24
-Current refactor phase: Company, Scan, Assistant, Portfolio and Account implemented and verified; STOP for review before propagation
+Status: Concept 2 Home accepted; latest user brief authorizes a new Discover and Scan design pass
+Last updated: 2026-09-25
+Current refactor phase: Discover and Scan implemented and verified locally; ready for user visual review. See docs/DISCOVER_SCAN_REDESIGN.md and artifacts/discover-scan/README.md. Other screens retain the prior review state.
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 
