@@ -2,6 +2,66 @@
 
 Updated: 2026-09-25
 
+## README rewrite in Simplified Technical English — local
+
+Replaced `README.md` with a fresh project guide. It covers the current product,
+U37 chat scopes, inactive financial controls, service roles, local setup,
+verification commands, and key documents. The setup now names PostgreSQL 17,
+which matches `docker-compose.yml`. A local check found no descriptive sentence
+over 25 words, no procedure sentence over 20 words, and no broken local links.
+`git diff --check` passed. This change affects documentation only.
+
+## Shelf project description in Simplified Technical English — local
+
+Added `docs/SHELF_PROJECT_DESCRIPTION_STE.md`. It describes current user paths,
+data sources, chat scopes, account and financial behavior, privacy, system parts,
+and the financial activation state. Shortened it to 757 words and 4,712 bytes
+at the owner's request. The text uses short active sentences and
+defined technical names. A local check found no descriptive sentence over 25
+words and no broken relative links. `git diff --check` passed. No application
+code or runtime behavior changed. Next task: obtain a formal ASD-STE100 dictionary
+review if exact controlled-vocabulary certification is required.
+
+## Two-minute Shelf product demo — complete
+
+Logo update: replaced the video brand marks with the supplied `icon-192.png`.
+`brag-logo-updated.mp4` and the canonical `brag.mp4` are verified at 120 seconds
+and 3,600 frames, with identical encoded audio. The prior export is backed up.
+
+Created `brag-output-2026-09-25-175910/` with the finished `brag.mp4`, selected
+`brag.jpg` poster, and `share-copy.txt`. The existing launch-video directories are
+preserved. The new landscape walkthrough shows the current Discover interface,
+METAx detail and issuer sources, issuer-scoped chat, Scan with local image preview,
+and the U37-approved general assistant. It uses Kokoro `af_heart` through HyperFrames,
+with music below the narration. Recorded issuer data and illustrative AI answers
+are visibly labelled; no live inference, funding, trading, or deployment occurred.
+
+HyperFrames 0.8.77 checks passed with zero errors or warnings; 19 chapter frames
+were visually reviewed. Final FFprobe and full FFmpeg decode passed: exactly
+120 seconds, 1920 × 1080, 30 fps, 3,600 frames, and stereo AAC. The poster is baked
+into frame zero, with unchanged encoded audio; the mix measures −15.3 LUFS and
+−1.0 dBTP. An interrupted packaging attempt was rerun successfully. The directory
+includes the editable composition, source captures, exact narration, optional VTT
+captions, reproduction scripts, and `verification.md` with the measured evidence.
+
+No application code changed. The pre-existing README, lockfile, and build-status
+work is preserved. This video request is complete; application activation and
+publication remain separate decisions.
+
+## Pulled frontend changes from origin/main — local
+
+Fast-forwarded `main` from `1a4f5e5` to `8a1cf15` with `git pull --tags origin main`;
+there were no merge conflicts. The incoming lockfile omitted five transitive packages,
+so `npm ci` initially failed. Regenerated `package-lock.json` with npm and confirmed
+that `npm ci` succeeds. Aligned README's chat description with the incoming U37
+decision, which restores a general assistant alongside issuer-scoped chat.
+
+`npm run lint`, `npm run typecheck`, `npm run test` (129 tests in 26 files), and
+`npm run build` passed. The repaired lockfile and README are local changes and have
+not been pushed. No deployment, provider call, or live-money action occurred.
+Next task: review the restored general assistant against the owner's current product
+intent, then commit the lockfile and README corrections if accepted.
+
 ## Home company discovery: 24-hour cards — local
 
 Removed the long market note beneath the Home company cards, the top-right card arrow,
