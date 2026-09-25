@@ -3,47 +3,50 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, Check, Search } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Check, Search } from "@/components/studio-icons";
 import { companyById, products, sources } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
+
+import { PendingButton } from "@/components/loading-feedback";
 
 const reviewedProductImages: Partial<
   Record<Product["slug"], { alt: string; src: string; fit: "cover" | "contain" }>
 > = {
   "pepsi-drink": {
     alt: "Pepsi Wild Cherry cans",
-    src: "https://digitalassets.pepsico.com/transform/0a1d7eec-1408-44a3-bb60-213d61f3f728/PEP_Photography_Product_WildCherry_05_PZSWC_RGB?q=75&w=3840",
+    src: "/images/reviewed-products/pepsi-drink.jpg",
     fit: "cover",
   },
   "doritos-snack": {
     alt: "Doritos product identity",
-    src: "https://digitalassets.pepsico.com/transform/d38d63a9-f2cb-4626-880f-25e822c776a3/doritos-full-offwhite?q=75&w=3840",
+    src: "/images/reviewed-products/doritos-snack.jpg",
     fit: "contain",
   },
   "lays-snack": {
     alt: "Lay's product identity",
-    src: "https://digitalassets.pepsico.com/transform/WEBP_Original/076c9337-2eb5-4a77-865a-c76b2994ce10/lays-ad-classic-example-confidential-until-20251009?q=75&w=3840",
+    src: "/images/reviewed-products/lays-snack.webp",
     fit: "contain",
   },
   "cheetos-snack": {
     alt: "Cheetos product identity",
-    src: "https://digitalassets.pepsico.com/transform/ec574b24-5500-4942-a13a-fa45ba8e43ce/cheetos-full-offwhite?q=75&w=3840",
+    src: "/images/reviewed-products/cheetos-snack.jpg",
     fit: "contain",
   },
   "tide-laundry": {
     alt: "Tide brand identity",
-    src: "https://images.ctfassets.net/oggad6svuzkv/sR0yOc87zEkW2QUCQQKaa/728711310b005180c35a4b41ef44232e/Tide200x200.jpg?fm=webp",
+    src: "/images/reviewed-products/tide-laundry.webp",
     fit: "contain",
   },
   "olay-skincare": {
     alt: "Olay brand identity",
-    src: "https://images.ctfassets.net/oggad6svuzkv/3PNis6ONrOsoaCYuQ2WC2Y/d5b47a1c379da36e5d46e85d11129ab5/Olay.png?fm=webp",
+    src: "/images/reviewed-products/olay-skincare.webp",
     fit: "contain",
   },
   "apple-iphone": {
     alt: "Apple iPhone",
-    src: "https://www.apple.com/v/iphone/home/ck/images/overview/consider_modals/chip-battery/modal_power__eei2l6rul8qe_large.jpg",
+    src: "/images/reviewed-products/apple-iphone.jpg",
     fit: "cover",
   },
 };
@@ -88,20 +91,24 @@ export function StatusText({ children, verified = false }: { children: React.Rea
 
 export function ProductArtwork({ product, sizes = "240px" }: { product: Product; sizes?: string }) {
   const image = reviewedProductImages[product.slug];
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const source = image?.src;
   return (
     <span className={"research-product-image category-" + product.category}>
-      {image ? (
+      {image && source && failedSource !== source ? (
         <Image
           alt={image.alt}
           className={"research-product-photo fit-" + image.fit}
           fill
           sizes={sizes}
-          src={image.src}
+          src={source}
+          unoptimized
+          onError={() => setFailedSource(source)}
         />
       ) : (
         <span className="research-product-placeholder">
           <span aria-hidden="true">{initials(product.brand)}</span>
-          <small>Image pending review</small>
+          <small>{image ? "Image unavailable" : "Image pending review"}</small>
         </span>
       )}
     </span>
@@ -207,6 +214,7 @@ export function RelationshipExplorer({ product, company }: { product: Product; c
 }
 
 export function SearchCommand({
+  icon,
   inputRef,
   onChange,
   onClear,
@@ -214,6 +222,7 @@ export function SearchCommand({
   searching = false,
   value,
 }: {
+  icon?: React.ReactNode;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onClear: () => void;
@@ -226,13 +235,11 @@ export function SearchCommand({
       event.preventDefault();
       onSubmit();
     }}>
-      <Search size={20} aria-hidden="true" />
+      {icon ?? <Search size={20} aria-hidden="true" />}
       <label className="sr-only" htmlFor="catalog-search">Search a company or product</label>
-      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Search a company or product" ref={inputRef} type="search" value={value} />
+      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Company or product" ref={inputRef} type="search" value={value} />
       {value ? <button onClick={onClear} type="button">Clear</button> : <kbd>⌘ K</kbd>}
-      <button className="search-submit" disabled={!value.trim() || searching} type="submit">
-        {searching ? "Searching…" : "Search"}
-      </button>
+      <PendingButton className="search-submit" pending={searching} pendingLabel="Searching…" disabled={!value.trim()} type="submit">Search</PendingButton>
     </form>
   );
 }

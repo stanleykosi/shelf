@@ -1,0 +1,117 @@
+.portfolio-studio-heading { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-bottom: 32px; }
+.portfolio-studio .studio-eyebrow, .holding-studio .studio-eyebrow { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #52644f; margin: 0 0 15px; }
+.workspace-shell .portfolio-studio-heading h1 { font-size: clamp(34px, 3.7vw, 51px); margin-bottom: 14px; }
+.portfolio-studio-heading p:not(.studio-eyebrow) { color: #5d6c55; font-size: 15px; margin: 0; }
+.portfolio-studio-heading > .button { flex-shrink: 0; }
+.portfolio-studio svg, .holding-studio .actions svg { width: 18px; height: 18px; flex-shrink: 0; }
+.portfolio-overview { display: grid; grid-template-columns: 1.45fr 1fr; gap: 20px; }
+.portfolio-cost-card, .portfolio-wallet-card { border-radius: 16px; padding: 30px 34px; position: relative; overflow: hidden; }
+.portfolio-cost-card { background: #182b22; color: #f5f5ef; }
+.portfolio-card-label { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+.portfolio-cost-card .portfolio-card-label { color: #d3e4d7; }
+.portfolio-total { font-size: clamp(34px, 4vw, 52px); letter-spacing: -.045em; line-height: 1.2; font-variant-numeric: tabular-nums; margin: 26px 0 16px; }
+.portfolio-total > span { font-size: 15px; letter-spacing: 0; opacity: .8; }
+.portfolio-value-note { font-size: 12px; color: #c7d6c9; max-width: 400px; line-height: 1.7; }
+.portfolio-cost-strip { display: flex; gap: 4px; height: 5px; margin-top: 28px; border-radius: 3px; overflow: hidden; background: #3d5446; }
+.portfolio-cost-strip span { flex-basis: 0; min-width: 0; background: #b6efd2; }
+.portfolio-cost-strip [data-color="1"] { background: #dbe6a4; }
+.portfolio-cost-strip [data-color="2"] { background: #9bbed3; }
+.portfolio-cost-strip [data-color="3"] { background: #caac90; }
+.portfolio-cost-key { display: flex; justify-content: space-between; gap: 16px; margin-top: 12px; font-size: 10px; color: #c6d9cb; }
+.portfolio-wallet-card { background: #e7ecdf; border: 1px solid #dbe2d3; display: flex; flex-direction: column; }
+.portfolio-wallet-card .portfolio-card-label { color: #486146; }
+.portfolio-wallet-card > p:not(.portfolio-total) { color: #536a50; font-size: 12px; margin: 0; }
+.portfolio-wallet-card > a { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; padding-top: 24px; margin-top: auto; }
+.portfolio-studio-layout { display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 36px; margin-top: 40px; }
+.portfolio-holdings { min-width: 0; }
+.portfolio-holdings-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid #d5ddd0; }
+.workspace-shell .portfolio-holdings-toolbar h2 { font-size: 24px; display: flex; align-items: center; gap: 10px; margin: 0; }
+.portfolio-holdings-toolbar h2 > span { font-size: 11px; padding: 3px 7px; border-radius: 5px; background: #e9ede2; }
+.portfolio-search { display: flex; align-items: center; gap: 8px; width: 184px; }
+.portfolio-search svg { width: 16px; }
+.workspace-shell .research-workspace .portfolio-search input { width: 100%; min-width: 0; border: 0; background: transparent; padding: 8px 0; font-size: 12px; }
+.portfolio-holding-row { display: grid; grid-template-columns: 46px minmax(110px,1fr) minmax(80px,.7fr) minmax(94px,.8fr) 36px; align-items: center; gap: 16px; padding: 26px 0; border-bottom: 1px solid #d5ddd0; }
+.portfolio-company-mark { display: grid; place-items: center; width: 46px; height: 48px; border-radius: 11px; background: #e0eadb; font-size: 15px; font-weight: 600; color: #37563d; }
+.portfolio-company-mark[data-color="1"] { background: #eee7dc; color: #644d3b; }
+.portfolio-company-mark[data-color="2"] { background: #dde8ee; color: #375568; }
+.workspace-shell .portfolio-holding-name h3 { font-size: 15px; font-weight: 600; margin: 0 0 7px; }
+.portfolio-holding-name p { font-size: 11px; margin: 0; }
+.portfolio-holding-name p > span { color: #53634b; }
+.portfolio-holding-units, .portfolio-holding-cost { display: flex; flex-direction: column; gap: 7px; text-align: right; }
+.portfolio-holding-row strong { font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.portfolio-holding-row strong small { font-size: 10px; }
+.portfolio-holding-units > span, .portfolio-holding-cost > span { color: #53634b; font-size: 10px; }
+.portfolio-holding-link { display: grid; place-items: center; width: 36px; height: 44px; border-radius: 8px; }
+.portfolio-tracking-note { display: flex; align-items: flex-start; gap: 8px; color: #53634b; font-size: 11px; padding-top: 20px; }
+.portfolio-tracking-note svg { width: 15px; height: 15px; }
+.portfolio-research-note { border: 1px solid #dbe2d2; border-radius: 12px; background: #eeefe6; padding: 28px; }
+.portfolio-research-note > svg { width: 25px; height: 25px; color: #4e7957; margin-bottom: 24px; }
+.workspace-shell .portfolio-research-note h2 { font-size: 32px; line-height: 1.08; }
+.portfolio-research-note > p:not(.studio-eyebrow), .portfolio-research-note details p { font-size: 13px; line-height: 1.8; color: #55664e; }
+.portfolio-research-note > a { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; padding: 14px 0 22px; }
+.portfolio-research-note details { border-top: 1px solid #d0d9c6; padding-top: 10px; }
+.workspace-shell .portfolio-research-note summary { font-size: 12px; }
+.portfolio-research-note details a { font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.portfolio-no-results { padding: 26px; }
+.workspace-shell .holding-studio .hero { padding-bottom: 22px; }
+.workspace-shell .holding-studio .hero .lede { font-size: 13px; max-width: 580px; }
+.workspace-shell .holding-position-card { border: 1px solid #d4dece; background: #fffefa; padding: 34px; border-radius: 16px; }
+.holding-position-top { display: flex; align-items: center; gap: 16px; }
+.holding-symbol-mark { display: grid; place-items: center; width: 60px; height: 64px; border-radius: 13px; background: #e5ecdc; font-size: 22px; color: #3f6546; }
+.holding-position-top .studio-eyebrow { margin-bottom: 5px; }
+.workspace-shell .holding-position-top h2 { font-size: 23px; margin: 0 0 4px; }
+.holding-position-top > div > span { font-size: 12px; color: #61755a; }
+.holding-position-tag { margin-left: auto; display: flex; align-items: center; gap: 7px; color: #436449; font-size: 11px; background: #eaf1e4; border-radius: 6px; padding: 8px 10px; }
+.holding-position-tag svg { width: 15px; height: 15px; }
+.holding-amount { font-size: clamp(38px, 5vw, 64px); line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.04em; margin: 35px 0 28px; }
+.holding-amount > span { font-size: 18px; color: #64765b; letter-spacing: 0; }
+.holding-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; padding: 25px 0; border-top: 1px solid #d9e0d1; border-bottom: 1px solid #d9e0d1; margin-bottom: 18px; }
+.holding-metrics > div { display: flex; flex-direction: column; gap: 9px; }
+.holding-metrics span { font-size: 12px; color: #66765d; }
+.holding-metrics strong { font-size: 16px; font-weight: 500; }
+.holding-position-card details { margin-bottom: 24px; }
+.holding-position-card > .actions { gap: 10px; }
+.holding-position-card > .actions > :last-child { margin-left: auto; }
+.activity-studio .research-tabs { align-items: flex-end; }
+.workspace-shell .activity-studio .hero { padding-bottom: 10px; }
+.workspace-shell .activity-studio .hero .lede { font-size: 14px; }
+.activity-studio .activity-kind { display: flex; align-items: center; gap: 10px; text-transform: capitalize; }
+.activity-kind svg { width: 30px; height: 30px; padding: 7px; border-radius: 8px; background: #e6ecdf; }
+.activity-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; background: #e8eee2; color: #416248; padding: 5px 9px; border-radius: 5px; text-transform: capitalize; }
+.activity-status::before { content: ""; width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
+.activity-status[data-status=pending] { background: #f1e9d7; color: #806522; }
+.activity-status[data-status=failed] { background: #f2e3dd; color: #934c39; }
+@media (hover: hover) and (pointer: fine) {
+  .portfolio-holding-row:hover .portfolio-holding-link { background: #e6ecdf; }
+  .portfolio-holding-name a:hover { text-decoration: underline; text-underline-offset: 4px; }
+}
+@media (max-width: 1100px) {
+  .portfolio-studio-layout { grid-template-columns: minmax(0,1fr) 240px; gap: 24px; }
+  .portfolio-holding-row { grid-template-columns: 42px minmax(92px,1fr) minmax(70px,.7fr) 30px; gap: 12px; }
+  .portfolio-holding-cost { grid-column: 2/4; flex-direction: row; justify-content: space-between; align-items: center; text-align: left; padding-top: 10px; }
+  .portfolio-holding-link { grid-row: 1; grid-column: 4; }
+}
+@media (max-width: 819px) {
+  .portfolio-studio-heading { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .workspace-shell .portfolio-studio-heading h1 { font-size: 39px; }
+  .portfolio-overview { grid-template-columns: 1fr; gap: 14px; }
+  .portfolio-cost-card, .portfolio-wallet-card { padding: 26px; border-radius: 13px; }
+  .portfolio-total { font-size: 42px; margin-top: 20px; }
+  .portfolio-studio-layout { grid-template-columns: 1fr; gap: 28px; margin-top: 28px; }
+  .portfolio-wallet-card .portfolio-total { font-size: 32px; margin: 14px 0 10px; }
+  .portfolio-wallet-card > a { padding-top: 20px; }
+  .portfolio-holdings-toolbar { gap: 10px; }
+  .portfolio-search { width: 150px; }
+  .portfolio-holding-row { gap: 10px; }
+  .portfolio-research-note { padding: 25px; }
+  .portfolio-research-note > svg { margin-bottom: 15px; }
+  .portfolio-research-note h2 br { display: none; }
+  .workspace-shell .holding-position-card { padding: 22px; }
+  .holding-position-tag { display: none; }
+  .holding-metrics { grid-template-columns: 1fr; gap: 18px; }
+  .holding-metrics > div { flex-direction: row; justify-content: space-between; align-items: center; gap: 18px; }
+  .holding-metrics strong { font-size: 14px; text-align: right; }
+  .holding-position-card > .actions > :last-child { margin-left: 0; }
+  .holding-amount { font-size: 44px; }
+  .activity-studio .research-table td .activity-kind { display: inline-flex; }
+}

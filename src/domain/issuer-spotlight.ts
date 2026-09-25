@@ -26,6 +26,9 @@ export type IssuerDirectory = {
   stale: string[];
 };
 
+/** Compatibility name for editorial discovery components. */
+export type IssuerSpotlight = IssuerDirectory;
+
 // These are editorial sector labels, not issuer-supplied rankings or a token registry.
 // Every displayed asset still has to exist in the current issuer feed.
 const publicSectors: Record<string, IssuerSector> = {

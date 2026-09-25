@@ -1,14 +1,15 @@
 # Shelf Product Design & Experience Guide
 
-Status: initial refactor architecture contract
-Last updated: 2026-09-22
-Current refactor phase: architecture complete; implementation not started
+Status: Discover/Scan studio design extended across the application
+Last updated: 2026-09-25
+Current refactor phase: Raleway/Heroicons, paper/graphite/mint surfaces, Torph action/loading text and themed Sonner notifications extend through Saved, sharing, Assistant, Account, onboarding, Wallet, Portfolio, transaction reviews and owner workspaces. Home retains its accepted composition with the same font/icon family. See docs/WORKSPACE_STUDIO_REDESIGN.md for scope and validation.
+Latest refinement: Product pages omit the relationship explorer and retain expandable source evidence. Persistent financial outcomes, consent and review requirements remain in context; transient confirmations use toasts.
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 
 ## How to use this guide
 
-This guide bridges Shelf's approved product strategy and a future frontend refactor. It does not specify color tokens, spacing scales, component APIs, Tailwind mappings, or Storybook variants. The approved product pack in `docs/product/` remains authoritative for financial, privacy, data, provider, and security behavior. If this guide and a domain contract conflict, the domain contract wins until both are deliberately reconciled.
+This guide bridges Shelf's approved product strategy and frontend implementation. It does not specify color tokens, spacing scales, component APIs, Tailwind mappings, or Storybook variants. The approved product pack in `docs/product/` remains authoritative for financial, privacy, data, provider, and security behavior. If this guide and a domain contract conflict, the domain contract wins until both are deliberately reconciled.
 
 Audit evidence used:
 
@@ -343,7 +344,7 @@ Account is always available in the header and under a labeled mobile overflow/pr
 
 ## Secondary and contextual navigation
 
-- Discover page: Products / Brands / Companies segmented filter; public/private exposure as Company filters.
+- Discover page: accepted U30 company spotlight with sector, public/private market and ordering controls; one company/product search. Separate reviewed entity pages remain canonical.
 - Saved page: Products / Companies segmented filter represented by `view=`.
 - Company page: Overview / Exposure / Risks & sources as in-page anchors on desktop and a compact sticky section menu on long mobile pages; not separate routes unless future content becomes independently substantial.
 - Portfolio: Holdings / Activity subnavigation, with Activity having a stable route.
@@ -360,7 +361,7 @@ Public entity URLs use reviewed slugs. Private resource URLs use opaque IDs. Fil
 | Proposed Route | Page | Purpose | Auth Requirement | Parent/Context |
 |---|---|---|---|---|
 | `/` | Home | Explain Shelf and start Scan/Search | Guest | Root |
-| `/discover?q=&category=&entity=&market=&availability=&sort=` | Discover | Search and browse reviewed entities | Guest | Discover |
+| `/discover?q=&sector=&market=&sort=` | Discover | Accepted live issuer discovery and company/product search | Guest | Discover |
 | `/scan?method=` | Scan | Identify a product using all supported inputs | Guest; AI consent for image/link AI | Discover |
 | `/scan/results` | Scan results | Confirm/correct ephemeral recognition | Current browser session | Scan |
 | `/products/[slug]` | Product detail | Explain Product → Brand → Company | Guest | Discover/entity |
@@ -397,7 +398,7 @@ Public entity URLs use reviewed slugs. Private resource URLs use opaque IDs. Fil
 
 ### URL-addressable query state
 
-- Discover: query, category, entity type, market classification, availability, sort.
+- Discover: query, sector, market classification and sort. Earlier entity/category/availability query fields are historical, not controls supplied by the accepted U30 implementation.
 - Scan: chosen method only. Image, OCR, candidates, and consent evidence stay outside the URL.
 - Saved: Products/Companies view.
 - Assistant: only safe entity slugs and originating context; no transcript.
@@ -736,14 +737,22 @@ Market provider comparison, watchlist, portfolio values, investment performance,
 
 ## Discover
 
+### Accepted implementation reconciliation — 2026-09-24
+
+The latest brief explicitly freezes the current approved implementation. That implementation
+includes U30's issuer-backed company spotlight and unified company/product query, rather than
+the earlier proposed three-directory browse UI. This refactor preserves it and its newer backend.
+Product/Brand/Company research destinations are distinct; recognition or issuer suggestions do
+not become catalog evidence. The following responsibilities describe this accepted surface.
+
 ### Route
-`/discover?q=&category=&entity=&market=&availability=&sort=`
+`/discover?q=&sector=&market=&sort=`
 
 ### Purpose
-Unified search and browse for Products, Brands, and Companies.
+Unified company/product search and current issuer-backed company discovery.
 
 ### User intent
-Find a known entity or explore the verified catalog.
+Find a known company, investigate a familiar product or browse supported issuer research.
 
 ### Entry points
 Global navigation/search, Home categories, Scan correction/no-match, empty Saved.
@@ -756,21 +765,21 @@ Filter, sort, clear, Scan instead.
 
 ### Information hierarchy
 1. Search field with current query.
-2. Entity modes: All, Products, Brands, Companies.
-3. Contextual primary filters, with market/availability shown only for Company browsing.
-4. Curated lenses derived only from reviewed data, such as categories and Companies represented by multiple recognizable Brands.
+2. Company spotlight with familiar issuer identities.
+3. Sector and public/private market controls, with ordering and mobile filter access.
+4. Editorial familiarity is explicitly not popularity, performance or an investment recommendation.
 5. Active-filter summary and reset.
-6. Visually distinct Product, Brand, and Company results.
-7. No-result recovery and catalog-coverage note.
+6. Search results distinguish issuer matches, proposed product-owner suggestions and reviewed catalog evidence.
+7. No-result recovery and unavailable/stale feed context.
 
 ### Section responsibilities
-Search accepts everyday language; grouping prevents entity conflation; filters expose public/private only in Company context; results disclose type and relationship/availability.
+Search accepts company/product terms; public/private issuer context stays explicit. Product-owner suggestions do not verify Product identity or catalog relationships. Reviewed Product, Brand and Company research remains available through canonical destinations and the shared explorer.
 
 ### Data displayed
-Entity name/type, product category, Brand/Company relation, public/private classification, availability label, verification date where relevant.
+Issuer-supplied identity/logo/symbol, editorial sector, public/private classification and current feed availability. No fabricated market ranking, prices or inferred mints.
 
 ### Interaction model
-Debounced suggestions aid typing; query, `category`, `entity`, `market`, `availability`, and `sort` remain URL-addressable. Filters respond to the current entity mode. Results are compact, keyboard-navigable previews rather than a uniform card grid. Save may appear only after entity type is unmistakable.
+Explicit search submission; query, sector, market and sort remain URL-addressable. Browse supports refresh and compact company rows. The mobile filter is a native modal with focus return. Explicit historical concept query state remains compatible.
 
 ### Related pages
 Product, Brand, Company, Scan.
@@ -779,15 +788,29 @@ Product, Brand, Company, Scan.
 Sticky search; filters in bottom sheet with active count; results are compact lists rather than large card grids.
 
 ### States
-Initial browse, loading, no results, filtered empty, partial company data, stale classification, error, offline cached catalog.
+Initial browse, loading, no results, filtered empty, partial/unavailable issuer feeds, stale data and task-specific retry. Offline data is not implied to be current.
 
 ### Things explicitly NOT shown here
-Executable quotes, buy buttons, holdings, raw mints, AI-generated unknown matches.
+Executable quotes, buy buttons, holdings or unverified suggestions presented as reviewed relationships. Unknown product-owner suggestions remain explicitly non-authoritative.
 
 ## Scan
 
+### Accepted Concept 2 extension — 2026-09-23
+
+Scan and Scan Results use **Concept 2 — Capital Research Direction**, now accepted and authoritative. The implemented Shell/Home/Discover define its unchanged visual rules; earlier visual concept records below are historical. See `SCAN_CONCEPT_2_REVIEW.md` for the pre-implementation code-based compliance review.
+
+Use the existing dark/mint shell with a mostly light, ruled intake workspace. Camera is primary; Upload (including screenshots) and Search are strong secondary choices. Barcode, Receipt and Approved link are progressively disclosed, not seven peer tabs. Desktop uses an input workspace beside concise method guidance; mobile places capture/preview and actions first with existing bottom-nav clearance. Dark media treatment is functional, not a new page theme.
+
+Camera permission is requested only on action; distinguish requesting, blocked, unavailable and active states. Stop tracks on capture, method change, background and unmount. Offer switching only when multiple cameras are available. Validate files before preparation; no upload on selection. Preview precedes per-image versioned OpenRouter consent. Manual catalog search needs no processing consent. Under the newer backend preserved by explicit user approval, barcode lookup and approved-link resolution request ownership suggestions from OpenRouter: these require text-processing consent, never a false image-processing acknowledgement. Cancel aborts the request locally, with accurate best-effort provider wording.
+
+Results distinguish proposed identity, user-confirmed Product, and independently reviewed catalog relationship. Reuse Home's exact Relationship Explorer trail and evidence ledger after confirmation. Use a desktop candidate navigator/detail pane and mobile previous/next count. Correction is a native modal drawer/sheet with the shared SearchCommand, preserving all other candidate decisions. Unknown Products have no invented Company. Confidence scores are omitted until user-facing calibration is established. Results and raw labels remain in memory only; reload/expiry explains recovery. Save only confirmed catalog IDs. No investment action appears here.
+
+Scan refinement (2026-09-24): use a compact neutral media workspace with concise capture-quality guidance. Render previews at intrinsic size with bounded width/height and `object-fit: contain`; never enlarge small inputs. Remove isolated step numbering and redundant journey copy from the method rail. Keep the external recipients, purpose, Shelf non-retention, required no-training/zero-retention routing and provider operational-metadata caveat visible before acknowledgement. A keyboard-accessible “Processing details” disclosure holds supplemental timing, fail-closed, cancellation and consent-version explanation. A visible consent status explains why Identify is disabled and when it is ready. The acknowledgement and server consent contract are unchanged. Results retain the accepted verification composition.
+
 ### Route
 `/scan?method=`
+
+Mobile completion (2026-09-24): retain approved desktop geometry; stack capture guidance at readable 15px on mobile. Format/size guidance belongs to upload, screenshot and receipt contexts, not an idle camera. Disabled actions use an opaque neutral surface with readable text and reference the consent explanation. Barcode/link input changes reset consent. Their disclosure identifies the resolved product name/brand sent for ownership suggestions and leaves provider privacy controls visible. Backend issuer suggestions never establish reviewed relationships: only exact catalog names/brands propose identities, ambiguous brands require selection, and user confirmation reveals the existing catalog's independently sourced Relationship Explorer. Unknown names require in-flow correction; no fuzzy owner-to-Product inference.
 
 ### Purpose
 Capture or supply product evidence for recognition.
@@ -2474,9 +2497,29 @@ Removing a Saved item never sells, hides, or changes a Holding. Selling a Holdin
 
 # 15. Visual Experience Direction
 
+## Current authority — platform reset, 2026-09-24
+
+The latest user review rejects the internal layout execution, not the working product architecture.
+**Landing/Home is the only accepted visual source of truth.** Earlier acceptance of internal
+compositions below is historical and superseded. Preserve functionality, routes, permissions,
+APIs, consent, exact data and tests; do not preserve markup merely because it works.
+
+The target is an editorial research environment with task-specific workspaces: Research Canvas,
+Discovery Workspace, Financial Workspace and Control Workspace. One dominant object per page;
+spatial hierarchy instead of repeated grids/rules; meaningful graphite/light transitions;
+imagery as identity; smaller task titles for operational work. No new palette, typeface or shell.
+`PLATFORM_ART_DIRECTION.md` records the primitives and five-screen gate. Implement sequentially:
+Company, Scan, Assistant, Portfolio, Account. Render desktop/mobile, review against Home, then
+STOP. Product, Brand, Learn, Discover, Scan Results, financial subroutes and Admin are deferred.
+
+Account changes interaction presentation only: Profile, Privacy, Security and Sessions are
+selected categories within `/account`; Wallet remains a link to its existing route. Scan keeps
+all methods and input-specific consent. Assistant keeps its non-streaming answer, citations,
+explicit processing permission and cancellation behavior. No evidence or financial data is invented.
+
 ## Character
 
-Shelf should feel thoughtful, intelligent, exploratory, editorial, evidence-led, approachable, and credible: part visual field guide, part research notebook, with a restrained financial layer that becomes more formal as commitment increases. Simply Wall St is the primary product-design philosophy for this refactor, interpreted through Shelf's recognition-first entity model and its own visual identity. This means visual hierarchy and narrative explanation before raw complexity—not its branding, Snowflake, layouts, colors, wording, or investor-first framing. Keep the existing warmth and approachable green direction as a possible starting character, not a locked palette. Avoid playful fintech, a generic exchange, crypto terminal, neobank dashboard, stock terminal, or campaign-like startup landing page.
+Shelf's FINAL visual direction is **Concept 2 — Capital Research Direction**, embodied by the accepted Shell, Home, Discover and Scan implementations. Preserve editorial hierarchy, institutional structure, familiar reviewed imagery, restrained mint/green accents, contextual dark/light contrast, precise geometry and light functional workspaces. The earlier Simply Wall St philosophy remains only as progressive explanation of complex relationships, not an alternate visual contract. Avoid playful fintech, a generic exchange, crypto terminal or unrelated SaaS dashboard. Actual approved code takes precedence over historical visual-study descriptions below.
 
 ## Density and whitespace
 
@@ -2914,9 +2957,9 @@ This refinement is limited to the global shell, Home, and Discover. It preserves
 
 The product decisions in this record remain valid, but its first visual execution was rejected as prototype-like: too many micro-labels, tinted rounded containers, repeated list/card patterns, explanatory copy, borders, and small metadata. It is not a visual baseline.
 
-### Concept #1.2 visual direction — accepted 2026-09-23
+### Concept #1.2 visual direction — historical, superseded by Concept 2
 
-Shelf's accepted visual direction is **Premium Institutional Editorial Research**. The Simply Wall St-inspired philosophy remains: explain complex research through progressive disclosure and visual comprehension. Linear informs the quiet shell, alignment, density, and control placement. Quartr informs evidence hierarchy, company identity, and professional research presentation. Shelf combines none of their branding.
+The former direction was **Premium Institutional Editorial Research**. This record explains the historical study, not current implementation authority. Its progressive-disclosure and evidence principles survive, but Concept 2 replaces its visual execution and reference hierarchy.
 
 For the global shell, Home, and Discover:
 
@@ -2931,6 +2974,10 @@ For the global shell, Home, and Discover:
 The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes, access behavior, entity meaning, and Phase 0–2 contracts do not change.
 
 # 24. Design Decision Log
+
+## Concept #2 — accepted; final contract 2026-09-24
+
+The user selected Concept 2 — Capital Research Direction as the authoritative visual contract. Its approved Shell, Home, Discover, Scan and Scan Results are reused, not redesigned. The earlier comparison is historical; Concept 1 is available only through explicit `concept=1`. Default routes now use accepted Concept 2. Research/functional pages extend its light canvas, precise rules and shared entity patterns. See `docs/CONCEPT_2.md` and `docs/FRONTEND_WORKSTREAMS.md` for the coordinated implementation and verification record.
 
 | ID | Decision | Reason | Areas Affected | Status |
 |---|---|---|---|---|
@@ -2957,7 +3004,10 @@ The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes
 | DD-021 | Simply Wall St is Shelf's primary product-design philosophy for the refactor, translated through Shelf's recognition-first entity model and own brand. | Its progressive, visual explanation of complex research supports Shelf's goal without requiring a stock-first interface or copied expression. | Shell, Home, Discover, later entity research | Accepted |
 | DD-022 | TradingView, Quartr, Public, and Ramp are specialized pattern libraries, not competing visual directions. | Preserves one coherent Shelf identity while borrowing density, evidence, investing, and operations patterns only where appropriate. | Discover; research evidence; later investing/portfolio; later account/admin | Accepted |
 | DD-023 | Concept #1.1 established the relationship trail, reviewed-imagery rule, quiet trust metadata, and mobile filter disclosure. | Its product ideas remain useful, but the first visual execution was rejected as prototype-like and is not a visual baseline. | Global shell, Home, Discover | Superseded |
-| DD-024 | Shelf's accepted visual direction is Premium Institutional Editorial Research. | A precise Linear-informed shell and Quartr-informed evidence hierarchy better express Shelf's serious recognition-first research model while retaining progressive explanation. | Global shell, Home, Discover; later visual phases | Accepted |
+| DD-024 | Earlier Premium Institutional Editorial Research concept retained as historical comparison only. | Superseded by the user's explicit Concept 2 selection; product architecture remains valid. | Historical Concept 1 | Superseded visually by DD-025 |
+| DD-025 | Concept 2 — Capital Research Direction is FINAL for all frontend surfaces. | Explicit user acceptance; extend actual approved implementation rather than invent another system. | Entire frontend | Accepted |
+| DD-026 | Complete remaining frontend in coordinated parallel workstreams with one shared-foundation owner. | Latest request supersedes page-by-page approval gates. Restore distinct Product, Brand and Company research routes; issuer assets remain separate. | Phases 3–9 | Implemented and locally verified; see FRONTEND_COMPLETION_REPORT.md |
+| DD-027 | Reset internal art direction sequentially; Home alone is the visual benchmark. Complete only Company, Scan, Assistant, Portfolio and Account before review. | User rejected repetitive internal layouts; functional contracts remain valid. Supersedes DD-026's visual approval and parallel strategy. | Five gold-standard screens only | Implemented and locally verified; awaiting user review. See PLATFORM_ART_DIRECTION.md. No propagation authorized. |
 
 # 25. Recommended Refactor Sequence
 
@@ -3042,6 +3092,53 @@ The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes
 **Safe migration:** continuous checks should run earlier; this phase is the final integration pass, not the first accessibility review.
 
 # 26. Target Product Map
+
+## Implemented page-family decisions — 2026-09-24
+
+The remaining frontend follows the accepted Concept 2 contract. These extend the existing
+responsibilities; they do not authorize new financial capabilities or change provider contracts.
+
+- **Product / Brand / Company:** canonical slugs render distinct research surfaces. Product
+  identity precedes the unchanged Relationship Explorer; Company research is the primary next
+  action. Brand pages explain their separate identity. Company pages place known Products and
+  evidence before a separate current-issuer exposure section. Missing/stale issuer information
+  is not presented as current availability. Product-family and regional caveats remain visible
+  through progressive evidence disclosures. Reports request review, not automatic catalog edits.
+- **Saved / sharing:** real Products and Companies occupy separate URL-backed views. Guest
+  saves are session-only; account merging requires an explicit action. Removal can be undone,
+  and research changes never sell assets. Share builders use actual selections, explicit review,
+  seven-day bearer snapshots and revocation. Public collections disclose no wallet, balance,
+  ownership, or identity information. Importing a shared collection preserves existing saves.
+- **Learn / Assistant:** grouped editorial lists and readable article measures replace marketing
+  cards. Existing article copy/review versions are preserved. The research question, named
+  context, processing disclosure, consent, response and source links form one workspace.
+  Stop cancels the client request; provider cancellation is explicitly best effort. Responses
+  are not a streaming chat and never acquire order authority.
+- **Account / Wallet / auth:** operational sections group privacy, security and support.
+  Deletion requires separate acknowledgements plus existing fresh authentication. Onboarding
+  Continue is genuinely disabled until local setup acknowledgements are complete; these are
+  not represented as persisted policy approval. Server eligibility remains separate. Wallet
+  shows actual cash and external inventory without merging it into Shelf-origin Portfolio.
+  Disabled deposits withhold funding instructions. Safe authentication return paths remain.
+- **Investment / Orders / Portfolio:** Company, Instrument and Holding stay distinct.
+  Amount entry leads to review, not submission. Budget remainder uses exact integers. Quote
+  expiry removes approval and requires renewed review. Unknown outcomes never invite a duplicate
+  order. Portfolio distinguishes acquisition cost from unavailable current value; no P&L or
+  synthetic market chart is invented. Raw accounting is progressively disclosed, with known
+  instrument decimals used for display. Activity type/status filters are URL-backed. Send
+  distinguishes tracked and external inventory and invalidates previews after input changes.
+- **Admin:** Overview, Catalog, Access, Operations and Audit are distinct owner-only routes
+  sharing contextual navigation. Published registry changes remain a reviewed release operation;
+  supported report decisions, invites, pauses and reconciliation use existing APIs. Reason,
+  acknowledgement and fresh owner authentication are preserved. Redacted diagnostics use an
+  explicit allowlist; no balance editing, signing material, invented member directory or forced
+  transaction completion is added.
+
+**Responsive/accessibility extension:** remaining routes share a light ruled workspace, readable
+metadata and common forms/tables. Mobile data tables retain table semantics with labeled cells;
+last actions scroll above existing bottom navigation. Native dialogs preserve focus containment,
+Escape and return focus. No new animation system is introduced. Evidence-backed QA and screenshots
+are recorded in `FRONTEND_WORKSTREAMS.md` and the final frontend report, not inferred from this guide.
 
 ## Navigation map
 
