@@ -2,6 +2,26 @@
 
 Updated: 2026-09-25
 
+## origin/main UI merge reconciliation — local, unpushed
+
+Merged the fetched `origin/main` UI work into local `main` while retaining U36's
+token-detail-only AI chat and retired Home/Markets/company/general-assistant routes.
+Resolved four content conflicts in the design guide, discovery components, and two
+browser tests. Removed the incoming general assistant implementation and links to
+retired routes; kept its active design styles and other UI components. Repaired the
+incoming package lock so `npm ci` works, and normalized the bundled font license's
+line endings without changing its text.
+
+`npm ci`, ESLint, strict TypeScript, 121 Vitest tests in 22 files, the Next.js
+16.3.5 production build, and the focused desktop/mobile Home, Discover, issuer-chat
+and retired-route browser checks passed. The first focused browser run found an
+incoming test assertion for an old Discover heading; the corrected rerun passed.
+The full browser suite was not run because local PostgreSQL authentication still
+fails, and several imported historical design tests target routes retired by U36.
+No deployment, push, paid AI call or real-money action occurred. Next task after
+the merge: update or archive those historical browser tests against the current
+screen contract, then rerun the broad suite with a working local PostgreSQL instance.
+
 ## U36 retired Home research and general chat paths — local, uncommitted
 
 Home now offers search, Scan, and a short guide to token details. Its product gallery,

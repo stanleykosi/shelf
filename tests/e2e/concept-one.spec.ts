@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 test("Home points to current tokens and their issuer-scoped chat", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/?concept=1");
 
   await expect(
     page.getByRole("heading", { name: "Explore tokens with the source in view." }),
@@ -108,7 +108,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await expect(page.getByRole("link", { name: "View SpaceX details" }).locator(".issuer-logo"))
     .toHaveText("S");
 
-  await page.getByRole("button", { name: "Food & drink" }).click();
+  await page.locator(".issuer-sector-tabs").getByRole("button", { name: "Food & drink" }).click();
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "View PepsiCo details" })).toBeVisible();
   await page.getByRole("button", { name: "All sectors" }).click();
@@ -122,7 +122,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "View SpaceX details" })).toBeVisible();
 
-  await page.getByPlaceholder("Search a company or product").fill("OpenAI");
+  await page.getByRole("searchbox", { name: "Search a company or product" }).fill("OpenAI");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=OpenAI/);
   await expect(page.getByRole("link", { name: /View OPENAI issuer asset/ })).toBeVisible();
@@ -223,8 +223,8 @@ test("mobile Discover exposes sectors and market filters without hiding company 
   test.skip(testInfo.project.name !== "mobile", "Mobile-only filter assertion");
   await page.goto("/discover");
 
-  await expect(page.getByRole("button", { name: "Technology" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Food & drink" })).toBeVisible();
+  await expect(page.locator(".issuer-sector-tabs").getByRole("button", { name: "Technology" })).toBeVisible();
+  await expect(page.locator(".issuer-sector-tabs").getByRole("button", { name: "Food & drink" })).toBeVisible();
   await expect(page.getByRole("link", { name: "View OpenAI details" }).locator("img")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Market", exact: true })).not.toBeVisible();
 
@@ -262,7 +262,7 @@ test("Home and Discover fit the requested viewport matrix", async ({ page }, tes
   for (const width of [390, 430, 1280, 1440]) {
     await page.setViewportSize({ width, height: width < 820 ? 932 : 900 });
     for (const route of ["/", "/discover"] as const) {
-      await page.goto(route);
+      await page.goto(route === "/" ? "/?concept=1" : route);
       const hasDocumentOverflow = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
       );
