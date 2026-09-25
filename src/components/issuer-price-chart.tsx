@@ -1,23 +1,42 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { IChartApi, Time } from "lightweight-charts";
+import type { CandlestickData, IChartApi, ISeriesApi, Time } from "lightweight-charts";
 import type { MarketCandle } from "@/providers/geckoterminal";
+
+function chartData(candles: MarketCandle[]): CandlestickData<Time>[] {
+  return candles.map((candle) => ({
+    time: candle.time as Time,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  }));
+}
 
 export function IssuerPriceChart({ candles }: { candles: MarketCandle[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const candlesRef = useRef(candles);
+
+  useEffect(() => {
+    candlesRef.current = candles;
+    if (!seriesRef.current) return;
+    seriesRef.current.setData(chartData(candles));
+    chartRef.current?.timeScale().fitContent();
+  }, [candles]);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || candles.length < 2) return;
+    if (!container) return;
 
     let disposed = false;
-    let chart: IChartApi | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
     void import("lightweight-charts").then(({ CandlestickSeries, createChart, ColorType }) => {
       if (disposed) return;
-      chart = createChart(container, {
+      const chart = createChart(container, {
         width: container.clientWidth,
         height: container.clientHeight || 360,
         layout: {
@@ -46,17 +65,13 @@ export function IssuerPriceChart({ candles }: { candles: MarketCandle[] }) {
         borderVisible: false,
         priceFormat: { type: "price", precision: 4, minMove: 0.0001 },
       });
-      series.setData(candles.map((candle) => ({
-        time: candle.time as Time,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-      })));
+      chartRef.current = chart;
+      seriesRef.current = series;
+      series.setData(chartData(candlesRef.current));
       chart.timeScale().fitContent();
 
       resizeObserver = new ResizeObserver(() => {
-        if (chart) chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       });
       resizeObserver.observe(container);
     });
@@ -64,9 +79,11 @@ export function IssuerPriceChart({ candles }: { candles: MarketCandle[] }) {
     return () => {
       disposed = true;
       resizeObserver?.disconnect();
-      chart?.remove();
+      chartRef.current?.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
     };
-  }, [candles]);
+  }, []);
 
   return <div className="issuer-price-chart" ref={containerRef} role="img"
     aria-label={`Interactive USD candlestick chart with ${candles.length} observed pool intervals`} />;

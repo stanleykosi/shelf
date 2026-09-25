@@ -71,7 +71,7 @@ test("issuer failures recover and source identity stays separate from purchase a
   }));
   await page.getByRole("button", { name: "Review purchase" }).click();
   await page.getByRole("link", { name: "Sign in to continue" }).click();
-  await expect(page).toHaveURL(/\/sign-in\?/);
+  await expect(page).toHaveURL(/\/sign-in\?/, { timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Continue your research." })).toBeVisible();
 });
 

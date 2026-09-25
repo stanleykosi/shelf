@@ -1686,16 +1686,20 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
       if (!listing || listing.provider !== "xstocks") throw new Error("NOT_FOUND");
 
       const checkedAt = new Date().toISOString();
+      let poolLookupFailed = false;
       const pool = await dexMarkets.markets([listing.asset.mint])
         .then(({ markets }) => markets[0])
-        .catch(() => undefined);
+        .catch(() => { poolLookupFailed = true; return undefined; });
       let candles: IssuerMarketView["candles"] = [];
+      let historyState: IssuerMarketView["historyState"] = poolLookupFailed ? "error" : "empty";
       if (pool) {
         candles = await fetchPoolCandles(pool.pairAddress, listing.asset.mint, range)
-          .catch(() => []);
+          .catch(() => { historyState = "error"; return []; });
+        if (historyState !== "error") historyState = candles.length > 1 ? "available" : "empty";
       }
       const marketView: IssuerMarketView = {
         state: pool ? "available" : "unavailable",
+        historyState,
         range,
         checkedAt,
         priceUsd: pool?.priceUsd,
@@ -1706,7 +1710,9 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
         candles,
       };
       const response = success(marketView);
-      response.headers.set("Cache-Control", "public, max-age=30, s-maxage=180, stale-while-revalidate=300");
+      response.headers.set("Cache-Control", historyState === "error"
+        ? "no-store"
+        : "public, max-age=30, s-maxage=180, stale-while-revalidate=300");
       return response;
     }
     if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&

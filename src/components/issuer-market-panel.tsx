@@ -18,6 +18,7 @@ function usd(value: string) {
 export function IssuerMarketPanel({ symbol }: { symbol: string }) {
   const [range, setRange] = useState<MarketRange>("1D");
   const [market, setMarket] = useState<IssuerMarketView | null>(null);
+  const [displayedRange, setDisplayedRange] = useState<MarketRange>("1D");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -28,28 +29,43 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
     const cached = cache.current.get(key);
     if (cached && !attempt) {
       setMarket(cached);
+      setDisplayedRange(range);
       setLoading(false);
       setError(false);
       return;
     }
 
     const controller = new AbortController();
-    setMarket(null);
     setLoading(true);
     setError(false);
-    void apiRequest<IssuerMarketView>(
-      `issuer/asset/xstocks/${encodeURIComponent(symbol)}/market?range=${range}`,
-      { signal: controller.signal },
-    ).then((result) => {
-      if (controller.signal.aborted) return;
-      cache.current.set(key, result);
-      setMarket(result);
-    }).catch(() => {
-      if (!controller.signal.aborted) setError(true);
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
-    return () => controller.abort();
+    // A short delay avoids requesting every intermediate range while users click through the controls.
+    const timer = window.setTimeout(() => {
+      void apiRequest<IssuerMarketView>(
+        `issuer/asset/xstocks/${encodeURIComponent(symbol)}/market?range=${range}`,
+        { signal: controller.signal },
+      ).then((result) => {
+        if (controller.signal.aborted) return;
+        if (result.historyState !== "error") {
+          setMarket(result);
+          setDisplayedRange(range);
+          cache.current.set(key, result);
+        } else {
+          setMarket((current) => current ? {
+            ...current,
+            priceUsd: result.priceUsd ?? current.priceUsd,
+            change24hPct: result.change24hPct ?? current.change24hPct,
+            liquidityUsd: result.liquidityUsd ?? current.liquidityUsd,
+            venue: result.venue ?? current.venue,
+          } : result);
+          setError(true);
+        }
+      }).catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      }).finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    }, 120);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [symbol, range, attempt]);
 
   const change = market?.change24hPct;
@@ -73,17 +89,23 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
         <div className="issuer-market-range" role="group" aria-label="Chart range">
           {marketRanges.map((option) => (
             <button key={option} type="button" aria-pressed={range === option}
-              onClick={() => setRange(option)}>{option}</button>
+              onClick={() => { setAttempt(0); setRange(option); }}>{option}</button>
           ))}
         </div>
       </div>
 
       <div className="issuer-market-plot">
-        {loading ? <div className="issuer-market-placeholder" role="status">Loading observed pool history…</div> :
+        {candles.length > 1 ? <>
+          <IssuerPriceChart candles={candles} />
+          {loading || error ? <div className="issuer-market-overlay" role="status">
+            <span>{loading ? `Loading ${range} history…` : `Showing ${displayedRange} history. ${range} is temporarily unavailable.`}</span>
+            {error ? <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry {range}</button> : null}
+          </div> : null}
+        </> : loading ? <div className="issuer-market-placeholder" role="status">Loading observed pool history…</div> :
           error ? <div className="issuer-market-placeholder" role="status">
-            <p>Market data is unavailable right now.</p>
-            <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry market data</button>
-          </div> : candles.length > 1 ? <IssuerPriceChart candles={candles} /> :
+            <p>Price history could not load right now.</p>
+            <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry {range}</button>
+          </div> :
           <div className="issuer-market-placeholder" role="status">
             <p>No observed price history is available for this pool and range.</p>
             <p>Try another range or check the issuer details below.</p>
@@ -96,12 +118,6 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
         <div><span>Pool liquidity</span><strong>{market?.liquidityUsd === undefined ? "—" : usd(String(market.liquidityUsd))}</strong></div>
         <div><span>Venue</span><strong>{market?.venue ?? "—"}</strong></div>
       </div>
-      <p className="issuer-market-source">
-        Current pool price and 24h move: DEX Screener. Observed candles: GeckoTerminal.
-        {market ? ` Checked ${new Date(market.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}
-        {" "}This pool is separate from the underlying stock market and is not an executable quote.
-        {candles.length > 1 ? <> Chart by <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">TradingView</a>.</> : null}
-      </p>
     </section>
   );
 }

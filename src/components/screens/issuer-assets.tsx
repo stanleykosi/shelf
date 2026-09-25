@@ -17,6 +17,7 @@ import { useNotification } from "@/components/notifications";
 import { signInHref } from "@/lib/routes";
 import { IssuerAssistantScreen } from "@/components/screens/issuer-assistant";
 import { IssuerMarketPanel } from "@/components/issuer-market-panel";
+import { Copy } from "@/components/studio-icons";
 
 type Source = "xstocks" | "prestocks";
 
@@ -81,6 +82,14 @@ function formatQuantity(value: string) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(Number(value));
 }
 
+function formatAmountInput(value: string): string | null {
+  const digits = value.replaceAll(",", "");
+  if (!/^\d*(?:\.\d{0,6})?$/.test(digits)) return null;
+  const [whole, fraction] = digits.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+}
+
 function DetailMetric({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="issuer-detail-metric">
@@ -114,7 +123,7 @@ function PurchaseAmountForm({ listing, lifecycle }: {
         clientIntentId: crypto.randomUUID(),
         type: "buy",
         companyId: asset.companyId,
-        amountUsdcRaw: parseUsdc(amount).toString(),
+        amountUsdcRaw: parseUsdc(amount.replaceAll(",", "")).toString(),
         slippageBps: 50,
       });
       router.push(`/orders/${order.id}/review`);
@@ -135,8 +144,11 @@ function PurchaseAmountForm({ listing, lifecycle }: {
       <p className="issuer-purchase-copy">Choose a USDC amount. Shelf requests a fresh route and shows all fees before wallet approval.</p>
       <Field label="Amount in USDC" htmlFor="issuer-buy-amount" hint="Minimum 5 USDC · beta maximum 100 USDC">
         <div className="issuer-purchase-input"><span aria-hidden="true">$</span><input id="issuer-buy-amount"
-          inputMode="decimal" autoComplete="off" value={amount}
-          onChange={(event) => setAmount(event.target.value)} /></div>
+          type="text" inputMode="decimal" autoComplete="off" value={amount}
+          onChange={(event) => {
+            const formatted = formatAmountInput(event.target.value);
+            if (formatted !== null) setAmount(formatted);
+          }} /></div>
       </Field>
       <p className="issuer-purchase-instrument">{provider === "xstocks"
         ? "xStocks tracker certificate · not an ordinary voting share"
@@ -215,10 +227,6 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
   const [chatVisited, setChatVisited] = useState(false);
   const actionRef = useRef<HTMLElement>(null);
   const notify = useNotification();
-  useEffect(() => {
-    setAction("buy");
-    setChatVisited(false);
-  }, [provider, symbol]);
   if (loading) return <LoadingStatus page>Checking the current issuer feed…</LoadingStatus>;
   if (error) return <EmptyState title="Issuer details unavailable">
     <ErrorMessage message={error} />
@@ -368,9 +376,12 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
             <Card className="stack">
               <p className="issuer-section-kicker">Verify the listing</p>
               <h2>Token identity and sources</h2>
-              <div className="issuer-detail-mint"><div><span className="muted">Solana token mint</span>
-                <code className="break-all">{asset.mint}</code></div>
-                <button type="button" className="secondary" onClick={copyMint}>Copy mint</button></div>
+              <div className="issuer-detail-mint"><span className="muted">Solana token mint</span>
+                <div className="issuer-mint-value"><code className="break-all">{asset.mint}</code>
+                  <button type="button" onClick={copyMint} aria-label="Copy Solana mint" title="Copy Solana mint">
+                    <Copy size={16} aria-hidden="true" />
+                  </button></div>
+              </div>
               {copyMessage ? <ResultMessage>{copyMessage}</ResultMessage> : null}
               {privateAsset ? <p><strong>Issuer-reported supply:</strong> {formatQuantity(privateAsset.supplyUi)} tokens</p> : null}
               {publicAsset && (metadata?.tokenIsin || metadata?.underlyingIsin) ? <details>

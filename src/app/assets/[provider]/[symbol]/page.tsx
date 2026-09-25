@@ -6,5 +6,5 @@ export default async function Page({ params }: {
 }) {
   const { provider, symbol } = await params;
   if (provider !== "xstocks" && provider !== "prestocks") notFound();
-  return <IssuerAssetScreen provider={provider} symbol={symbol} />;
+  return <IssuerAssetScreen key={`${provider}:${symbol}`} provider={provider} symbol={symbol} />;
 }

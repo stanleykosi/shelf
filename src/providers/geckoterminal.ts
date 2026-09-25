@@ -22,11 +22,13 @@ const ohlcvResponse = z.object({
   }),
 });
 
-const rangeOptions: Record<MarketRange, { timeframe: string; aggregate: number; limit: number }> = {
-  "1D": { timeframe: "minute", aggregate: 15, limit: 96 },
-  "1W": { timeframe: "hour", aggregate: 4, limit: 42 },
-  "1M": { timeframe: "day", aggregate: 1, limit: 30 },
-  "3M": { timeframe: "day", aggregate: 1, limit: 90 },
+// Two shared upstream requests cover all four ranges. This cuts provider calls in half
+// when someone explores the chart, while keeping each displayed range honest.
+const rangeOptions: Record<MarketRange, { timeframe: string; aggregate: number; limit: number; seconds: number }> = {
+  "1D": { timeframe: "minute", aggregate: 15, limit: 672, seconds: 86_400 },
+  "1W": { timeframe: "minute", aggregate: 15, limit: 672, seconds: 7 * 86_400 },
+  "1M": { timeframe: "day", aggregate: 1, limit: 90, seconds: 30 * 86_400 },
+  "3M": { timeframe: "day", aggregate: 1, limit: 90, seconds: 90 * 86_400 },
 };
 
 /** GeckoTerminal returns newest-first arrays. Keep only finite, valid USD candles. */
@@ -49,11 +51,12 @@ export async function fetchPoolCandles(
   tokenMint: string,
   range: MarketRange,
   send: typeof fetch = fetch,
+  nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<MarketCandle[]> {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(poolAddress) ||
     !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(tokenMint)) throw new Error("MARKET_ID_INVALID");
 
-  const { timeframe, aggregate, limit } = rangeOptions[range];
+  const { timeframe, aggregate, limit, seconds } = rangeOptions[range];
   const url = new URL(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${timeframe}`);
   url.searchParams.set("aggregate", String(aggregate));
   url.searchParams.set("limit", String(limit));
@@ -65,5 +68,7 @@ export async function fetchPoolCandles(
     next: { revalidate: 180 },
   });
   if (!response.ok) throw new Error("MARKET_HISTORY_UNAVAILABLE");
-  return parsePoolCandles(await response.json());
+  return parsePoolCandles(await response.json()).filter(
+    (candle) => candle.time >= nowSeconds - seconds && candle.time <= nowSeconds,
+  );
 }
