@@ -49,7 +49,7 @@ The pack is ready to guide implementation. It is **not** a security audit, legal
 
 ## Scope in one paragraph
 
-Guests can scan, upload, search or paste supported product links; AI recognizes multiple products and explains verified company relationships. Signed-in users have a Magic Solana wallet, one private shelf, USDC deposits, individual/basket buys, sells, outbound transfers, private records and corporate-action explanations. An educational assistant can propose editable, constrained allocation drafts. Images and raw receipt text are not retained. Users deliberately opt into revocable, holdings-free shelf links. Recurring investments, gifts, native apps and bank/card funding are not version-one requirements.
+Guests can scan, upload, search or paste supported product links; AI recognizes multiple products and helps identify likely owners. Current issuer token details carry company/instrument research and the only AI chat, scoped to that exact token. Signed-in users have a Magic Solana wallet, one private shelf, USDC deposits, individual/basket buys, sells, outbound transfers, private records and corporate-action explanations. The explicit basket flow can propose editable, constrained allocation drafts. Images and raw receipt text are not retained. Users deliberately opt into revocable, holdings-free shelf links. Recurring investments, gifts, native apps and bank/card funding are not version-one requirements.
 
 ## Critical distinctions
 

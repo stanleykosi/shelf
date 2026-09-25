@@ -39,6 +39,21 @@ const openAiListing = {
   },
 };
 
+test("the answer API rejects questions without an issuer context", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/ai/answer", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": "session-bound" },
+      body: JSON.stringify({ question: "Tell me about stocks" }),
+    });
+    return { status: response.status, body: await response.json() };
+  });
+
+  expect(result.status).toBe(422);
+  expect(result.body).toMatchObject({ error: { code: "INVALID_INPUT" } });
+});
+
 test("xStocks details open a multi-turn AI chat with no request before the first question", async ({ page }) => {
   const requests: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
@@ -64,7 +79,7 @@ test("xStocks details open a multi-turn AI chat with no request before the first
 
   await page.goto("/assets/xstocks/METAx");
   await page.getByRole("link", { name: "Chat with AI" }).click();
-  await expect(page).toHaveURL(/\/assistant\?provider=xstocks&symbol=METAx$/);
+  await expect(page).toHaveURL(/\/assets\/xstocks\/METAx\/chat$/);
   await expect(page.getByText("xStocks context loaded")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Chat about Meta Platforms" })).toBeVisible();
   expect(requests).toHaveLength(0);
@@ -128,7 +143,7 @@ test("PreStocks chat loads its own issuer and blocks questions when that feed is
     contentType: "application/json",
     body: JSON.stringify({ error: { code: "PRESTOCKS_UNAVAILABLE" } }),
   }));
-  await page.goto("/assistant?provider=prestocks&symbol=MISSING");
+  await page.goto("/assets/prestocks/MISSING/chat");
   await expect(page.getByRole("heading", { name: "Issuer details unavailable" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeDisabled();
   await expect(page.locator(".assistant-message")).toHaveCount(0);
@@ -166,8 +181,8 @@ test("two simultaneous browser conversations keep their issuer and messages sepa
     });
 
     await Promise.all([
-      publicPage.goto("/assistant?provider=xstocks&symbol=METAx"),
-      privatePage.goto("/assistant?provider=prestocks&symbol=OPENAI"),
+      publicPage.goto("/assets/xstocks/METAx/chat"),
+      privatePage.goto("/assets/prestocks/OPENAI/chat"),
     ]);
     await expect(publicPage.getByText("xStocks context loaded")).toBeVisible();
     await expect(privatePage.getByText("PreStocks context loaded")).toBeVisible();
@@ -216,7 +231,7 @@ test("a failed answer restores the question for an accessible retry", async ({ p
     }) });
   });
 
-  await page.goto("/assistant?provider=xstocks&symbol=METAx");
+  await page.goto("/assets/xstocks/METAx/chat");
   await expect(page.getByText("xStocks context loaded")).toBeVisible();
   await page.getByLabel("Your question").fill("What does METAx represent?");
   await page.getByLabel("Your question").press("Enter");

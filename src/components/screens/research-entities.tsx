@@ -140,7 +140,7 @@ function SaveResearch({
             className="button secondary"
             href={
               `/sign-in?returnTo=${encodeURIComponent(
-                `/companies/${companyById(id)?.slug ?? ""}`
+                `/discover?q=${encodeURIComponent(companyById(id)?.name ?? "")}`
               )}` as Route
             }
           >
@@ -293,7 +293,7 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
             <div><dt>Category</dt><dd>{product.category}</dd></div>
             <div><dt>Company</dt><dd>{company?.name ?? "Not established"}</dd></div>
           </dl>
-          {company ? <Link className="button" href={`/companies/${company.slug}`}>View company research <ArrowRight size={17} aria-hidden="true" /></Link> : null}
+          {company ? <Link className="button" href={`/discover?q=${encodeURIComponent(company.name)}`}>Search current tokens <ArrowRight size={17} aria-hidden="true" /></Link> : null}
           <p className="journey-source-note"><ShieldCheck size={16} aria-hidden="true" />Reviewed catalog relationship. Check the regional evidence below.</p>
         </div>
       </div>
@@ -394,8 +394,8 @@ export function ResearchBrandScreen({ slug }: { slug: string }) {
             ) : null}
             <p>{relationship.region}</p>
             {company ? (
-              <Link className="button" href={`/companies/${company.slug}`}>
-                View {company.name} research
+              <Link className="button" href={`/discover?q=${encodeURIComponent(company.name)}`}>
+                Find {company.name} tokens
               </Link>
             ) : (
               <p>No reviewed Company relationship is available.</p>
@@ -466,7 +466,7 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
       </ResearchBand>
       <section className="company-research-note">
         <h2>Company, not Instrument</h2>
-        <div><p>The business behind these products is separate from any issuer-defined asset. Saving is research; it does not create a Holding.</p><Link href={`/assistant?company=${company.slug}&from=company` as Route}>Ask about this Company <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+        <div><p>The business behind these products is separate from any issuer-defined asset. Saving is research; it does not create a Holding.</p><Link href={`/discover?q=${encodeURIComponent(company.name)}` as Route}>Find current tokens <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
       </section>
       <section className="company-exposure-stage" id="company-exposure">
         <p className="platform-label">The next layer</p>

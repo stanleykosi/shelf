@@ -17,9 +17,9 @@ describe("Saved research integrity", () => {
     expect(readGuestIds("shelf:guest-items")).toEqual(["product-doritos-snack"]);
   });
 
-  it("keeps Company research separate from issuer instrument research", () => {
+  it("opens current issuer details only for an exact issuer record", () => {
     const company = companies.find((item) => item.instrument)!;
-    expect(companyResearchPath(company)).toBe(`/companies/${company.slug}`);
+    expect(companyResearchPath(company)).toBe(`/discover?q=${encodeURIComponent(company.name)}`);
     const issuer = { ...company, id: `issuer:xstocks:${company.instrument!.symbol}` };
     expect(companyResearchPath(issuer)).toBe(`/assets/${company.instrument!.provider}/${encodeURIComponent(company.instrument!.symbol)}`);
   });

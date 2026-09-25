@@ -6,7 +6,7 @@ import { brands, companyById, sources } from "@/data/catalog";
 import type { Product } from "@/domain/types";
 import { ProductArtwork } from "@/components/discovery-patterns";
 
-// The accepted Home explorer, shared without a second visual interpretation.
+// Show a reviewed product relationship without creating another company research page.
 export function CapitalRelationship({ product, discloseEvidence = false, studio = false }: { product: Product; discloseEvidence?: boolean; studio?: boolean }) {
   const ArrowRightIcon = studio ? StudioArrowRight : ArrowRight;
   const ArrowUpRightIcon = studio ? StudioArrowUpRight : ArrowUpRight;
@@ -23,7 +23,7 @@ export function CapitalRelationship({ product, discloseEvidence = false, studio 
       <span className="c2-connector" aria-hidden="true"><ArrowRightIcon size={17} /></span>
       <Link className="c2-trail-identity" href={("/brands/" + brand.slug) as Route}><span className="c2-type-symbol">{product.brand.slice(0, 1)}</span><small>Brand</small><strong>{product.brand}</strong></Link>
       <span className="c2-connector" aria-hidden="true"><ArrowRightIcon size={17} /></span>
-      <Link className="c2-trail-identity c2-trail-company" href={("/companies/" + company.slug) as Route}><span className="c2-type-symbol">{company.ticker || company.name.slice(0, 2)}</span><small>Company</small><strong>{company.name}</strong></Link>
+      <Link className="c2-trail-identity c2-trail-company" href={`/discover?q=${encodeURIComponent(company.name)}` as Route}><span className="c2-type-symbol">{company.ticker || company.name.slice(0, 2)}</span><small>Company</small><strong>{company.name}</strong></Link>
     </div>
     {discloseEvidence ? <details className="scan-evidence"><summary>Source and review context</summary>{evidence}<p>Region: {product.region}. The catalog documents product families, not every local SKU or licensed variant.</p></details> : evidence}
   </>;

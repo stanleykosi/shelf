@@ -4,9 +4,9 @@ Every listed screen requires loading, usable, empty, recoverable-error, permissi
 
 ## S01 — Discover · /
 
-Audience: everyone, subject to content policy. Primary C01 **Scan a product** → /scan, without automatically requesting camera access. Secondary C02 **Search products** → /discover?focus=search. Category chips set a URL filter. Learning cards open /learn/[slug].
+Audience: everyone, subject to content policy. Primary C01 **Scan a product** → /scan, without automatically requesting camera access. Secondary C02 **Search products** → /discover?focus=search. Home explains that issuer facts and AI chat live on an exact token detail page, and links to the current issuer directory.
 
-Show concise product explanation, curated catalog items and “How it works.” Member header has cash/status only after authentication; never expose private server data in the guest HTML. Empty catalog: “We’re updating the catalog” plus typed search and learning. Fetch error: Retry discovery; scan remains independently available.
+Show concise Scan/search guidance and token-page capabilities. Do not restore the product gallery, Product → Brand → Company relationship explorer, company research table, research coverage metrics or general assistant entry. Member header has cash/status only after authentication; never expose private server data in the guest HTML. If directory data is unavailable, typed search and Scan remain independently available.
 
 ## S02 — Explore/search · /discover
 
@@ -34,7 +34,7 @@ Typed input invokes S02. Camera denied: **Use an image** and **Search instead**,
 
 Ephemeral result, owned by current browser/session; never encode image/OCR in query strings. Show “Check the matches” and a card for each candidate. On-screen thumbnail uses local object URL only, destroyed when leaving processing flow.
 
-C13 **This is correct** confirms a candidate; C14 **Change match** opens catalog search constrained to that candidate; C15 **Remove result** excludes it. C16 **View company** opens verified relationship. C17 **Save selected** saves confirmed catalog IDs, not raw extracted text. Initially no ambiguous candidates are selected.
+C13 **This is correct** confirms a candidate; C14 **Change match** opens catalog search constrained to that candidate; C15 **Remove result** excludes it. C16 **View company** opens a current issuer token detail only when an exact listing is confirmed; otherwise it offers issuer search. C17 **Save selected** saves confirmed catalog IDs, not raw extracted text. Initially no ambiguous candidates are selected.
 
 Cards show Matched, Needs confirmation, Not in catalog, Private company, or Relationship not verified as separate states. Company/asset unavailability must not invalidate successful product recognition. Show overflow notice if result count exceeds limit. All rejected: offer scan/search. Refresh without result: “Scan expired” with **Scan again**.
 
@@ -42,15 +42,15 @@ Cards show Matched, Needs confirmation, Not in catalog, Private company, or Rela
 
 Show licensed catalog image or textual placeholder, product/brand, category, relationship path, sources and date. Do not retain the user's submitted photo as its image.
 
-C18 **Save to shelf** toggles to Saved; C19 **Remove from shelf** needs nonfinancial undo, not a scary money warning. C20 **Explore company** opens S06. Ambiguous relation offers selection of region or **Report a mismatch**; no investment CTA until resolved. Report stores structured catalog IDs/reason, not image/receipt.
+C18 **Save to shelf** toggles to Saved; C19 **Remove from shelf** needs nonfinancial undo, not a scary money warning. C20 **Explore company** searches current issuer listings for the reviewed company, then opens S06 only after an exact listing is selected. Ambiguous relation offers selection of region or **Report a mismatch**; no investment CTA until resolved. Report stores structured catalog IDs/reason, not image/receipt.
 
-## S06 — Company · /companies/[id]
+## S06 — Token detail · /assets/[provider]/[symbol]
 
-Show company description, verified brands, listed ticker/exchange, issuer instrument if available, overlap with user's shelf and educational risks. Separate official underlying reference price from secondary token price; label timestamp/source/unit. Missing price is “Unavailable,” never zero.
+This is the company and stock-token research destination for a current issuer listing. The former `/companies/[slug]` research URL is retired and returns 404. Show what the issuer instrument represents, source-linked company context where supplied, its limitations, and current provider observations. Separate issuer reference values from an amount-specific Jupiter quote; label timestamp/source/unit. Missing values are “Unavailable,” never zero.
 
-C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Ask about this company** → assistant context. C23 **View sources** expands citations. C24 **View token details** displays exact mint/program/issuer, not just ticker.
+C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Chat with AI** opens S09 for this exact provider and symbol. C23 **View sources** links to issuer records and disclosures. C24's former separate company-to-token handoff is retired because this page is the token detail.
 
-Current `/assets/[provider]/[symbol]` token details show **Chat with AI** beside purchase review and watchlist actions. It opens `/assistant?provider=&symbol=` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat.
+The token detail page shows **Chat with AI** beside purchase review and watchlist actions. It opens `/assets/[provider]/[symbol]/chat` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat. There is no standalone general `/assistant` route.
 
 The token page now leads with what the instrument represents and the next actions. xStocks shows the underlying ticker/exchange, issuer-session state, security identifiers, Solana mint, current Solana multiplier, and a timestamped issuer reserve snapshot where available. PreStocks shows issuer token reference, mark, premium/discount, implied and mark company valuations, issuer supply, and the official product page. Explain that issuer sessions and references do not establish Jupiter liquidity or an executable price. Optional disclosure outages leave the core token page usable; a current issuer trading halt pauses Shelf purchase review. Do not fill gaps in the public PreStocks feed by scraping its website.
 
@@ -66,23 +66,19 @@ Guest banner explains temporary storage and C31 **Sign in to keep this shelf**. 
 
 ## S08 — Learning · /learn and /learn/[slug]
 
-Versioned editorial content, sources and last review date. C33 **Explore related brands**, C34 **Ask a question**, optional **Back to Discover**. No buy CTA disguised as a required next lesson. At minimum ship six explainers listed in document 11. Error preserves topic title and offers Retry.
+Versioned editorial content, sources and last review date. C33 **Explore related brands** and optional **Back to Discover** remain. C34's general **Ask a question** action is retired; users open AI chat from an exact token detail page. No buy CTA disguised as a required next lesson. At minimum ship six explainers listed in document 11. Error preserves topic title and offers Retry.
 
-## S09 — Assistant · /assistant
+## S09 — Issuer-scoped chat · /assets/[provider]/[symbol]/chat
 
-Header “AI assistant”; exact issuer context card when opened from a token detail page. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** erases the page-memory transcript. A follow-up sends only six bounded prior turns; a route change or reload starts a new conversation until retention is decided separately.
+This page requires a valid xStocks or PreStocks provider and exact symbol. The issuer context card loads from the current feed. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** erases the page-memory transcript. A follow-up sends only six bounded prior turns; a route change or reload starts a new conversation until retention is decided separately.
 
 Show the issuer source and response citations. Keep the typed question after an error so the user can retry deliberately; no duplicate automatic billable retries. A missing current listing blocks scoped chat rather than using stale browser-provided facts. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
 
-C38 **Suggest an allocation** opens S10; C39 **Use this draft** appears only on a validated allocation object and opens editable basket, never wallet signing. No markdown raw HTML, arbitrary embedded image or clickable transaction payload from model text.
+C38–C39 are retired from chat. Allocation suggestions remain in the explicit basket flow, never in an issuer answer. No markdown raw HTML, arbitrary embedded image or clickable transaction payload from model text.
 
-## S10 — Allocation draft · /invest/suggest
+## S10 — Retired allocation draft route
 
-Authenticated/invited and suggestion-policy eligible. Fields: budget, selected companies or categories, optional “Use my shelf.” Explain this generates an illustrative proposal, not a return prediction or suitability assessment.
-
-C40 **Generate draft**; response shows candidates, weights, dollar amounts, cited reasons, overlap/concentration warnings. C41 **Edit allocation** lets user change values. C42 **Apply to basket** copies validated IDs/amounts into S16.
-
-No supported candidates: educational explanation; no substitute derivatives/suppliers. Invalid weights are rejected by server, not patched silently. Global recommendation pause leaves manual baskets available when lawful.
+The separate `/invest/suggest` route and C40–C42 are retired. Editable allocation suggestions are created and reviewed within the S16 basket flow, with explicit user approval before any order.
 
 ## S11 — Sign-in · /sign-in
 
@@ -186,7 +182,7 @@ Account method, masked email, wallet address, terms/privacy versions, data contr
 
 Deletion requires recent auth and explains retained statutory records if policy requires, irreversible chain data and wallet-provider independence. Pending money operations must reconcile before deletion completes; unspent assets trigger prominent withdrawal/recovery guidance. Do not delete a Magic wallet or lock a user out of assets as a side effect.
 
-Settings do not allow arbitrary wallet replacement or email identity merge. Local-only conversation clearing available from assistant.
+Settings do not allow arbitrary wallet replacement or email identity merge. The token chat can clear its page-local conversation.
 
 ## S27 — Owner console · /admin
 

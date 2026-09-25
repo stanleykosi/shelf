@@ -1139,53 +1139,30 @@ async function discoveryResponse(
 }
 
 async function answerResponse(request: NextRequest, body: Record<string, unknown>) {
-  if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > 2_000) throw new Error("INVALID_INPUT");
   const history = readChatHistory(body.history);
-  if (body.issuer !== undefined &&
-    (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer))) {
+  if (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer)) {
     throw new Error("INVALID_INPUT");
   }
+  if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
+  const reference = body.issuer as Record<string, unknown>;
   const reservation = await reserveDiscoveryAiBudget(request, CHAT_REQUEST_RESERVE_MICROUSD);
-  let issuer: IssuerListing | null = null;
-  let approvedFacts: Array<{ id: string; title: string; claim: string }>;
-
+  let context: Awaited<ReturnType<typeof exactIssuerChatContext>>;
   try {
-    if (body.issuer !== undefined) {
-      const reference = body.issuer as Record<string, unknown>;
-      const context = await exactIssuerChatContext(reference.provider, reference.symbol);
-      issuer = context.listing;
-      approvedFacts = [context.fact];
-    } else {
-      const currentAssets = await issuerListings()
-        .then(({ listings }) => searchIssuerListings(question, listings).slice(0, 8))
-        .catch(() => [] as IssuerListing[]);
-      approvedFacts = [
-        ...articles.map((article) => ({
-          id: `article:${article.slug}`,
-          title: article.title,
-          claim: article.body.join(" ").slice(0, 1500),
-        })),
-        ...currentAssets.map(({ provider, asset }) => ({
-          id: asset.companyId,
-          title: `${asset.name} · ${provider}`,
-          claim: `${provider} currently lists ${asset.name} as ${asset.symbol} on Solana mint ${asset.mint}. ${asset.description}`,
-        })),
-      ];
-    }
+    context = await exactIssuerChatContext(reference.provider, reference.symbol);
   } catch (error) {
     await releaseDiscoveryAiBudget(reservation);
     throw error;
   }
 
-  const result = await ai.answer({ question, approvedFacts, history }, REQUIRED_AI_PRIVACY);
+  const result = await ai.answer({ question, approvedFacts: [context.fact], history }, REQUIRED_AI_PRIVACY);
   await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
   return {
     answer: result.answer,
     sourceIds: result.sourceIds,
     uncertainty: result.uncertainty,
-    issuer,
+    issuer: context.listing,
   };
 }
 

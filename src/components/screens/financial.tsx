@@ -59,7 +59,7 @@ export function InvestmentScreen({ companySlug }: { companySlug: string }) {
       router.push(`/orders/${order.id}/review`);
     } catch (reason) { setError(messageFrom(reason)); setBusy(false); }
   }
-  if (!company?.instrument) return <EmptyState title="No supported exposure" action={<CtaLink id="investment-research" href={`/companies/${companySlug}`} secondary>Return to research</CtaLink>}>Company research remains available. No investment instrument is inferred.</EmptyState>;
+  if (!company?.instrument) return <EmptyState title="No supported exposure" action={<CtaLink id="investment-research" href={`/discover?q=${encodeURIComponent(company?.name ?? companySlug)}`} secondary>Search current listings</CtaLink>}>No investment instrument is inferred from the reviewed catalog.</EmptyState>;
   const instrument = company.instrument;
   return <>
     <PageIntro eyebrow="Investment / Amount" title={`Review an investment in ${company.name}`}>
@@ -92,7 +92,7 @@ export function InvestmentScreen({ companySlug }: { companySlug: string }) {
         </div>
         {!instrument.capabilities.buy ? <p role="status">Purchases are currently unavailable for this instrument.</p> : null}
         <ErrorMessage message={error}/>
-        <CtaLink id="investment-return" href={`/companies/${companySlug}`} secondary>Return to company research</CtaLink>
+        <CtaLink id="investment-return" href={`/assets/${instrument.provider}/${encodeURIComponent(instrument.symbol)}`} secondary>View token details</CtaLink>
       </section>
     </div>
   </>;
@@ -873,7 +873,7 @@ export function PortfolioScreen() {
           : <EmptyState title="No Shelf investments yet" action={<CtaLink id="C75" href="/discover">Discover companies</CtaLink>}>Your cash and saved research are still available. You do not need to invest to use Shelf.</EmptyState>}
           <p className="portfolio-tracking-note"><ShieldCheckIcon aria-hidden="true" /> Only finalized acquisitions made through Shelf appear here.</p>
         </section>
-        <aside className="portfolio-research-note"><SparklesIcon aria-hidden="true" /><p className="studio-eyebrow">A little perspective</p><h2>Know what<br />you own.</h2><p>Explore the companies, understand the instruments, and make your next decision with context.</p><Link href="/assistant">Talk it through with Shelf <ArrowUpRightIcon aria-hidden="true" /></Link><details><summary>How your portfolio works</summary><p>Acquisition cost is not today’s market value. Externally received assets are shown in your Wallet, separately from Shelf purchases.</p><Link href="/learn/splits-and-dividends">Understand quantity changes</Link></details></aside>
+        <aside className="portfolio-research-note"><SparklesIcon aria-hidden="true" /><p className="studio-eyebrow">A little perspective</p><h2>Know what<br />you own.</h2><p>Explore the companies, understand the instruments, and make your next decision with context.</p><Link href="/discover">Explore current tokens <ArrowUpRightIcon aria-hidden="true" /></Link><details><summary>How your portfolio works</summary><p>Acquisition cost is not today’s market value. Externally received assets are shown in your Wallet, separately from Shelf purchases.</p><Link href="/learn/splits-and-dividends">Understand quantity changes</Link></details></aside>
       </div>
     </div>
   );
@@ -951,10 +951,10 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
             id="C78"
             href={holding.companyId.startsWith("issuer:")
               ? `/assets/${holding.companyId.split(":")[1]}/${encodeURIComponent(holding.symbol)}`
-              : `/companies/${companyById(holding.companyId)?.slug ?? holding.companyId}`}
+              : `/discover?q=${encodeURIComponent(companyById(holding.companyId)?.name ?? holding.symbol)}`}
             secondary
           >
-            View company
+            {holding.companyId.startsWith("issuer:") ? "View token details" : "Search issuer listings"}
           </CtaLink>
           <CtaLink id="C79" href="/learn/splits-and-dividends" secondary>
             Why did my quantity change?

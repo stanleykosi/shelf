@@ -2,6 +2,8 @@
 
 Date: 2026-09-21
 
+Historical audit note: the `screens/markets.tsx` import described below was removed under U36 on 2026-09-25. The original graph counts remain the results of the 2026-09-21 audit, not a claim about the current graph.
+
 ## Assessment
 
 The repository has no circular local dependencies. No source change is justified for this task: splitting or relocating modules solely to make the graph look more layered would add indirection without breaking a real cycle.

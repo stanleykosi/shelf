@@ -24,10 +24,9 @@ describe("frontend route architecture", () => {
       "scan/results/page.tsx",
       "products/[slug]/page.tsx",
       "brands/[slug]/page.tsx",
-      "companies/[slug]/page.tsx",
       "learn/page.tsx",
       "learn/[slug]/page.tsx",
-      "assistant/page.tsx",
+      "assets/[provider]/[symbol]/chat/page.tsx",
       "saved/page.tsx",
       "saved/share/page.tsx",
       "share/[token]/page.tsx",
@@ -59,6 +58,12 @@ describe("frontend route architecture", () => {
       expect(existsSync(resolve("src/app", routeFile)), routeFile).toBe(true);
     }
     expect(existsSync(resolve("src/app/[[...path]]/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/assistant/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/companies/[slug]/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/invest/suggest/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/markets/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/markets/public/page.tsx"))).toBe(false);
+    expect(existsSync(resolve("src/app/markets/private/page.tsx"))).toBe(false);
   });
 
   it("classifies canonical and legacy access boundaries", () => {
@@ -68,10 +73,10 @@ describe("frontend route architecture", () => {
       "/scan/results",
       "/products/doritos-snack",
       "/brands/doritos",
-      "/companies/pepsico",
       "/saved",
       "/share/token",
       "/assets/xstocks/PEPx",
+      "/assets/xstocks/PEPx/chat",
     ]) {
       expect(pageAccess(path)).toBe("public");
     }
@@ -94,23 +99,9 @@ describe("frontend route architecture", () => {
   });
 
   it("maps legacy routes one way while preserving only approved state", () => {
-    expect(legacyRedirectFor("/markets", new URLSearchParams("q=apple"))).toEqual({
-      destination: "/discover?q=apple",
-      permanent: true,
-    });
-    expect(legacyRedirectFor("/markets/private", new URLSearchParams("sort=name"))).toEqual({
-      destination: "/discover?market=private&sort=name",
-      permanent: true,
-    });
-    expect(
-      legacyRedirectFor(
-        "/markets/public",
-        new URLSearchParams("entity=product&market=private&q=apple"),
-      ),
-    ).toEqual({
-      destination: "/discover?market=public&q=apple",
-      permanent: true,
-    });
+    for (const path of ["/markets", "/markets/public", "/markets/private", "/companies/pepsico", "/invest/suggest"]) {
+      expect(legacyRedirectFor(path, new URLSearchParams("q=apple"))).toBeUndefined();
+    }
     expect(legacyRedirectFor("/wallet/send", new URLSearchParams("asset=usdc&amount=50"))).toEqual({
       destination: "/account/wallet/send?asset=usdc",
       permanent: true,
@@ -146,7 +137,6 @@ describe("frontend route architecture", () => {
     for (const destination of [
       "/products/doritos-snack",
       "/brands/doritos",
-      "/companies/pepsico",
       "/learn/what-you-own",
       "/share/revocable-token",
       "/invest/pepsico",
@@ -157,6 +147,7 @@ describe("frontend route architecture", () => {
       "/portfolio/activity/record-id",
       "/assets/prestocks/SPACEX/buy",
       "/assets/xstocks/PEPx",
+      "/assets/xstocks/PEPx/chat",
     ]) {
       expect(safeReturnTo(destination)).toBe(destination);
     }
@@ -173,6 +164,10 @@ describe("frontend route architecture", () => {
       "/assets/unknown/PEPx/buy",
       "/assets/prestocks/%2Faccount/buy",
       "/assets/prestocks/SPACEX/buy/extra",
+      "/assistant",
+      "/companies/pepsico",
+      "/invest/suggest",
+      "/markets",
     ]) {
       expect(safeReturnTo(destination)).toBe("/onboarding");
     }
@@ -191,7 +186,7 @@ describe("frontend route architecture", () => {
 
   it("derives mobile and desktop active state from the actual route", () => {
     expect(activePrimarySection("/")).toBe("discover");
-    expect(activePrimarySection("/companies/pepsico")).toBe("discover");
+    expect(activePrimarySection("/assets/xstocks/PEPx")).toBe("discover");
     expect(activePrimarySection("/scan/results")).toBe("scan");
     expect(activePrimarySection("/saved/share")).toBe("saved");
     expect(activePrimarySection("/portfolio/activity")).toBe("portfolio");

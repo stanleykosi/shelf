@@ -9,7 +9,6 @@ import "./discovery-studio.css";
 import "./research-journey.css";
 import "./feedback.css";
 import "./workspace-studio.css";
-import "./assistant-chat.css";
 import "./account-studio.css";
 import "./collection-studio.css";
 import "./portfolio-studio.css";
@@ -23,7 +22,7 @@ import { raleway } from "./fonts";
 
 export const metadata: Metadata = {
   title: { default: "Shelf", template: "%s · Shelf" },
-  description: "Scan a product. Discover the company. Choose what to own.",
+  description: "Explore current token listings, check issuer details, and choose what comes next.",
   robots: { index: false, follow: false },
 };
 

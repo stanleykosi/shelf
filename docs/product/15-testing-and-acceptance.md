@@ -35,7 +35,7 @@ Require lint, strict type checking, production build, unit/contract/integration 
 | T19 | Portfolio includes Shelf lots only; external deposit separate, external-first unexplained outflow attribution, tracked transfer disposition without proceeds, internal token-account moves not disposal. Gapped history freezes affected spend. Replay reproduces balances. |
 | T20 | Multiplier/split/reinvested-dividend fixture changes display quantity correctly, preserves historical snapshots/cost and never invents cash. Price-unit mismatch hides value. Upcoming/corrected/cancelled issuer event handled without duplicate action. |
 | T21 | History distinguishes submitted/unknown/failed/finalized states; exports match journal, include units/fees/sources, escape spreadsheet formulas and enforce owner/fresh-auth/row limits. Missing mark is unavailable, not zero or fake return. |
-| T22 | Educational AI gives source-backed relation/stock-token answers; unknown facts abstain. Invalid/missing source IDs, invented mint/ticker, model instructions hidden in packaging or webpage, unrelated investment claims rejected or constrained. |
+| T22 | Token-detail AI chat gives source-backed answers from the exact current issuer record; unknown facts abstain. Bare `/assistant` and unscoped `/ai/answer` requests reject. Invalid/missing source IDs, invented mint/ticker, model instructions hidden in packaging or webpage, unrelated investment claims rejected or constrained. |
 | T23 | Allocation output only approved unique company IDs; backend verifies eligibility, budget, exact amounts, min/max/count and privacy consent. Draft has no signing authority. Applying proposal only fills editable form; no order auto-submitted. |
 | T24 | Shelf summary counts/parent grouping agree with database; proposed sort is a permutation of current items and requires confirmation. Stale shelf version rejects application; undo restores previous nonfinancial ordering. |
 | T25 | OpenRouter outbound request includes required training/ZDR controls on primary and fallback. Unsupported privacy/schema endpoint, timeout, provider 429 and exhausted app budget fail closed with manual alternatives. No silent cheaper nonprivate fallback. |
@@ -87,4 +87,3 @@ Run a small paid-model benchmark only after authorization. Record model/provider
 ## Evidence format
 
 For each T case record code/test path, environment, date, commit, result, sanitized screenshot/log where useful, and limitation. Provider capabilities get a matrix of method/version/network/result. A failed or not-run gate stays visible. Never substitute “documentation says supported” for an executed interoperability test.
-

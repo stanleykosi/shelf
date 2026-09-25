@@ -55,7 +55,7 @@ See document 13 for live pricing snapshots and plan limitations; these services 
 3. **Catalog:** products, brand aliases, effective-dated relationships, sources and reviewed supported instruments.
 4. **Discovery:** image/text/barcode/link normalization, external product lookup, AI recognition, deterministic catalog resolution.
 5. **Shelf:** private collection, dedupe, guest merge, sanitized share snapshots.
-6. **EducationAI:** source retrieval, bounded assistant answers, summary and editable allocation draft validation.
+6. **EducationAI:** exact issuer retrieval for bounded token chat answers, plus shelf summary and editable allocation draft validation.
 7. **MarketData:** issuer records, onchain mint state, unit normalization, optional secondary-price snapshots, transition safeguards.
 8. **Trading:** intents, allocation arithmetic, quote adaptation, fee/min-output verification, simulation and preparation.
 9. **Submission:** verify user signature/message, atomically reserve sponsor budget, co-sign, persist deterministic signature, broadcast exact bytes.

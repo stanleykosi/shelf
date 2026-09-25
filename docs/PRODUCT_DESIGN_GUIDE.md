@@ -1,11 +1,13 @@
 # Shelf Product Design & Experience Guide
 
-Status: Discover/Scan studio design extended across the application
+Status: historical frontend design record; U36 in `docs/product/00-decisions.md` supersedes its Home research, standalone assistant, company and Markets route proposals
 Last updated: 2026-09-25
-Current refactor phase: Raleway/Heroicons, paper/graphite/mint surfaces, Torph action/loading text and themed Sonner notifications extend through Saved, sharing, Assistant, Account, onboarding, Wallet, Portfolio, transaction reviews and owner workspaces. Home retains its accepted composition with the same font/icon family. See docs/WORKSPACE_STUDIO_REDESIGN.md for scope and validation.
+Current refactor phase: Raleway/Heroicons, paper/graphite/mint surfaces, Torph action/loading text and themed Sonner notifications extend through Saved, sharing, Account, onboarding, Wallet, Portfolio, transaction reviews and owner workspaces. See docs/WORKSPACE_STUDIO_REDESIGN.md for scope and validation.
 Latest refinement: Product pages omit the relationship explorer and retain expandable source evidence. Persistent financial outcomes, consent and review requirements remain in context; transient confirmations use toasts.
-Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
+Source-of-truth status: historical design evidence; current numbered specifications in `docs/product/` and U36 govern implementation
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
+
+**2026-09-25 supersession:** U36 removes the Home product/brand/company research presentation, the standalone general assistant, and all `/markets*` route redirects. Current research and AI chat live on `/assets/[provider]/[symbol]` and its `/chat` child. Historical route inventories and mockups below record the earlier proposal; they are not implementation instructions for these retired paths.
 
 ## How to use this guide
 
@@ -369,7 +371,7 @@ Public entity URLs use reviewed slugs. Private resource URLs use opaque IDs. Fil
 | `/companies/[slug]` | Company detail | Research company and available exposure | Guest | Discover/entity |
 | `/learn` | Learning library | Browse reviewed explainers | Guest | Discover |
 | `/learn/[slug]` | Learning Article | Read a reviewed explainer | Guest | Learn/contextual |
-| `/assistant?company=&product=&from=` | Ask Shelf | Ask grounded questions with explicit context | Limited guest or member by policy | Contextual utility |
+| `/assets/[provider]/[symbol]/chat` | Issuer chat | Ask about the exact current token issuer record | Limited guest or member by policy | Token detail |
 | `/saved?view=` | Saved Research | Revisit saved Products and Companies | Guest temporary/member durable | Primary Saved |
 | `/saved/share` | Share builder | Preview and publish sanitized research snapshot | Member | Saved |
 | `/share/[token]` | Shared snapshot | Read bearer snapshot and copy public items | Guest | External/shared |
@@ -427,21 +429,21 @@ Product, Brand, Company, Article, shared snapshot, Order status, Holding, Activi
 |---|---|---|---|---|
 | `/` | KEEP | `/` | None | Remains product introduction, with reduced scope. |
 | `/discover` | KEEP + REFACTOR | `/discover` | None; migrate query | Becomes unified entity browse/search. |
-| `/markets` | MERGE | `/discover?entity=company` | 308 permanent | Market browsing becomes a company discovery filter. |
-| `/markets/public` | MERGE | `/discover?entity=company&market=public` | 308 permanent | Preserve public-market intent without provider-led top level. |
-| `/markets/private` | MERGE | `/discover?entity=company&market=private` | 308 permanent | Preserve private-market intent and distinction. |
+| `/markets` | REMOVE | None | 404 | Retired market route; Discover is reached directly. |
+| `/markets/public` | REMOVE | None | 404 | Retired market route. |
+| `/markets/private` | REMOVE | None | 404 | Retired market route. |
 | `/scan` | KEEP + REDESIGN | `/scan` | None | Core capability remains. |
 | `/scan/results` | KEEP + REDESIGN | `/scan/results` | None | Correctable ephemeral result remains useful. |
 | `/products/[id]` | RENAME | `/products/[slug]` | Server-resolved 308 | Readable canonical public entity URL. Unknown ID returns 404. |
-| `/companies/[id]` | RENAME | `/companies/[slug]` | Server-resolved 308 | Readable canonical public entity URL. |
+| `/companies/[id]` | REMOVE | None | 404 | Retired company research URL; exact issuer research is on token details. |
 | none | ADD | `/brands/[slug]` | None | Makes the middle relationship entity explicit. |
 | `/shelf` | RENAME | `/saved` | 308 permanent | Removes collision between brand name and ambiguous collection/watchlist language. |
 | `/shelf/share` | RENAME | `/saved/share` | 308 permanent | Aligns sharing with Saved research. |
 | `/share/[token]` | KEEP | `/share/[token]` | None | Existing bearer links must remain stable until expiry/revocation. |
 | `/learn` | KEEP | `/learn` | None | Stable public learning route. |
 | `/learn/[slug]` | KEEP | `/learn/[slug]` | None | Stable article deep links. |
-| `/assistant` | KEEP + REFACTOR | `/assistant` | None | Remains optional utility, primarily entered contextually. |
-| `/invest/suggest` | MERGE | `/invest/basket?source=ai` | 308 permanent after draft migration support | Allocation drafting becomes an optional basket start mode. |
+| `/assistant` | REMOVE | None | 404 | General assistant retired; token chat has its own scoped child route. |
+| `/invest/suggest` | REMOVE | None | 404 | Separate draft entry retired; editable suggestions remain in the basket. |
 | `/sign-in` | KEEP | `/sign-in` | None | Stable auth entry. |
 | `/auth/callback` | KEEP | `/auth/callback` | None | Provider-configured technical route. |
 | `/welcome` | RENAME | `/onboarding` | 307 during migration, then 308 | Clear responsibility and safe rollout while OAuth links update. |
@@ -1144,29 +1146,29 @@ Loading, stale review notice, unavailable/not found, error, offline cached.
 ### Things explicitly NOT shown here
 Disguised buy CTA, AI-rewritten facts, live quote.
 
-## Ask Shelf
+## Issuer token chat
 
 ### Route
-`/assistant?company=&product=&from=`
+`/assets/[provider]/[symbol]/chat`
 
 ### Purpose
-Provide grounded, scoped education and clarification.
+Explain the exact current issuer token record.
 
 ### User intent
 Ask a question without granting action authority.
 
 ### Entry points
-Company, Product, Article, Saved, direct utility access.
+The matching token detail page only.
 
 ### Primary action
 Send question.
 
 ### Secondary actions
-Remove context, stop, clear, open cited source/entity; start Basket only after an explicit allocation request.
+Stop, clear, open the issuer source or return to token details.
 
 ### Information hierarchy
 1. AI limitation/privacy statement.
-2. Removable context chip and exactly what is sent.
+2. Fixed current issuer context and exactly what is sent.
 3. Conversation.
 4. Source/uncertainty cards.
 5. Validated suggested next action.
@@ -2760,7 +2762,7 @@ Let the user experience discovery value first. Trigger sign-in when they choose 
 
 ## Protected routes
 
-Protected: `/saved/share`, `/onboarding*`, `/account*`, `/invest/*`, `/orders/*`, private `/portfolio*`, and `/admin*`. `/saved` has deliberate guest/member variants. `/assistant` has a capability-aware guest/member variant. Public entity/learning/share pages stay public.
+Protected: `/saved/share`, `/onboarding*`, `/account*`, `/invest/*`, `/orders/*`, private `/portfolio*`, and `/admin*`. `/saved` has deliberate guest/member variants. Issuer chat has a capability-aware guest/member variant. Public entity/learning/share pages stay public.
 
 ## Post-auth behavior
 
@@ -2778,14 +2780,14 @@ Preserve a validated same-origin return path plus allowed query. Complete requir
 | Product detail | KEEP + REDESIGN | Product | Strengthen trail/evidence. |
 | Brand as text only | REPLACE | Brand detail/entity model | Prevent Product/Brand/Company conflation. |
 | Company detail | KEEP + REDESIGN | Company | Central research page. |
-| Markets top-level/pages | MERGE | Discover Company filters + exposure patterns | Market is classification/context, not primary intent. |
+| Markets top-level/pages | REMOVE | None | Direct visits return 404. |
 | Product Shelf | RENAME | Saved Products | Clear research state. |
 | Watchlist | MERGE + RENAME | Saved Companies | Remove duplicate saved concepts. |
 | Seeded guest Shelf examples | REMOVE | True empty Saved; examples stay on Home | Fabricated personal state is misleading. |
 | AI shelf summary/sort | KEEP + REFACTOR | Saved tool | Explicit preview/apply/undo. |
 | Sharing | KEEP + REDESIGN | Saved Share / Shared Snapshot | Strong privacy-safe capability. |
 | Learning | KEEP + REDESIGN | Learn/contextual links | Useful without funding. |
-| Standalone AI assistant | KEEP + REFACTOR | Ask Shelf utility/contextual entry | AI supports journeys rather than leading product IA. |
+| Standalone AI assistant | REMOVE | Issuer chat from token detail | General AI chat is retired. |
 | Standalone AI allocation page | MERGE | Basket Builder | Draft is an optional input, not a separate authority. |
 | Sign-in/callback | KEEP + REDESIGN | Same routes | Stable provider integration. |
 | Welcome | RENAME + REFACTOR | Onboarding | Clarify status/merge/consent. |
@@ -2965,8 +2967,7 @@ For the global shell, Home, and Discover:
 
 - Typography, page grid, whitespace, and rules carry hierarchy; structural sections are not rounded cards.
 - The palette is white/off-white, graphite, neutral grey, and a restrained forest-green accent used for action, selection, verification, and identity.
-- The Relationship Explorer is one research object with a connected Product → Brand → Company path and a compact evidence ledger—not three cards.
-- Home is a working research entry: command search, secondary Scan, familiar Product gallery, Company research table, methodology block, and compact learning list.
+- Home has Scan/search and an explanation of current token-detail capabilities; its old relationship explorer, product gallery and company research table are retired.
 - Discover is a database workspace: search and entity tabs, desktop filter rail, mobile filter sheet, visual Product grid, structured Brand rows, and Company research table.
 - Search mode prioritizes matching entities and omits unrelated discovery promotion.
 - Motion is limited to 120–180ms interaction feedback and sheet elevation, with a fade-only reduced-motion variant.
@@ -3031,7 +3032,7 @@ The user selected Concept 2 — Capital Research Direction as the authoritative 
 
 **Scope:** Discover/Saved/Portfolio shell, route-aware Scan action, account access, mobile safe areas, removal of Markets nav.
 **Dependencies:** canonical route registry.
-**Pages/routes:** global shell, `/markets*` redirects, guest Portfolio explanation.
+**Pages/routes:** global shell, retired `/markets*` routes return 404, guest Portfolio explanation.
 **Must continue working:** sign-in visibility, environment labeling in non-production contexts, protected routes.
 **Safe migration:** shell can ship before individual page redesigns if legacy routes map correctly.
 
@@ -3039,7 +3040,7 @@ The user selected Concept 2 — Capital Research Direction as the authoritative 
 
 **Scope:** focused Home, unified Discover, prioritized Scan, in-flow correction, Product/Brand/Company hierarchy, contextual Learn/Ask.
 **Dependencies:** entity read models and shell.
-**Pages/routes:** `/`, `/discover`, `/scan*`, `/products/*`, `/brands/*`, `/companies/*`, `/learn*`, `/assistant`.
+**Pages/routes:** `/`, `/discover`, `/scan*`, `/products/*`, `/brands/*`, `/companies/*`, `/learn*`, `/assets/[provider]/[symbol]/chat`.
 **Must continue working:** seven inputs, five categories, multi-product correction, privacy consent, verified mappings, no retained images.
 **Safe migration:** Home/Discover first; Scan flow next; entity pages after shared entity patterns exist.
 
@@ -3166,7 +3167,7 @@ Public
   /companies/[slug]
   /learn
   /learn/[slug]
-  /assistant
+  /assets/[provider]/[symbol]/chat
   /saved                         (guest variant)
   /share/[token]
   /sign-in

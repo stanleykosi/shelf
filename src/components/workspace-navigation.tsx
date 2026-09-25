@@ -14,7 +14,7 @@ export function WorkspaceNavigation({ pathname }: { pathname: string }) {
   const back = isAdmin ? { href: "/account", label: "Account" }
     : isWallet ? pathname === "/account/wallet" ? { href: "/account", label: "Account" } : { href: "/account/wallet", label: "Wallet" }
     : pathname === "/invest/basket" ? { href: "/saved", label: "Saved research" }
-    : pathname.startsWith("/invest/") ? { href: `/companies/${pathname.split("/")[2]}`, label: "Company research" }
+    : pathname.startsWith("/invest/") ? { href: "/discover", label: "Current listings" }
     : isPortfolio && pathname !== "/portfolio" ? { href: "/portfolio", label: "Portfolio" }
     : isSharing ? { href: "/saved", label: "Saved research" }
     : { href: "/discover", label: "Discover" };

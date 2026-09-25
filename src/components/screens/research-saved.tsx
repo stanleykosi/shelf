@@ -39,7 +39,7 @@ export function companyResearchPath(company: Company): string {
     ? `/assets/${company.instrument.provider}/${encodeURIComponent(
         company.instrument.symbol
       )}`
-    : `/companies/${company.slug}`;
+    : `/discover?q=${encodeURIComponent(company.name)}`;
 }
 
 export function ShelfScreen() {
@@ -442,7 +442,7 @@ export function ShelfScreen() {
           ) : null}
           </div><aside className="collection-insights" aria-label="Collection context">
             <div className="collection-note"><span className="studio-eyebrow">The bigger picture</span><h2>{parentCount ? <>{parentCount} {parentCount === 1 ? "company" : "companies"}.<br />More connections.</> : <>Start with<br />the everyday.</>}</h2><p>{collection.items.length ? `${collection.items.length} saved products connect to ${parentCount} reviewed parent ${parentCount === 1 ? "company" : "companies"}. Different brands can lead to the same owner.` : "Scan something you use. Discover the company behind it. Keep what interests you."}</p><Link href="/saved?view=companies">Explore your connections <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
-            <div className="collection-assistant"><SparklesIcon aria-hidden="true" /><h3>Follow your curiosity.</h3><p>Understand the difference between a brand, a company, and an investment.</p><Link href="/assistant">Ask Shelf <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+            <div className="collection-assistant"><SparklesIcon aria-hidden="true" /><h3>Follow your curiosity.</h3><p>Understand the difference between a brand, a company, and an investment.</p><Link href="/discover">Browse current tokens <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
             <p className="collection-private-note"><LockClosedIcon aria-hidden="true" />Saving is research, not ownership. Only the discoveries you select are shared.</p>
           </aside></div>
           {member ? (

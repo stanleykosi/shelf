@@ -11,9 +11,6 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   request,
 }) => {
   const permanentRedirects = [
-    ["/markets?q=apple", "/discover?q=apple"],
-    ["/markets/public", "/discover?market=public"],
-    ["/markets/private", "/discover?market=private"],
     ["/shelf", "/saved"],
     ["/shelf/share", "/saved/share"],
     ["/wallet", "/account/wallet"],
@@ -22,14 +19,12 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
     ["/history", "/portfolio/activity"],
     ["/history/owned-record", "/portfolio/activity/owned-record"],
     ["/settings", "/account"],
-    ["/invest/suggest", "/invest/basket?source=ai"],
     ["/invest/buy?companyId=company-pepsico", "/invest/pepsico"],
     ["/invest/sell?assetId=instrument-pepx", "/portfolio/instrument-pepx/sell"],
     ["/admin/status", "/admin"],
     ["/admin/invites", "/admin/access"],
     ["/admin/orders", "/admin/operations"],
     ["/products/product-doritos-snack", "/products/doritos-snack"],
-    ["/companies/company-pepsico", "/companies/pepsico"],
   ] as const;
 
   for (const [source, destination] of permanentRedirects) {
@@ -57,6 +52,20 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
     "/brands/not-a-reviewed-brand",
     "/companies/not-a-reviewed-company",
     "/not-a-route",
+  ]) {
+    expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+  }
+});
+
+test("retired research and general chat routes return 404", async ({ request }) => {
+  for (const path of [
+    "/assistant",
+    "/companies/company-pepsico",
+    "/companies/pepsico",
+    "/invest/suggest",
+    "/markets",
+    "/markets/public",
+    "/markets/private",
   ]) {
     expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
   }

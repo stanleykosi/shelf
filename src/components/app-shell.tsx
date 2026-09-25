@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useSelectedLayoutSegments } from "next/navigation";
-import { Sparkles } from "@/components/studio-icons";
 import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, Search as StudioSearch, WalletCards as StudioWallet } from "@/components/studio-icons";
 import { NavigationProgress } from "@/components/loading-feedback";
 import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
@@ -44,7 +43,6 @@ export function AppHeader({ activeSection, environment, signedIn }: { activeSect
         <div className="app-header-actions">
           <Link className="header-scan" href="/scan"><StudioScan size={16} aria-hidden="true" /><span>Scan</span></Link>
           <Link className="header-search" href="/discover?focus=search" aria-label="Search Shelf"><StudioSearch size={18} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd></Link>
-          <Link className="header-assistant" href="/assistant" aria-label="Ask Shelf"><Sparkles size={18} aria-hidden="true" /><span>Ask Shelf</span></Link>
           <span className="environment-status"><i aria-hidden="true" />{environment === "private-beta" ? "beta" : environment}</span>
           <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}><StudioAccount size={19} aria-hidden="true" /><span>{signedIn ? "Account" : "Sign in"}</span></Link>
         </div>
@@ -77,7 +75,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   return (
     <div className={"application-shell concept-two-shell" + (researchJourney ? " journey-shell" : "") + (workspacePage ? " workspace-shell" : "")}>
       <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} />
-      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage && pathname !== "/assistant" ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage && pathname !== "/assistant" ? <WorkspaceFooter /> : null}</main>
+      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage ? <WorkspaceFooter /> : null}</main>
       <MobileNavigation activeSection={activeSection} />
     </div>
   );

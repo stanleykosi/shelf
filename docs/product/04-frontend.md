@@ -12,11 +12,11 @@ The implementation repo must pin compatible package versions and commit a lockfi
 
 ## Route layout
 
-Public: /, /discover, /scan, /scan/results, /products/[id], /companies/[id], /learn, /learn/[slug], /assistant, /share/[token], /sign-in, /auth/callback.
+Public: /, /discover, /scan, /scan/results, /products/[id], /assets/[provider]/[symbol], /assets/[provider]/[symbol]/chat, /learn, /learn/[slug], /share/[token], /sign-in, /auth/callback. The `/markets*`, `/companies/[slug]` and general `/assistant` routes do not exist and must return 404 rather than redirecting.
 
-Member: /welcome, /eligibility, /shelf, /shelf/share, /wallet, /wallet/deposit, /wallet/send, /invest/buy, /invest/basket, /invest/suggest, /invest/sell, /orders/[id], /orders/[id]/review, /portfolio, /portfolio/[assetId], /history, /history/[id], /settings.
+Member: /welcome, /eligibility, /shelf, /shelf/share, /wallet, /wallet/deposit, /wallet/send, /invest/buy, /invest/basket, /invest/sell, /orders/[id], /orders/[id]/review, /portfolio, /portfolio/[assetId], /history, /history/[id], /settings. The old `/invest/suggest` redirect is retired.
 
-/shelf and /assistant support guest variants without server-private data. Admin: /admin plus status, catalog, invites, orders and audit subroutes. Private pages and API endpoints authenticate independently; hiding a navigation item is not authorization.
+/saved and issuer-scoped token chat support guest variants without server-private data. Admin: /admin plus status, catalog, invites, orders and audit subroutes. Private pages and API endpoints authenticate independently; hiding a navigation item is not authorization.
 
 Each route defines metadata, loading boundary, error boundary and unavailable/not-found behavior. All account, scan, share, order and portfolio routes use noindex and private no-store responses. Only public approved education/catalog content can be indexed if financial-content policy permits.
 

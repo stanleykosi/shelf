@@ -2,6 +2,71 @@
 
 Updated: 2026-09-25
 
+## UI-product-design-refractor merge with origin/main — local
+
+Merged the latest `origin/main` into `UI-product-design-refractor`. Preserved the branch's
+accepted Home, Discover, Scan, research workspace, and issuer assistant components.
+Connected main's `/assets/[provider]/[symbol]/chat` page to that assistant. Aligned the
+branch's route contract with main's retired general assistant, company, Markets, and
+allocation-suggestion URLs; Brand pages redirect to Discover search. Updated the two
+affected browser specifications to match those routes.
+
+`npm run lint`, `npm run typecheck`, 121 Vitest tests in 22 files, and the Next.js 16.3.5
+Webpack production build pass. The build reports optional Magic transport module warnings
+and a nonfatal Magic API initialization error in this restricted local environment.
+Focused production browser checks pass on desktop and Pixel 7: 10 issuer chat cases and
+6 retired-route/product-save cases. The local browser run used a matching `APP_ORIGIN` and
+an ephemeral session key; without those, CSRF and guest quota checks fail by design.
+No deployment, push, paid provider call, signing, or money movement occurred. The broad
+browser suite remains for a future local PostgreSQL-backed run.
+
+## origin/main UI merge reconciliation — local, unpushed
+
+Merged the fetched `origin/main` UI work into local `main` while retaining U36's
+token-detail-only AI chat and retired Home/Markets/company/general-assistant routes.
+Resolved four content conflicts in the design guide, discovery components, and two
+browser tests. Removed the incoming general assistant implementation and links to
+retired routes; kept its active design styles and other UI components. Repaired the
+incoming package lock so `npm ci` works, and normalized the bundled font license's
+line endings without changing its text.
+
+`npm ci`, ESLint, strict TypeScript, 121 Vitest tests in 22 files, the Next.js
+16.3.5 production build, and the focused desktop/mobile Home, Discover, issuer-chat
+and retired-route browser checks passed. The first focused browser run found an
+incoming test assertion for an old Discover heading; the corrected rerun passed.
+The full browser suite was not run because local PostgreSQL authentication still
+fails, and several imported historical design tests target routes retired by U36.
+No deployment, push, paid AI call or real-money action occurred. Next task after
+the merge: update or archive those historical browser tests against the current
+screen contract, then rerun the broad suite with a working local PostgreSQL instance.
+
+## U36 retired Home research and general chat paths — local, uncommitted
+
+Home now offers search, Scan, and a short guide to token details. Its product gallery,
+relationship explorer, company research table, coverage metrics, research notes, and links
+into the old research presentation were removed. Current issuer token details remain the
+company and stock-token research destination. The only AI chat entry is the exact issuer
+token page; its chat lives at `/assets/[provider]/[symbol]/chat`. The answer API requires
+issuer context on every question and refetches that exact listing. The standalone general
+assistant, Markets pages, legacy company research URL, and old allocation-draft redirect
+were removed; these URLs return 404 without redirecting. Editable allocation suggestions
+remain in the basket flow. Numbered product decisions, screens, flows, API and acceptance
+contracts were synchronized. Historical design and route-verification documents remain
+archived as prior evidence, with the current decision marked in the design guide.
+
+`npm run lint`, `npm run typecheck`, `npm run test` (17 files, 101 tests), `npm run build`
+and `git diff --check` passed. The Next.js 16.3.5 build route list contains the scoped
+chat page and omits retired pages. Local desktop/mobile Chromium passed 21 focused Home,
+Discover and issuer-chat checks with five device-specific skips, including the rejection
+of an unscoped answer request. Two additional desktop/mobile checks confirmed that all
+retired URLs return 404 without redirects. A 390-pixel mobile screenshot was inspected;
+the search input and button fit without clipping. The full route-architecture browser
+suite was not green because the local PostgreSQL credentials fail authentication, which
+causes the unrelated `/account` auth check to return 500; Docker/PostgreSQL binaries are
+unavailable in this WSL environment. No deployment, paid AI call or real-money action
+occurred. Next task: make a working local PostgreSQL test instance available before
+rerunning the full browser suite. Financial activation remains separately gated.
+
 ## U35 issuer token detail restructuring — production, uncommitted
 
 Compared the current Shelf detail page against xStocks' public asset, multiplier,

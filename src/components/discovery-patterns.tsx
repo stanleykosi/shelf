@@ -198,7 +198,7 @@ export function RelationshipExplorer({ product, company }: { product: Product; c
           <span><small>Brand</small><strong>{product.brand}</strong></span>
         </Link>
         <ArrowRight aria-hidden="true" />
-        <Link href={("/companies/" + company.slug) as Route}>
+        <Link href={`/discover?q=${encodeURIComponent(company.name)}` as Route}>
           <span className="relationship-fallback company" aria-hidden="true">{initials(company.name)}</span>
           <span><small>Company</small><strong>{company.name}</strong></span>
         </Link>
