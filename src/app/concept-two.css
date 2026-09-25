@@ -180,6 +180,7 @@
 .c2-rail-shadow { stroke:#07100d; stroke-width:22; transform:translateY(7px); }
 .c2-rail-body { stroke:url(#c2-rail-metal); stroke-width:12; }
 .c2-rail-highlight { stroke:#e9f9f8; stroke-width:2.3; opacity:.92; }
+/* A wheel rotates around its center; a lower pivot swings the whole coin under the rail. */
 .c2-company-coin { position:absolute; z-index:1; top:14%; left:50%; width:64%; aspect-ratio:1; translate:-50% 0; transform-origin:center; pointer-events:none; }
 .c2-company-coin img { object-fit:contain; }
 .c2-coin-engraving { position:absolute; top:49%; left:49%; width:30%; height:30%; transform:translate(-50%,-50%); overflow:visible; mix-blend-mode:multiply; }

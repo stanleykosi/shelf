@@ -34,6 +34,8 @@ function rollTransition({ quiet, paused }: RollContext) {
   return { duration: paused ? 0 : quiet ? 0.16 : 0.92, ease: rollingEase };
 }
 
+// The rail rises on both sides, more on the right. Lift each rolling coin's center
+// with that side of the rail so its rim stays in contact while it rotates.
 const coinVariants = {
   enter: (context: RollContext) => ({
     transform: context.quiet ? settledCoin : `translate3d(${context.direction * 145}%, ${context.direction === 1 ? "-26%" : "-19%"}, 0) rotate(${context.direction * 210}deg)`,
