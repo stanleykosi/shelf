@@ -10,6 +10,8 @@ import {
   BookmarkIcon,
   CameraIcon,
   CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DocumentTextIcon,
   GlobeAltIcon,
   LinkIcon as HeroLinkIcon,
@@ -48,6 +50,8 @@ export const Barcode = sizedIcon(QrCodeIcon);
 export const Camera = sizedIcon(CameraIcon);
 export const CameraOff = sizedIcon(VideoCameraSlashIcon);
 export const Check = sizedIcon(CheckIcon);
+export const ChevronLeft = sizedIcon(ChevronLeftIcon);
+export const ChevronRight = sizedIcon(ChevronRightIcon);
 export const LinkSymbol = sizedIcon(HeroLinkIcon);
 export const LockKeyhole = sizedIcon(LockClosedIcon);
 export const ReceiptText = sizedIcon(DocumentTextIcon);

@@ -21,7 +21,9 @@ import {
   authenticationIsRequired,
   postJson,
 } from "@/lib/api-client";
-import { ErrorMessage, PageIntro, ResultMessage } from "@/components/ui";
+import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
+import { ArrowRight, ArrowUpRight, Bookmark, ShieldCheck } from "@/components/studio-icons";
+import { ErrorMessage, ResultMessage } from "@/components/ui";
 
 function guestProducts(): string[] {
   const value: unknown = JSON.parse(
@@ -274,36 +276,29 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
     }
   }
   return (
-    <>
-      <div className="research-identity">
-        <ProductArtwork
-          product={product}
-          sizes="(max-width: 819px) 110px, 240px"
-        />
-        <PageIntro
-          eyebrow={`Product / ${product.category}`}
-          title={product.name}
-        >
-          <p>
-            {brand ? (
-              <Link href={`/brands/${brand.slug}`}>{brand.name}</Link>
-            ) : (
-              product.brand
-            )}{" "}
-            · {product.region}
-          </p>
-        </PageIntro>
-      </div>
-      <div className="actions">
-        {company ? (
-          <Link className="button" href={`/companies/${company.slug}`}>
-            View company research
-          </Link>
-        ) : null}
+    <ResearchJourney kind="product">
+      <div className="product-research-hero">
+        <div className="product-research-object">
+          <span className="studio-eyebrow">The familiar starting point</span>
+          <ProductArtwork product={product} sizes="(max-width: 819px) 320px, 480px" />
+          <span className="product-image-note">Product or brand reference · packaging may vary</span>
+        </div>
+        <div className="product-research-intro">
+          <JourneyHeading eyebrow={`Product / ${product.category}`} title={product.name}>
+            <p>{brand ? <Link href={`/brands/${brand.slug}`}>{brand.name} <ArrowUpRight size={15} aria-hidden="true" /></Link> : product.brand} · {product.region}</p>
+          </JourneyHeading>
+          <p className="journey-lede">A familiar product. Follow its reviewed connection to the company behind it.</p>
+          <dl className="journey-facts">
+            <div><dt>Category</dt><dd>{product.category}</dd></div>
+            <div><dt>Company</dt><dd>{company?.name ?? "Not established"}</dd></div>
+          </dl>
+          {company ? <Link className="button" href={`/companies/${company.slug}`}>View company research <ArrowRight size={17} aria-hidden="true" /></Link> : null}
+          <p className="journey-source-note"><ShieldCheck size={16} aria-hidden="true" />Reviewed catalog relationship. Check the regional evidence below.</p>
+        </div>
       </div>
       <section className="research-section section">
         <h2>Relationship explorer</h2>
-        <CapitalRelationship product={product} discloseEvidence />
+        <CapitalRelationship product={product} discloseEvidence studio />
       </section>
       <div className="research-split">
         <section className="research-section">
@@ -348,7 +343,7 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
           </details>
         </section>
         <section className="research-section">
-          <h2>Keep for research</h2>
+          <h2><Bookmark size={21} aria-hidden="true" />Keep for research</h2>
           <p>
             Saving a Product does not buy an asset or verify a current issuer
             listing.
@@ -356,15 +351,15 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
           <SaveResearch id={product.id} kind="Product" />
         </section>
       </div>
-      <section className="research-section">
+      {products.some((item) => item.brand === product.brand && item.id !== product.id) ? <section className="research-section">
         <h2>More from {product.brand}</h2>
         <ProductList
           items={products.filter(
             (item) => item.brand === product.brand && item.id !== product.id
           )}
         />
-      </section>
-    </>
+      </section> : null}
+    </ResearchJourney>
   );
 }
 
@@ -374,13 +369,14 @@ export function ResearchBrandScreen({ slug }: { slug: string }) {
     brand.productIds.includes(product.id)
   );
   return (
-    <>
-      <PageIntro eyebrow="Brand research" title={brand.name}>
-        <p>
-          A Brand is the identity you recognize on a Product. It is not
-          necessarily a separate Company.
-        </p>
-      </PageIntro>
+    <ResearchJourney kind="brand">
+      <div className="brand-research-hero">
+        <JourneyHeading eyebrow="Brand research" title={brand.name}>
+          <p>The name you recognize. Explore the products and reviewed company relationships behind it.</p>
+        </JourneyHeading>
+        <div className="brand-identity-object" aria-hidden="true"><span>{brand.name.slice(0, 1)}</span><small>A familiar identity</small></div>
+      </div>
+      <div className="brand-research-context"><span>{items.length} reviewed product {items.length === 1 ? "family" : "families"}</span><p>A Brand is the identity you recognize on a Product. It is not necessarily a separate Company.</p></div>
       <section className="research-section">
         <h2>Products you may know</h2>
         <ProductList items={items} />
@@ -397,7 +393,7 @@ export function ResearchBrandScreen({ slug }: { slug: string }) {
           >
             <h2>Company relationship</h2>
             {example ? (
-              <CapitalRelationship product={example} discloseEvidence />
+              <CapitalRelationship product={example} discloseEvidence studio />
             ) : null}
             <p>{relationship.region}</p>
             {company ? (
@@ -411,7 +407,7 @@ export function ResearchBrandScreen({ slug }: { slug: string }) {
         );
       })}
       <Evidence items={items} />
-    </>
+    </ResearchJourney>
   );
 }
 
@@ -424,10 +420,11 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
   const [selectedProduct, setSelectedProduct] = useState(0);
   const example = items[selectedProduct] ?? items[0];
   return (
+    <ResearchJourney kind="company">
     <ResearchCanvas>
       <header className="company-identity-stage">
         <div className="company-masthead">
-          <p className="platform-label">Company research</p>
+          <p className="studio-eyebrow"><span className="studio-marker" />Company research</p>
           <h1>{company.name}</h1>
           <p className="company-listing">
           {company.ticker && company.exchange !== "Private"
@@ -450,7 +447,7 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
         {items.length ? <div className="company-product-field">{items.map((item, index) => (
           <Link href={`/products/${item.slug}`} key={item.id} className="company-exhibit">
             <div className="company-exhibit-media"><span>{String(index + 1).padStart(2, "0")}</span><ProductArtwork product={item} sizes="(max-width: 819px) 270px, 340px" /></div>
-            <div className="company-exhibit-caption"><strong>{item.brand}</strong><span>{item.name} ↗</span></div>
+            <div className="company-exhibit-caption"><strong>{item.brand}</strong><span>{item.name} <ArrowUpRight size={16} aria-hidden="true" /></span></div>
           </Link>
         ))}</div> : <p>No reviewed Products have been linked here yet.</p>}
         <p className="platform-caption">Reviewed product families. Images may represent a product or brand identity.</p>
@@ -459,8 +456,8 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
         <header className="company-evidence-heading"><div><p className="platform-label">Evidence and relationships</p><h2>Familiar on the outside.<br />Connected underneath.</h2></div><p>A recognizable name is a starting point.<br />A reviewed source makes the connection.</p></header>
         {example ? (
           <div className="company-relationship-stage">
-            <nav aria-label="Explore product relationships">{items.map((item, index) => <button type="button" key={item.id} aria-pressed={selectedProduct === index} onClick={() => setSelectedProduct(index)}>{item.brand}<span aria-hidden="true"> ↗</span></button>)}</nav>
-            <div className="company-relationship-object"><CapitalRelationship product={example} discloseEvidence /></div>
+            <nav aria-label="Explore product relationships">{items.map((item, index) => <button type="button" key={item.id} aria-pressed={selectedProduct === index} onClick={() => setSelectedProduct(index)}>{item.brand}<ArrowUpRight size={15} aria-hidden="true" /></button>)}</nav>
+            <div className="company-relationship-object"><CapitalRelationship product={example} discloseEvidence studio /></div>
           </div>
         ) : (
           <p>
@@ -472,7 +469,7 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
       </ResearchBand>
       <section className="company-research-note">
         <h2>Company, not Instrument</h2>
-        <div><p>The business behind these products is separate from any issuer-defined asset. Saving is research; it does not create a Holding.</p><Link href={`/assistant?company=${company.slug}&from=company` as Route}>Ask about this Company ↗</Link></div>
+        <div><p>The business behind these products is separate from any issuer-defined asset. Saving is research; it does not create a Holding.</p><Link href={`/assistant?company=${company.slug}&from=company` as Route}>Ask about this Company <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
       </section>
       <section className="company-exposure-stage" id="company-exposure">
         <p className="platform-label">The next layer</p>
@@ -532,5 +529,6 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
         </Link>
       </section>
     </ResearchCanvas>
+    </ResearchJourney>
   );
 }

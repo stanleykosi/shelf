@@ -12,13 +12,14 @@ import {
 } from "@/data/catalog";
 import { apiRequest, authenticationIsRequired } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
+import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
+import { ArrowUpRight, ShieldCheck } from "@/components/studio-icons";
 import { WorkspaceFrame } from "@/components/platform-composition";
 import {
   CtaLink,
   EmptyState,
   ErrorMessage,
   Field,
-  PageIntro,
 } from "@/components/ui";
 
 const topics = [
@@ -51,13 +52,12 @@ export function LearnScreen({ slug }: { slug?: string }) {
         </EmptyState>
       );
     return (
-      <div className="research-reading">
-        <Link href="/learn">← Learning library</Link>
-        <PageIntro
+      <ResearchJourney kind="article" backHref="/learn" backLabel="Learning library">
+        <JourneyHeading
           eyebrow={`Reviewed ${article.reviewedAt} · Version ${article.version}`}
           title={article.title}
         />
-        <article className="research-section" aria-label={article.title}>
+        <div className="learning-article-layout"><aside className="learning-margin-note"><ShieldCheck size={23} aria-hidden="true" /><p className="studio-eyebrow">Research notes</p><p>Build understanding, one connection at a time.</p><span>Reviewed {article.reviewedAt}</span></aside><article className="research-section learning-article-body" aria-label={article.title}>
           {article.body.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
           ))}
@@ -65,7 +65,7 @@ export function LearnScreen({ slug }: { slug?: string }) {
             Shelf educational guidance. This is not a recommendation to buy or
             sell an instrument.
           </p>
-        </article>
+        </article></div>
         <section className="research-section">
           <h2>Continue your research</h2>
           <div className="actions">
@@ -77,7 +77,7 @@ export function LearnScreen({ slug }: { slug?: string }) {
             </CtaLink>
           </div>
         </section>
-      </div>
+      </ResearchJourney>
     );
   }
   const matching = articles.filter((article) =>
@@ -86,13 +86,13 @@ export function LearnScreen({ slug }: { slug?: string }) {
       .includes(query.toLowerCase().trim())
   );
   return (
-    <>
-      <PageIntro eyebrow="Learning library" title="Understand each layer.">
+    <ResearchJourney kind="library">
+      <JourneyHeading eyebrow="Learning library" title="Understand each layer.">
         <p>
           Products, companies, exposure and ownership. Reviewed explainers for
           the decisions in between.
         </p>
-      </PageIntro>
+      </JourneyHeading>
       <Field label="Find a topic" htmlFor="learn-search">
         <input
           id="learn-search"
@@ -127,7 +127,7 @@ export function LearnScreen({ slug }: { slug?: string }) {
                     href={`/learn/${article.slug}`}
                     aria-label={`Read ${article.title}`}
                   >
-                    Read →
+                    Read <ArrowUpRight size={16} aria-hidden="true" />
                   </Link>
                 </article>
               ))}
@@ -140,7 +140,7 @@ export function LearnScreen({ slug }: { slug?: string }) {
           Try a broader term, such as fees or companies.
         </EmptyState>
       ) : null}
-    </>
+    </ResearchJourney>
   );
 }
 

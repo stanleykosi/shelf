@@ -68,7 +68,9 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const conceptTwo = !comparisonPage || searchParams.get("concept") !== "1";
   const researchWorkspace = !comparisonPage && !pathname.startsWith("/scan");
   const activeSection = activePrimarySection(pathname);
-  const studioPage = pathname === "/discover" || pathname === "/scan";
+  const researchJourney = pathname === "/scan/results" || pathname === "/learn" ||
+    ["/products/", "/brands/", "/companies/", "/assets/", "/learn/"].some((prefix) => pathname.startsWith(prefix));
+  const studioPage = pathname === "/discover" || pathname === "/scan" || researchJourney;
   function comparisonHref(concept: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (concept === "2") params.set("concept", "2");
@@ -76,7 +78,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
     return (pathname + (params.size ? "?" + params.toString() : "")) as Route;
   }
   return (
-    <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "")}>
+    <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "") + (researchJourney ? " journey-shell" : "")}>
       {comparisonPage && searchParams.has("concept") ? <nav className="concept-comparison" aria-label="Design comparison">
         <span>Design study</span>
         {/* A full navigation isolates the historical studies from pending Discover URL updates. */}

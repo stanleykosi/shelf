@@ -94,7 +94,7 @@ test("390px Product imagery has its own space and does not overlap identity text
   await page.goto("/products/doritos-snack");
   await expect(page.getByRole("heading", { name: "Doritos snack", exact: true })).toBeVisible();
   const dimensions = await page.evaluate(() => {
-    const identity = document.querySelector(".research-workspace > .research-identity") ?? document.querySelector(".research-identity");
+    const identity = document.querySelector(".product-research-hero");
     const image = identity!.querySelector(".research-product-image")!.getBoundingClientRect();
     const heading = identity!.querySelector("h1")!.getBoundingClientRect();
     const trail = document.querySelector(".c2-entity-trail > a")!;

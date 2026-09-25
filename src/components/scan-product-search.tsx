@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/components/studio-icons";
 import { products } from "@/data/catalog";
 import type { Product } from "@/domain/types";
 import { ProductArtwork, SearchCommand } from "@/components/discovery-patterns";

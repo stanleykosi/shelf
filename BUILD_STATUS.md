@@ -2,6 +2,39 @@
 
 Updated: 2026-09-25
 
+## Connected Discover and Scan pages — implemented and verified locally
+
+The latest request extends the accepted Discover/Scan treatment to scan results and correction,
+Product, Brand, Company, issuer details, issuer purchase entry, and contextual learning pages.
+Implemented route-scoped Raleway/Heroicons styling, review progress and candidate navigation,
+identity-led research, clearer issuer facts/rights/actions, readable articles and reduced-motion
+variants. Existing confirmation, consent, evidence, storage, authentication and financial guards
+remain authoritative. Seven existing reviewed product images are bundled locally (632KB total),
+with original-source attribution, to eliminate upstream image timeouts in the demo. The already-sized
+files are served directly after screenshot checks also exposed a stalled optimizer thumbnail request.
+
+Files: `src/app/research-journey.css`, `src/components/research-journey.tsx`, connected screens,
+`public/images/reviewed-products/`, `tests/e2e/discovery-journey.spec.ts`.
+Checklist: `docs/DISCOVERY_JOURNEY_REDESIGN.md`. Captures: `artifacts/discovery-journey/README.md`.
+
+Lint, strict TypeScript, production build and `git diff --check` pass. All 120 unit/contract tests
+pass. The broad 72-case production browser run passed 68, skipped two redundant mobile matrices,
+and found one issuer error-message contrast issue in both projects. After the route-scoped fix,
+the final build and all four targeted issuer/result rechecks pass: 70 distinct browser cases verified,
+two intentional skips, no unresolved failures. After the direct-image fix, the final journey/entity
+rerun passes 17 with one redundant mobile-matrix skip; screenshots now await visible artwork.
+The six-page 360/390/430/768/1280/1440 matrix, source facts,
+private issuer/unavailable states, guest saving, scan correction/consent/camera/privacy and existing
+Discover regressions passed. Existing optional Magic native-module build warnings remain nonfatal.
+
+Authenticated purchase-entry presentation is type/build checked; this pass verifies the guest
+sign-in redirect but does not claim an authenticated visual review or transaction execution.
+No paid inference, external deployment, provider activation or real-money activity was performed.
+Sixteen desktop/mobile captures are recorded and visually reviewed in the gallery. The final local
+preview runs at `http://127.0.0.1:3101` with paid provider credentials and money flags disabled.
+Exact next task: user review of the connected discovery journey. No deployment or further
+workspace redesign is implied by this handoff.
+
 ## Discover and Scan — redesigned and verified locally
 
 The latest user request authorizes a fresh design of Discover and Scan for the hackathon,

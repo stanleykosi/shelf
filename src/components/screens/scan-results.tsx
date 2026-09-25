@@ -3,8 +3,9 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, X } from "@/components/studio-icons";
 import { brands, companyById, productById, sources } from "@/data/catalog";
+import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import { CapitalRelationship } from "@/components/capital-relationship";
 import { ScanProductSearch } from "@/components/scan-product-search";
@@ -27,8 +28,8 @@ export function ScanResultsScreen() {
     try { sessionStorage.removeItem("shelf:scan-results"); } catch { /* No storage required for results. */ }
   }, []);
 
-  if (!ready) return <div className="scan-page"><h1>Scan results</h1><p role="status">Loading this scan…</p></div>;
-  if (!session) return <div className="scan-page"><header className="scan-page-heading"><p className="scan-context">Scan results</p><h1>These scan results are no longer available.</h1><p>Results stay in this page session only. Start again or search the reviewed catalog.</p></header><div className="scan-actions"><Link className="scan-primary" href="/scan">Scan again <ArrowRight size={18} /></Link><Link className="scan-secondary" href="/scan?method=search">Search instead</Link></div></div>;
+  if (!ready) return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan"><h1>Scan results</h1><p role="status">Loading this scan…</p></ResearchJourney>;
+  if (!session) return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan"><header className="scan-page-heading"><p className="scan-context">Scan results</p><h1>These scan results are no longer available.</h1><p>Results stay in this page session only. Start again or search the reviewed catalog.</p></header><div className="scan-actions"><Link className="scan-primary" href="/scan">Scan again <ArrowRight size={18} /></Link><Link className="scan-secondary" href="/scan?method=search">Search instead</Link></div></ResearchJourney>;
   const candidates = session.candidates;
   const active = candidates[Math.min(index, candidates.length - 1)];
   const product = active?.productId ? productById(active.productId) : undefined;
@@ -56,8 +57,17 @@ export function ScanResultsScreen() {
     } catch { setNotice("Temporary saving is unavailable in this browser. You can still open the research."); }
   }
 
-  return <div className="scan-page scan-results">
-    <header className="scan-page-heading"><p className="scan-context">Scan / Verification</p><h1>Scan results</h1><p>{candidates.length ? `${candidates.length} possible ${candidates.length === 1 ? "Product" : "Products"} · ${confirmed.length} confirmed` : "No reviewed match found"}</p></header>
+  return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan">
+    <div className="results-masthead">
+      <JourneyHeading eyebrow="Scan / Review your discoveries" title="Scan results">
+        <p>A possible match is a starting point. You make the connection.</p>
+      </JourneyHeading>
+      <div className="results-progress">
+        <span>{candidates.length} possible {candidates.length === 1 ? "Product" : "Products"}</span>
+        <strong>{confirmed.length} confirmed <span>· {pending} to review</span></strong>
+        <progress value={candidates.length - pending} max={Math.max(1, candidates.length)} aria-label="Candidates reviewed" />
+      </div>
+    </div>
     {!active ? <section className="scan-empty"><h2>No reviewed match found</h2><p>A clearer view or a Product name can help. Shelf won’t guess a Company relationship.</p><div className="scan-actions"><Link className="scan-primary" href="/scan?method=search">Search manually</Link><Link className="scan-secondary" href="/scan">Try another image</Link></div></section> : <>
       {allRemoved ? <section className="scan-empty"><h2>All results excluded</h2><p>No Products are selected in this scan. Earlier saves are unchanged. Restore a candidate below, search manually, or try another image.</p><div className="scan-actions"><Link className="scan-primary" href="/scan?method=search">Search manually</Link><Link className="scan-secondary" href="/scan">Scan again</Link></div></section> : null}
       <div className="scan-results-grid">
@@ -76,7 +86,7 @@ export function ScanResultsScreen() {
             </>}
           </div>
           {active.decision === "proposed" && !product && active.alternatives.length > 1 ? <section className="scan-alternatives"><h3>More than one Product fits</h3><p>The brand alone does not identify a Product. Choose the one you saw; nothing is selected automatically.</p><div className="scan-actions">{active.alternatives.map((id) => { const alternative = productById(id); return alternative ? <button className="scan-secondary" key={id} onClick={() => { changeScanCandidate(active.id, { productId: id, decision: "proposed" }); setNotice("Product selected. Check the identity before confirming."); }}>{alternative.name}</button> : null; })}</div></section> : null}
-          {active.decision === "confirmed" && product ? reviewed ? <section className="scan-resolved-relationship"><div className="scan-section-heading"><h3>Relationship explorer</h3><span className="scan-meta"><Check size={14} aria-hidden="true" /> Reviewed catalog</span></div><CapitalRelationship product={product} discloseEvidence /><div className="scan-actions scan-research-actions"><Link className="scan-primary" data-cta="C16" href={("/companies/" + company.slug) as Route}>View research <ArrowRight size={18} aria-hidden="true" /></Link></div></section> : <p className="scan-alert">Product confirmed, but Shelf cannot establish a reviewed Company relationship. You can change the match or continue searching.</p> : null}
+          {active.decision === "confirmed" && product ? reviewed ? <section className="scan-resolved-relationship"><div className="scan-section-heading"><h3>Relationship explorer</h3><span className="scan-meta"><Check size={14} aria-hidden="true" /> Reviewed catalog</span></div><CapitalRelationship product={product} discloseEvidence studio /><div className="scan-actions scan-research-actions"><Link className="scan-primary" data-cta="C16" href={("/companies/" + company.slug) as Route}>View research <ArrowRight size={18} aria-hidden="true" /></Link></div></section> : <p className="scan-alert">Product confirmed, but Shelf cannot establish a reviewed Company relationship. You can change the match or continue searching.</p> : null}
           <p className="scan-status" role="status">{notice}</p>
         </section>
       </div>
@@ -87,5 +97,5 @@ export function ScanResultsScreen() {
         <ScanProductSearch onSelect={(replacement) => { changeScanCandidate(active.id, { productId: replacement.id, decision: "proposed" }); setNotice(`Replacement selected: ${replacement.name}. Confirm the Product to see its reviewed relationship.`); closeCorrection(); }} />
       </dialog>
     </>}
-  </div>;
+  </ResearchJourney>;
 }
