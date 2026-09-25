@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { IssuerMarketView } from "@/domain/issuer-market";
-import { marketRanges, type MarketRange } from "@/providers/geckoterminal";
+import { marketRanges, marketRangeSeconds, type MarketRange } from "@/providers/geckoterminal";
 import { apiRequest } from "@/lib/api-client";
 import { IssuerPriceChart } from "@/components/issuer-price-chart";
 
@@ -21,8 +21,14 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
   const [displayedRange, setDisplayedRange] = useState<MarketRange>("1D");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState(false);
+  const [hasOlder, setHasOlder] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const cache = useRef(new Map<string, IssuerMarketView>());
+  const olderRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => () => olderRequest.current?.abort(), [symbol, range]);
 
   useEffect(() => {
     const key = `${symbol}:${range}`;
@@ -32,6 +38,8 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
       setDisplayedRange(range);
       setLoading(false);
       setError(false);
+      setHasOlder(true);
+      setOlderError(false);
       return;
     }
 
@@ -49,6 +57,8 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
           setMarket(result);
           setDisplayedRange(range);
           cache.current.set(key, result);
+          setHasOlder(true);
+          setOlderError(false);
         } else {
           setMarket((current) => current ? {
             ...current,
@@ -68,11 +78,47 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [symbol, range, attempt]);
 
+  async function loadOlder() {
+    const first = market?.candles[0]?.time;
+    if (!first || loading || loadingOlder || !hasOlder || displayedRange !== range || olderRequest.current) return;
+    const controller = new AbortController();
+    olderRequest.current = controller;
+    setLoadingOlder(true);
+    setOlderError(false);
+    try {
+      const page = await apiRequest<IssuerMarketView>(
+        `issuer/asset/xstocks/${encodeURIComponent(symbol)}/market?range=${range}&before=${first}`,
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted) return;
+      if (page.historyState === "error" || page.poolAddress !== market?.poolAddress) throw new Error("HISTORY_UNAVAILABLE");
+      const older = page.candles.filter((candle) => candle.time < first);
+      if (!older.length) { setHasOlder(false); return; }
+      const byTime = new Map([...older, ...market.candles].map((candle) => [candle.time, candle]));
+      const merged = { ...market, candles: [...byTime.values()].sort((a, b) => a.time - b.time) };
+      cache.current.set(`${symbol}:${range}`, merged);
+      setMarket((current) => {
+        if (!current || current.poolAddress !== page.poolAddress || current.candles[0]?.time !== first) return current;
+        return merged;
+      });
+      if (page.candles.length < 2) setHasOlder(false);
+    } catch {
+      if (!controller.signal.aborted) setOlderError(true);
+    } finally {
+      if (olderRequest.current === controller) {
+        olderRequest.current = null;
+        setLoadingOlder(false);
+      }
+    }
+  }
+
   const change = market?.change24hPct;
   const changeLabel = change === undefined ? null : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`;
   const candles = market?.candles ?? [];
-  const high = candles.length ? Math.max(...candles.map((candle) => candle.high)) : null;
-  const low = candles.length ? Math.min(...candles.map((candle) => candle.low)) : null;
+  const latestTime = candles.at(-1)?.time ?? 0;
+  const visibleCandles = candles.filter((candle) => candle.time >= latestTime - marketRangeSeconds(displayedRange));
+  const high = visibleCandles.length ? Math.max(...visibleCandles.map((candle) => candle.high)) : null;
+  const low = visibleCandles.length ? Math.min(...visibleCandles.map((candle) => candle.low)) : null;
 
   return (
     <section className="issuer-market-panel" aria-labelledby="issuer-market-title">
@@ -96,10 +142,13 @@ export function IssuerMarketPanel({ symbol }: { symbol: string }) {
 
       <div className="issuer-market-plot">
         {candles.length > 1 ? <>
-          <IssuerPriceChart candles={candles} />
+          <IssuerPriceChart candles={candles} range={displayedRange} onReachStart={() => void loadOlder()} />
           {loading || error ? <div className="issuer-market-overlay" role="status">
             <span>{loading ? `Loading ${range} history…` : `Showing ${displayedRange} history. ${range} is temporarily unavailable.`}</span>
             {error ? <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry {range}</button> : null}
+          </div> : null}
+          {loadingOlder || olderError ? <div className="issuer-market-older-status" role="status">
+            {loadingOlder ? "Loading earlier candles…" : <button type="button" onClick={() => void loadOlder()}>Retry earlier history</button>}
           </div> : null}
         </> : loading ? <div className="issuer-market-placeholder" role="status">Loading observed pool history…</div> :
           error ? <div className="issuer-market-placeholder" role="status">

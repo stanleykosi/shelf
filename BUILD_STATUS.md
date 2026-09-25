@@ -2,6 +2,29 @@
 
 Updated: 2026-09-25
 
+## Asset chart panning, mint copy, minimum purchase and Discover hover — local
+
+The xStocks detail chart now starts at the selected range and retains earlier observed
+candles in memory. Panning left requests older GeckoTerminal pages through a validated
+`before` parameter, merges only pages from the same pool and preserves the chart's
+viewport as candles arrive. The mint copy control has no visible button background or
+border; successful copy changes its icon to a check without a success alert. Clipboard
+failure has a small inline fallback instruction. The USDC amount field keeps grouped
+digits and disables purchase review below 5 USDC; the existing server order limit is
+covered by a new regression test. Discover theme cards two and three now use light text
+on their darker hover and keyboard focus states.
+
+`npm run lint`, `npm run typecheck`, `npm run test` (131 tests in 26 files), the focused
+server minimum test (16 tests in its file), `git diff --check`, and the Next.js 16.3.5
+Webpack production build passed. Focused Chromium tests passed for hover, copy state,
+minimum amount and repeated chart pagination. The broader desktop/mobile asset and
+chat run passed 15 checks; three browser-harness assertions were corrected (fast double
+pagination and off-viewport touch gestures). Focused reruns then passed the desktop
+pan and hover checks and the actual mobile touch-pan check; touch hover was skipped as
+inapplicable. The build logged optional Magic transport warnings and its known nonfatal
+Magic API initialization error. No deployment, paid provider call or live-money action
+occurred. The full PostgreSQL-backed browser suite remains outside this UI pass.
+
 ## Home company discovery: 24-hour cards — local
 
 Removed the long market note beneath the Home company cards, the top-right card arrow,

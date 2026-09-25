@@ -31,6 +31,8 @@ const rangeOptions: Record<MarketRange, { timeframe: string; aggregate: number; 
   "3M": { timeframe: "day", aggregate: 1, limit: 90, seconds: 90 * 86_400 },
 };
 
+export function marketRangeSeconds(range: MarketRange): number { return rangeOptions[range].seconds; }
+
 /** GeckoTerminal returns newest-first arrays. Keep only finite, valid USD candles. */
 export function parsePoolCandles(raw: unknown): MarketCandle[] {
   const parsed = ohlcvResponse.safeParse(raw);
@@ -52,23 +54,29 @@ export async function fetchPoolCandles(
   range: MarketRange,
   send: typeof fetch = fetch,
   nowSeconds = Math.floor(Date.now() / 1000),
+  beforeSeconds?: number,
 ): Promise<MarketCandle[]> {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(poolAddress) ||
     !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(tokenMint)) throw new Error("MARKET_ID_INVALID");
 
-  const { timeframe, aggregate, limit, seconds } = rangeOptions[range];
+  if (beforeSeconds !== undefined && (!Number.isSafeInteger(beforeSeconds) || beforeSeconds <= 0 || beforeSeconds > nowSeconds)) {
+    throw new Error("INVALID_INPUT");
+  }
+  const { timeframe, aggregate, limit } = rangeOptions[range];
   const url = new URL(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${poolAddress}/ohlcv/${timeframe}`);
   url.searchParams.set("aggregate", String(aggregate));
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("currency", "usd");
   url.searchParams.set("token", tokenMint);
+  if (beforeSeconds !== undefined) url.searchParams.set("before_timestamp", String(beforeSeconds));
   const response = await send(url, {
     headers: { Accept: "application/json;version=20230203" },
     signal: AbortSignal.timeout(8_000),
     next: { revalidate: 180 },
   });
   if (!response.ok) throw new Error("MARKET_HISTORY_UNAVAILABLE");
-  return parsePoolCandles(await response.json()).filter(
-    (candle) => candle.time >= nowSeconds - seconds && candle.time <= nowSeconds,
+  // Keep the full upstream page so a selected window can be panned into earlier history.
+  return parsePoolCandles(await response.json()).filter((candle) =>
+    candle.time <= (beforeSeconds ?? nowSeconds),
   );
 }

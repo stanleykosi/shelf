@@ -1688,6 +1688,11 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
       const requestedRange = request.nextUrl.searchParams.get("range") ?? "1D";
       if (!marketRanges.includes(requestedRange as MarketRange)) throw new Error("INVALID_INPUT");
       const range = requestedRange as MarketRange;
+      const beforeText = request.nextUrl.searchParams.get("before");
+      const before = beforeText === null ? undefined : Number(beforeText);
+      if (beforeText !== null && (!/^\d{10}$/.test(beforeText) || !Number.isSafeInteger(before) || before === undefined || before > Math.floor(Date.now() / 1000))) {
+        throw new Error("INVALID_INPUT");
+      }
       const { listing } = await exactIssuerAsset("xstocks", path[3]);
       if (!listing || listing.provider !== "xstocks") throw new Error("NOT_FOUND");
 
@@ -1699,7 +1704,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
       let candles: IssuerMarketView["candles"] = [];
       let historyState: IssuerMarketView["historyState"] = poolLookupFailed ? "error" : "empty";
       if (pool) {
-        candles = await fetchPoolCandles(pool.pairAddress, listing.asset.mint, range)
+        candles = await fetchPoolCandles(pool.pairAddress, listing.asset.mint, range, fetch, Math.floor(Date.now() / 1000), before)
           .catch(() => { historyState = "error"; return []; });
         if (historyState !== "error") historyState = candles.length > 1 ? "available" : "empty";
       }

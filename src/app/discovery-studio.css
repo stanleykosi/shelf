@@ -148,11 +148,13 @@
   color: #273d30;
   text-align: left;
   font-weight: 400;
-  transition: border-color 180ms ease;
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease;
 }
 .discovery-theme-technology { background: #1e332b; color: #d5ebdf; }
 .discovery-theme-everyday { background: #eee8da; color: #4b4938; border-color: #e5dfd1; }
 .discovery-theme-private { background: #e6e8ed; color: #444d6a; border-color: #dadee5; }
+.discovery-theme-everyday:focus-visible { color: #f5f0e3; background: #555945; }
+.discovery-theme-private:focus-visible { color: #f5f6fb; background: #4c5570; }
 .discovery-theme-label { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; font-size: 11px; letter-spacing: .025em; }
 .discovery-theme-label > span { opacity: 1; font-family: ui-monospace, monospace; }
 .discovery-theme-art { position: absolute; z-index: -1; right: -12px; top: -17px; width: 205px; height: 137px; opacity: .9; transition: transform 280ms var(--studio-ease); }
@@ -324,6 +326,8 @@
   .discovery-theme:hover .discovery-theme-art { transform: translateY(-3px) rotate(-2deg); }
   .discovery-theme:hover .discovery-theme-footer > svg, .discovery-scan-link:hover > svg { transform: translate(2px, -2px); }
   .discovery-theme:hover { border-color: #a0b59c; }
+  .discovery-theme-everyday:hover { color: #f5f0e3; background: #555945; }
+  .discovery-theme-private:hover { color: #f5f6fb; background: #4c5570; }
   .discovery-studio .issuer-spotlight-table tbody tr:hover { background: #f1f5e9; }
   .discovery-studio .search-command .search-submit:hover:not(:disabled) { background: #36553d; }
   .discovery-search-context button:hover { background: #e8eee0; }
