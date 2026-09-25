@@ -5,12 +5,21 @@ import { issuerLogoUrl } from "./issuer-logo";
 const assetSchema = z.object({
   name: z.string().min(1),
   symbol: z.string().min(1),
+  isin: z.string().optional(),
   description: z.string().default(""),
   logo: z.unknown().optional(),
   underlyingSymbol: z.string().optional(),
-  underlying: z.object({ symbol: z.string() }).nullable().optional(),
+  underlying: z.object({
+    symbol: z.string(),
+    isin: z.string().nullable().optional(),
+    type: z.string().nullable().optional(),
+    currency: z.string().nullable().optional(),
+    listingCountry: z.string().nullable().optional(),
+  }).nullable().optional(),
   isTradingHalted: z.boolean(),
   trading: z.object({
+    currency: z.string().optional(),
+    tradingHoursMode: z.string().optional(),
     currentPeriod: z.string(),
     openNow: z.boolean(),
     nextChangeAt: z.string(),
@@ -48,8 +57,46 @@ export type XStocksListing = {
 
 export type XStocksDetail = {
   listing: XStocksListing;
+  metadata: XStocksMetadata;
   sourceData: unknown;
 };
+
+export type XStocksMetadata = {
+  tokenIsin?: string;
+  underlyingIsin?: string;
+  underlyingType?: string;
+  underlyingCurrency?: string;
+  listingCountry?: string;
+  tradingHoursMode?: string;
+  issuerTradingAvailable: boolean;
+};
+
+export type XStocksDisclosures = {
+  checkedAt: string;
+  multiplier: {
+    current: string;
+    pending?: { value: string; activatesAt: string; reason?: string };
+  } | null;
+  reserves: {
+    timestamp: string;
+    sharesHeld: string;
+    circulatingSupply: string;
+  } | null;
+};
+
+const multiplierSchema = z.object({
+  currentMultiplier: z.number().finite().positive(),
+  newMultiplier: z.number().finite().nonnegative(),
+  activationDateTime: z.number().finite().nonnegative(),
+  reason: z.string().nullable(),
+});
+
+const reservesSchema = z.object({
+  symbol: z.string(),
+  timestamp: z.string().refine((value) => !Number.isNaN(Date.parse(value))),
+  sharesHeld: z.string().regex(/^\d+(?:\.\d+)?$/),
+  circulatingSupply: z.string().regex(/^\d+(?:\.\d+)?$/),
+});
 
 function listingForAsset(
   asset: z.infer<typeof assetSchema>,
@@ -106,7 +153,61 @@ export class LiveXStocksProvider {
     const asset = assetSchema.parse(sourceData);
     if (asset.symbol !== symbol) throw new Error("XSTOCKS_ASSET_MISMATCH");
     const listing = listingForAsset(asset, new Date().toISOString());
-    return listing ? { listing, sourceData } : null;
+    if (!listing) return null;
+    return {
+      listing,
+      metadata: {
+        tokenIsin: asset.isin || undefined,
+        underlyingIsin: asset.underlying?.isin || undefined,
+        underlyingType: asset.underlying?.type || undefined,
+        underlyingCurrency: asset.underlying?.currency || asset.trading?.currency || undefined,
+        listingCountry: asset.underlying?.listingCountry || undefined,
+        tradingHoursMode: asset.trading?.tradingHoursMode || undefined,
+        issuerTradingAvailable: asset.trading !== null,
+      },
+      sourceData,
+    };
+  }
+
+  async disclosures(symbol: string): Promise<XStocksDisclosures> {
+    if (!/^[A-Za-z0-9.-]{1,32}$/.test(symbol)) throw new Error("XSTOCKS_SYMBOL_INVALID");
+    const assetPath = `public/assets/${encodeURIComponent(symbol)}`;
+    const read = async (path: string) => {
+      const response = await this.send(new URL(path, this.baseUrl), {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(6_000),
+      });
+      if (!response.ok) throw new Error("XSTOCKS_UNAVAILABLE");
+      return response.json() as Promise<unknown>;
+    };
+    const [multiplierResult, reservesResult] = await Promise.allSettled([
+      read(`${assetPath}/multiplier?network=Solana`).then((value) => multiplierSchema.parse(value)),
+      read(`public/proof-of-reserves/${encodeURIComponent(symbol)}`).then((value) => reservesSchema.parse(value)),
+    ]);
+    const multiplier = multiplierResult.status === "fulfilled" ? multiplierResult.value : null;
+    const reserves = reservesResult.status === "fulfilled" &&
+      reservesResult.value.symbol.toLowerCase() === symbol.toLowerCase()
+      ? reservesResult.value : null;
+    let activationMs = multiplier?.activationDateTime ?? 0;
+    if (activationMs > 0 && activationMs < 100_000_000_000) activationMs *= 1_000;
+    const activationDate = new Date(activationMs);
+    const pending = multiplier && multiplier.newMultiplier > 0 &&
+      activationMs > 0 && !Number.isNaN(activationDate.getTime())
+      ? {
+          value: String(multiplier.newMultiplier),
+          activatesAt: activationDate.toISOString(),
+          reason: multiplier.reason ?? undefined,
+        }
+      : undefined;
+    return {
+      checkedAt: new Date().toISOString(),
+      multiplier: multiplier ? { current: String(multiplier.currentMultiplier), pending } : null,
+      reserves: reserves ? {
+        timestamp: reserves.timestamp,
+        sharesHeld: reserves.sharesHeld,
+        circulatingSupply: reserves.circulatingSupply,
+      } : null,
+    };
   }
 
   async listing(symbol: string): Promise<XStocksListing | null> {

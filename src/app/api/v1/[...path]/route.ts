@@ -72,7 +72,7 @@ import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
 import { lookupBarcodeProduct } from "@/providers/product-identity";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "@/providers/issuer-verification";
-import type { XStocksListing } from "@/providers/xstocks";
+import type { XStocksListing, XStocksMetadata } from "@/providers/xstocks";
 import { MagicIdentityProvider } from "@/providers/magic";
 import { HeliusChainProvider, JupiterBuildProvider } from "@/providers/live";
 import {
@@ -224,17 +224,24 @@ async function prepareOrderCompany(companyId: string) {
 async function exactIssuerAsset(provider: string, symbol: string) {
   if (!/^[a-zA-Z0-9.-]{1,32}$/.test(symbol)) throw new Error("INVALID_INPUT");
   let listing: IssuerListing | undefined;
+  let metadata: XStocksMetadata | undefined;
   if (provider === "xstocks") {
-    const asset = await xStocks.listing(symbol);
-    if (asset?.symbol.toLowerCase() === symbol.toLowerCase()) listing = { provider, asset };
+    const detail = await xStocks.detail(symbol);
+    if (detail?.listing.symbol.toLowerCase() === symbol.toLowerCase()) {
+      listing = { provider, asset: detail.listing };
+      metadata = detail.metadata;
+    }
   } else if (provider === "prestocks") {
-    const asset = (await preStocks.listings()).find((item) =>
-      item.symbol.toLowerCase() === symbol.toLowerCase());
-    if (asset) listing = { provider, asset };
+    const detail = await preStocks.detail(symbol);
+    if (detail) listing = { provider, asset: detail.listing };
   } else {
     throw new Error("INVALID_INPUT");
   }
-  return { listing: listing ?? null, lifecycle: listing ? reviewedCompanyForListing(listing)?.instrument?.lifecycle : undefined };
+  return {
+    listing: listing ?? null,
+    metadata,
+    lifecycle: listing ? reviewedCompanyForListing(listing)?.instrument?.lifecycle : undefined,
+  };
 }
 
 async function exactIssuerChatContext(provider: unknown, symbol: unknown) {
@@ -1687,6 +1694,12 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
   try {
     const { path } = await context.params;
     if (pathIs(path, "ai", "session")) return guestAiSessionResponse(request);
+    if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&
+      path[2] === "xstocks" && path[4] === "disclosures") {
+      const response = success(await xStocks.disclosures(path[3]));
+      response.headers.set("Cache-Control", "public, max-age=15, s-maxage=60, stale-while-revalidate=30");
+      return response;
+    }
     if (pathIs(path, "issuer", "directory")) {
       const snapshot = await readIssuerDirectory().catch(() => null);
       const directory = snapshot ?? buildIssuerDirectory(await issuerListings());

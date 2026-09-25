@@ -52,6 +52,8 @@ C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Ask a
 
 Current `/assets/[provider]/[symbol]` token details show **Chat with AI** beside purchase review and watchlist actions. It opens `/assistant?provider=&symbol=` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat.
 
+The token page now leads with what the instrument represents and the next actions. xStocks shows the underlying ticker/exchange, issuer-session state, security identifiers, Solana mint, current Solana multiplier, and a timestamped issuer reserve snapshot where available. PreStocks shows issuer token reference, mark, premium/discount, implied and mark company valuations, issuer supply, and the official product page. Explain that issuer sessions and references do not establish Jupiter liquidity or an executable price. Optional disclosure outages leave the core token page usable; a current issuer trading halt pauses Shelf purchase review. Do not fill gaps in the public PreStocks feed by scraping its website.
+
 Supported-but-paused: explain pause with no active purchase CTA. Discovery-only company: “Not available to buy on Shelf.” Closed underlying market: show warning and actual policy/routing state, not invented market reopening countdown.
 
 ## S07 — My shelf · /shelf

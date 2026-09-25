@@ -70,6 +70,10 @@ describe("xStocks provider", () => {
     const sourceData = {
       ...asset("AAPLx", "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp"),
       isin: "CH0000000001",
+      underlying: {
+        symbol: "AAPL", isin: "US0378331005", type: "Equity",
+        currency: "USD", listingCountry: "US",
+      },
       issuerOnlyField: { availableToChat: true },
     };
     const send: typeof fetch = async (input) => {
@@ -78,6 +82,43 @@ describe("xStocks provider", () => {
     };
     const detail = await new LiveXStocksProvider(undefined, send).detail("AAPLx");
     expect(detail?.listing.companyId).toBe("issuer:xstocks:AAPLx");
+    expect(detail?.metadata).toMatchObject({
+      tokenIsin: "CH0000000001",
+      underlyingIsin: "US0378331005",
+      underlyingType: "Equity",
+      listingCountry: "US",
+      issuerTradingAvailable: false,
+    });
     expect(detail?.sourceData).toEqual(sourceData);
+  });
+
+  it("reads the Solana multiplier and timestamped reserve snapshot without treating them as a quote", async () => {
+    const send: typeof fetch = async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/multiplier")) {
+        expect(url.searchParams.get("network")).toBe("Solana");
+        return new Response(JSON.stringify({
+          currentMultiplier: 1.00285,
+          newMultiplier: 0,
+          activationDateTime: 0,
+          reason: null,
+        }));
+      }
+      return new Response(JSON.stringify({
+        symbol: "METAx",
+        timestamp: "2026-09-25T00:07:21.623Z",
+        sharesHeld: "13801",
+        circulatingSupply: "13746.598039119913278",
+      }));
+    };
+    const disclosure = await new LiveXStocksProvider(undefined, send).disclosures("METAx");
+
+    expect(disclosure.multiplier).toEqual({ current: "1.00285" });
+    expect(disclosure.reserves).toEqual({
+      timestamp: "2026-09-25T00:07:21.623Z",
+      sharesHeld: "13801",
+      circulatingSupply: "13746.598039119913278",
+    });
+    expect(disclosure).not.toHaveProperty("price");
   });
 });

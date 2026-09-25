@@ -738,6 +738,26 @@ button.quiet-link:hover { background: transparent; color: var(--accent-strong); 
 .scan-issuer-identity p { margin: 0; }
 .issuer-detail-intro { align-items: flex-start; }
 .issuer-detail-intro p { min-width: 0; }
+.issuer-detail-intro > div { min-width: 0; }
+.issuer-detail-symbol { margin-bottom: 7px; font-size: 1.05rem; font-weight: 800; letter-spacing: 0.02em; }
+.issuer-detail-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; margin-bottom: 16px; }
+.issuer-detail-notice { margin-bottom: 16px; }
+.issuer-detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 14px; margin: 0; }
+.issuer-detail-metric { min-width: 0; padding: 16px; border-radius: var(--radius); background: var(--surface-subtle); }
+.issuer-detail-metric dt { color: var(--muted); font-size: 0.78rem; }
+.issuer-detail-metric dd { margin: 5px 0 0; font-size: 1.28rem; font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.issuer-detail-metric p { margin: 6px 0 0; font-size: 0.72rem; }
+.issuer-detail-facts { display: grid; gap: 0; margin: 0; }
+.issuer-detail-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.issuer-detail-facts dt { color: var(--muted); }
+.issuer-detail-facts dd { margin: 0; font-weight: 650; text-align: right; }
+.issuer-detail-multiplier { padding-top: 15px; border-top: 1px solid var(--line); }
+.issuer-detail-multiplier p:last-child { margin-bottom: 0; }
+.issuer-detail-mint { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px; }
+.issuer-detail-mint > div { display: grid; min-width: 0; gap: 6px; }
+.issuer-detail-mint code { font-size: 0.84rem; }
+.issuer-detail-mint button { flex-shrink: 0; }
+.issuer-detail-notice + .issuer-detail-layout { margin-top: 0; }
 
 .live-issuer-card h3 { margin: 5px 0 10px; font-size: 1.15rem; }
 .live-issuer-card p { margin: 0 0 10px; color: var(--muted); font-size: 0.82rem; }

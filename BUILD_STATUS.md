@@ -1,6 +1,41 @@
 # Shelf build status
 
-Updated: 2026-09-24
+Updated: 2026-09-25
+
+## U35 issuer token detail restructuring — production, uncommitted
+
+Compared the current Shelf detail page against xStocks' public asset, multiplier,
+price-data and proof-of-reserves endpoints and PreStocks' public feed/product page. The
+xStocks asset response contains issuer/underlying identifiers and issuer-session context;
+the separate Solana multiplier and reserve snapshot supply useful exposure/backing facts.
+The public xStocks price response has a number but no source timestamp, so it is not shown
+as a current executable or valuation price. PreStocks' public feed supplies token/mark
+references, valuation references and supply, but not the extra company facts on its website.
+The Backed product page also publishes issuer-specific fees, service providers and legal
+documents outside the public xStocks asset response. Shelf links the official legal document
+library instead of treating those external page values as live feed fields.
+
+The page now separates what the token represents, purchase/chat/watchlist actions,
+issuer-specific market/reference facts, and exact Solana mint/sources. Optional xStocks
+disclosures load after the core listing and fail independently. The issuer product/legal
+sources and Solscan are linked; source-specific values are labeled with their available
+observation or snapshot time. The exact issuer endpoint returns xStocks security identifiers
+and underlying/session metadata, while a separate cached public endpoint reads proof of
+reserves and the current Solana multiplier. PreStocks details format the feed's reference
+price, mark, premium, valuations and supply without presenting them as a Jupiter quote.
+
+ESLint, strict TypeScript, 101 Vitest tests in 17 files, the Next.js 16.3.5 production build
+and `git diff --check` passed. Local Chromium passed 12/12 desktop and mobile token-detail/
+chat journeys, including disclosure outage isolation and simultaneous chat sessions. Vercel
+deployment `dpl_96woNHaBSTd7CEMSfeBK3huHYQnB` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. Production read-only exact issuer requests returned METAx
+and OPENAI with current Solana mints; the new disclosure endpoint returned both reserves and
+multiplier. Production `/readyz` returned ready with PostgreSQL and configured providers and
+`realTrading: false`. Four focused desktop/mobile production Chromium checks passed with API
+responses intercepted, and separate unmocked production Chromium visits rendered the live
+METAx and OPENAI detail sections. No paid AI call, Jupiter quote, funding or live-money action
+occurred. Next task: keep financial activation gated for the separately approved funded run;
+decide AI chat retention only if the owner wants history beyond the current page session.
 
 ## U34 issuer-scoped AI chat — production, uncommitted
 

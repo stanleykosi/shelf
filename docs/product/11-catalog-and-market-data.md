@@ -57,6 +57,7 @@ Base: https://api.xstocks.fi/api/v2. These GET paths were verified in the issuer
 | /public/assets/{symbol}/multiplier | Current/scheduled multiplier context |
 | /public/assets/{symbol}/multiplier/history | Historical unit snapshots |
 | /public/assets/{symbol}/price-data | Indicative reference, not execution |
+| /public/proof-of-reserves/{symbol} | Timestamped issuer-reported shares held and circulating token supply across chains |
 | /public/system/status/{symbol} | Issuer halt context |
 | /public/corporate-actions/upcoming | Scheduled events |
 | /public/corporate-actions/history | Historical/corrected events |
@@ -66,6 +67,8 @@ Base: https://api.xstocks.fi/api/v2. These GET paths were verified in the issuer
 Corporate-action pagination starts at page 1; inspect each endpoint's own paging contract rather than assuming a common base. Explicitly select network=Solana for the documented multiplier/history network query. Asset trading context is embedded in asset metadata. Validate nullable fields and issuer-versus-DEX meanings. These are documented public paths, not a report of executing every endpoint.
 
 Implementation adapter must capture current API schema as an integration fixture and map only required fields. Public data access is distinct from authenticated issuance/RFQ access. Shelf does not need xChange credentials and must not present secondary trading as issuer redemption.
+
+Token detail display reads the exact public asset record for xStock/underlying ISIN and listing context, then loads the Solana multiplier and timestamped reserve disclosure separately. The public `price-data` response inspected on 2026-09-25 contained only a numeric `quote`, with no source price timestamp; Shelf therefore does not turn that figure into a current-price or valuation claim on the detail page. PreStocks' public feed supplies token price, mark, valuations and supply but no per-value update timestamp; label these as issuer references with the feed retrieval time and show an amount-specific Jupiter route only during purchase review. Web-only PreStocks company stats are linked at the issuer page, not copied into Shelf as feed facts.
 
 Startup requires public assets, exact Solana deployment, decimals/extension verification from chain and issuer product terms. No wallet funding if configured mints are missing, wrong-chain or inconsistent.
 
