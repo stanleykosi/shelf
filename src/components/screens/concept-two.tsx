@@ -5,8 +5,7 @@ import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUpRight, Check, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
 import { ArrowDownRight, Minus } from "lucide-react";
-import { articles, companies, products } from "@/data/catalog";
-import { ResearchTable } from "@/components/discovery-patterns";
+import { articles } from "@/data/catalog";
 import { IssuerLogo } from "@/components/issuer-logo";
 import type { DirectoryListing, IssuerDirectory } from "@/domain/issuer-spotlight";
 import type { HomeHighlights } from "@/domain/home-highlights";
@@ -35,7 +34,7 @@ export function ConceptTwoHome() {
   const [highlights, setHighlights] = useState<HomeHighlights | null>(null);
   const [highlightsUnavailable, setHighlightsUnavailable] = useState(false);
   const [directoryPreview, setDirectoryPreview] = useState<DirectoryListing[]>([]);
-  const familiarCompanies = companies.filter((item) => products.some((entry) => entry.companyId === item.id));
+  const storyCompany = directoryPreview.find((listing) => listing.provider === "xstocks");
 
   useEffect(() => {
     let active = true;
@@ -45,7 +44,17 @@ export function ConceptTwoHome() {
       if (active) setHighlightsUnavailable(true);
     });
     void apiRequest<IssuerDirectory>("issuer/directory").then((directory) => {
-      if (active) setDirectoryPreview(directory.listings.slice(0, 3));
+      const companyListings = directory.listings.filter((listing) =>
+        listing.sector !== "Funds & ETFs" &&
+        !/\b(etf|fund|index|trust)\b|sp500/i.test(listing.asset.name),
+      );
+      const preferred = ["AAPLX", "MSFTX", "OPENAI"];
+      const preview = companyListings.toSorted((left, right) => {
+        const leftRank = preferred.indexOf(left.asset.symbol.toUpperCase());
+        const rightRank = preferred.indexOf(right.asset.symbol.toUpperCase());
+        return (leftRank < 0 ? 99 : leftRank) - (rightRank < 0 ? 99 : rightRank);
+      }).slice(0, 3);
+      if (active) setDirectoryPreview(preview);
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -194,12 +203,11 @@ export function ConceptTwoHome() {
       <section className="c2-story" data-reveal ref={storyRef}>
         <div className="c2-section c2-story-grid"><div><p className="c2-kicker">Understanding</p><h2>From a company<br />to the full picture.</h2><div className="c2-chapters" aria-label="Research journey">{chapters.map((item, index) => <button key={item.label} type="button" aria-pressed={chapter === index} onClick={() => { setChapter(index); setCycle((value) => value + 1); }}><span>0{index + 1}</span><span><strong>{item.title}</strong><span className="c2-chapter-copy-wrap"><span className="c2-chapter-copy">{item.body}</span></span></span><ArrowUpRight size={18} aria-hidden="true" />{chapter === index && storyVisible && !motionPaused && !reducedMotion ? <span className="c2-chapter-progress" key={`${chapter}-${cycle}`} aria-hidden="true" /> : null}</button>)}</div></div>
           <div className="c2-story-visual"><div className="c2-orbit" aria-hidden="true"><span /><span /><span /></div>{chapters.map((item, index) => {
-            const company = directoryPreview.find((listing) => listing.provider === "xstocks");
-            const href = company ? `/assets/xstocks/${encodeURIComponent(company.asset.symbol)}` as Route : "/discover";
+            const href = storyCompany ? `/assets/xstocks/${encodeURIComponent(storyCompany.asset.symbol)}` as Route : "/discover";
             return <div className={`c2-story-slide${chapter === index ? " active" : ""}`} aria-hidden={chapter !== index} key={item.label}>
               <div className="c2-story-object"><span>{item.label}</span>
-                {index === 0 && company ? <IssuerLogo imageUrl={company.asset.logoUrl} name={company.asset.name} source="xstocks" large /> : <strong>{index === 0 ? "Discover" : index === 1 ? "Issuer record" : company?.asset.symbol ?? "xStocks"}</strong>}
-                <p>{index === 0 && company ? company.asset.name : item.detail}</p>
+                {index === 0 && storyCompany ? <IssuerLogo imageUrl={storyCompany.asset.logoUrl} name={storyCompany.asset.name} source="xstocks" large /> : <strong>{index === 0 ? "Discover" : index === 1 ? "Issuer record" : storyCompany?.asset.symbol ?? "xStocks"}</strong>}
+                <p>{index === 0 && storyCompany ? storyCompany.asset.name : item.detail}</p>
                 {index === 2 ? <small>Issuer-defined exposure.<br />Not an ordinary voting share.</small> : null}
                 <Link href={href} tabIndex={chapter === index ? 0 : -1}>Research current listings <ArrowUpRight size={16} aria-hidden="true" /></Link>
               </div>
@@ -207,10 +215,6 @@ export function ConceptTwoHome() {
           })}</div>
         </div>
       </section>
-
-      <section className="c2-section c2-companies" data-reveal><header className="c2-section-heading"><div><p>Company research</p><h2>Familiar names.<br />Clearer connections.</h2></div><Link href="/discover">Company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></header><ResearchTable companies={familiarCompanies} /></section>
-
-      <section className="c2-method c2-section" data-reveal><div><p>Built on evidence</p><h2>Curiosity is the start.<br />Clarity is the point.</h2><p>Every relationship has a source. Every instrument has its own terms. Research is useful whether or not you invest.</p><Link href="/learn/brands-and-companies">How Shelf connects the dots <ArrowUpRight size={17} aria-hidden="true" /></Link></div><dl><div><dt>Reviewed companies</dt><dd>{companies.length.toString().padStart(2, "0")}</dd></div><div><dt>Product relationships</dt><dd>{products.length}</dd></div><div><dt>Companies with supported exposure</dt><dd>{companies.filter((item) => item.instrument).length}</dd></div></dl></section>
 
       <section className="c2-notes c2-section" data-reveal><header><h2>A little context goes a long way.</h2><Link href="/learn">All research notes <ArrowUpRight size={16} aria-hidden="true" /></Link></header>{articles.slice(0, 3).map((article, index) => <Link href={("/learn/" + article.slug) as Route} key={article.slug}><span>0{index + 1}</span><strong>{article.title}</strong><span>Explainer</span><ArrowUpRight size={19} aria-hidden="true" /></Link>)}</section>
       <footer className="c2-close"><div><p>Your everyday. A new perspective.</p><h2>See what’s behind it.</h2><Link href="/discover">Start exploring <ArrowUpRight size={20} aria-hidden="true" /></Link></div><div className="c2-footer-line"><span>Shelf</span><p>Recognition. Research. Your decision.</p><Link href="/learn">Research notes</Link></div></footer>

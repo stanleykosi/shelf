@@ -21,9 +21,12 @@ export type PoolMarket = {
 
 /** Prefer the most liquid exact-mint pool, never the pool with the most flattering move. */
 export function selectPoolMarkets(raw: unknown, requestedMints: ReadonlySet<string>): PoolMarket[] {
-  const pools = z.array(poolSchema).parse(raw);
+  if (!Array.isArray(raw)) throw new Error("DEX_MARKET_INVALID");
   const bestByMint = new Map<string, PoolMarket>();
-  for (const pool of pools) {
+  for (const candidate of raw) {
+    const parsed = poolSchema.safeParse(candidate);
+    if (!parsed.success) continue;
+    const pool = parsed.data;
     const mint = pool.baseToken.address;
     const price = Number(pool.priceUsd);
     const change = pool.priceChange?.h1;

@@ -53,6 +53,7 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "The things you know.", exact: false })).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("auto");
   const animated = await page.locator(".c2-home").evaluate((root) => root.getAnimations({ subtree: true }).length);
   expect(animated).toBe(0);
   await page.getByRole("button", { name: "Pause motion" }).click();
@@ -61,6 +62,17 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "enabled");
   await page.getByRole("button", { name: /Understand the instrument/ }).click();
   await expect(page.locator(".c2-story-slide.active")).toContainText("Not an ordinary voting share");
+});
+
+test("the research journey advances while visible and the landing page scrolls smoothly", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium", "One motion lifecycle check");
+  await page.goto("/");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("smooth");
+  await page.locator(".c2-story").scrollIntoViewIfNeeded();
+  await expect(page.locator(".c2-chapters button").first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".c2-chapter-progress")).toBeVisible();
+  await expect(page.locator(".c2-chapters button").nth(1)).toHaveAttribute("aria-pressed", "true", { timeout: 9_000 });
+  await expect(page.locator(".c2-story-slide.active")).toContainText("Issuer record");
 });
 
 test("mobile filters trap focus, dismiss with Escape, and preserve the selected market", async ({ page }, info) => {
