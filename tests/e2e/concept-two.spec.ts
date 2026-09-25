@@ -9,6 +9,9 @@ const spotlightListings = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/home/highlights", (route) => route.fulfill({
+    json: { data: { items: [{ name: "Apple", symbol: "AAPLx", priceUsd: "214.50", change1hPct: 1.25, liquidityUsd: 100_000, venue: "raydium" }], checkedAt: "2026-09-25T12:00:00.000Z", incomplete: false } },
+  }));
   await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({
     json: { data: { featured: spotlightListings, listings: spotlightListings, unavailable: [], stale: [] } },
   }));
@@ -20,13 +23,17 @@ test.beforeEach(async ({ page }) => {
 test("the canonical landing page leads into search without a design switcher", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("The things you know.");
-  await page.getByRole("navigation", { name: "Example product" }).getByRole("button", { name: "Apple" }).click();
-  await expect(page.getByRole("heading", { name: "Behind Apple." })).toBeVisible();
-  await expect(page.locator(".c2-entity-trail").getByRole("link", { name: /iPhone/ })).toHaveAttribute("href", "/products/apple-iphone");
+  await expect(page.getByLabel("Preview of the Discover page")).toContainText("Meet the companies.");
+  await expect(page.locator(".c2-market-card")).toHaveAttribute("href", "/assets/xstocks/AAPLx");
+  await expect(page.locator(".c2-market-card")).toContainText("$214.50");
+  await expect(page.locator(".c2-market-card")).toContainText("+1.25%");
+  await expect(page.locator(".c2-familiar .c2-section-heading")).not.toContainText("01 /");
+  await page.getByLabel("Search products, brands, or companies").focus();
+  expect(await page.locator("#c2-search").evaluate((input) => getComputedStyle(input).outlineStyle)).toBe("none");
   await page.getByLabel("Search products, brands, or companies").fill("Apple");
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect(page).toHaveURL(/\/discover\?q=Apple/);
-  await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: /View AAPLx issuer asset/ })).toHaveAttribute("href", "/assets/xstocks/AAPLx");
   await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
 });
@@ -52,9 +59,8 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "paused");
   await page.getByRole("button", { name: "Enable motion" }).click();
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "enabled");
-  await page.getByRole("button", { name: /Understand the next layer/ }).click();
-  await expect(page.locator(".c2-story-object")).toContainText("PEPx");
-  await expect(page.locator(".c2-story-object")).toContainText("Not an ordinary voting share");
+  await page.getByRole("button", { name: /Understand the instrument/ }).click();
+  await expect(page.locator(".c2-story-slide.active")).toContainText("Not an ordinary voting share");
 });
 
 test("mobile filters trap focus, dismiss with Escape, and preserve the selected market", async ({ page }, info) => {

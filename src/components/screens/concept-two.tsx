@@ -3,33 +3,74 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUpRight, Check, ChevronRight, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
-import { articles, companies, companyById, productById, products } from "@/data/catalog";
-import { ProductArtwork, ResearchTable } from "@/components/discovery-patterns";
-import { CapitalRelationship } from "@/components/capital-relationship";
-
-const examples = ["product-doritos-snack", "product-apple-iphone", "product-tide-laundry"]
-  .map((id) => productById(id))
-  .filter((product) => product !== undefined);
-
-const gallery = ["product-pepsi-drink", "product-apple-iphone", "product-lays-snack", "product-tide-laundry"]
-  .map((id) => productById(id))
-  .filter((product) => product !== undefined);
+import { ArrowDown, ArrowUpRight, Check, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
+import { ArrowDownRight, Minus } from "lucide-react";
+import { articles, companies, products } from "@/data/catalog";
+import { ResearchTable } from "@/components/discovery-patterns";
+import { IssuerLogo } from "@/components/issuer-logo";
+import type { DirectoryListing, IssuerDirectory } from "@/domain/issuer-spotlight";
+import type { HomeHighlights } from "@/domain/home-highlights";
+import { apiRequest } from "@/lib/api-client";
 
 const chapters = [
-  { title: "Start with recognition.", body: "The things you reach for every day are a way into understanding the businesses behind them.", label: "Product", detail: "A familiar starting point" },
-  { title: "Follow the relationship.", body: "A product, its brand, and its parent company each tell a different part of the story. Shelf keeps the connections visible.", label: "Company", detail: "Ownership, backed by a source" },
-  { title: "Understand the next layer.", body: "Some companies have a supported instrument. Research stands on its own; any investment is a separate, deliberate decision.", label: "Exposure", detail: "A separate instrument, a separate decision" },
+  { title: "Find a company.", body: "Start with a current issuer listing, then explore what the business does and how it appears on Shelf.", label: "Discover", detail: "A current company listing" },
+  { title: "Check the evidence.", body: "Follow the issuer record, token symbol, exact Solana mint, and source before drawing a conclusion.", label: "Research", detail: "Details backed by an issuer feed" },
+  { title: "Understand the instrument.", body: "A token has its own terms and market risks. Research comes first; any investment is a separate decision.", label: "Exposure", detail: "A separate instrument, a separate decision" },
 ];
+
+function formatMarketPrice(value: string) {
+  const price = Number(value);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 4 : 2 }).format(price);
+}
 
 export function ConceptTwoHome() {
   const rootRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
-  const [exampleIndex, setExampleIndex] = useState(0);
+  const storyRef = useRef<HTMLElement>(null);
   const [chapter, setChapter] = useState(0);
+  const [cycle, setCycle] = useState(0);
+  const [storyVisible, setStoryVisible] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [motionPaused, setMotionPaused] = useState(false);
-  const product = examples[exampleIndex];
+  const [highlights, setHighlights] = useState<HomeHighlights | null>(null);
+  const [highlightsUnavailable, setHighlightsUnavailable] = useState(false);
+  const [directoryPreview, setDirectoryPreview] = useState<DirectoryListing[]>([]);
   const familiarCompanies = companies.filter((item) => products.some((entry) => entry.companyId === item.id));
+
+  useEffect(() => {
+    let active = true;
+    void apiRequest<HomeHighlights>("home/highlights").then((result) => {
+      if (active) setHighlights(result);
+    }).catch(() => {
+      if (active) setHighlightsUnavailable(true);
+    });
+    void apiRequest<IssuerDirectory>("issuer/directory").then((directory) => {
+      if (active) setDirectoryPreview(directory.listings.slice(0, 3));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const section = storyRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(([entry]) => setStoryVisible(entry.isIntersecting), { threshold: 0.3 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!storyVisible || motionPaused || reducedMotion) return;
+    const timer = window.setTimeout(() => setChapter((current) => (current + 1) % chapters.length), 6500);
+    return () => window.clearTimeout(timer);
+  }, [chapter, cycle, storyVisible, motionPaused, reducedMotion]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -104,33 +145,70 @@ export function ConceptTwoHome() {
 
         <div className="c2-board-stage">
           <div className="c2-field" aria-hidden="true"><i /><i /><i /></div>
-          <div className="c2-research-board" ref={boardRef}>
-            <header className="c2-board-header"><span className="c2-board-brand">Shelf<span>/ Research explorer</span></span><span className="c2-proof"><Check size={13} aria-hidden="true" /> Source-linked relationships</span></header>
-            <div className="c2-board-body">
-              <nav className="c2-example-nav" aria-label="Example product"><span>Start with a product</span>{examples.map((item, index) => <button key={item.id} aria-pressed={exampleIndex === index} onClick={() => setExampleIndex(index)} type="button"><span>{item.brand}</span><ChevronRight size={15} aria-hidden="true" /></button>)}<Link href="/discover">All products <ArrowUpRight size={14} aria-hidden="true" /></Link></nav>
-              <div className="c2-board-content" key={product.id}>
-                <div className="c2-board-title"><div><span>Relationship explorer</span><h2>Behind {product.brand}.</h2></div><span className="c2-board-index">0{exampleIndex + 1} / 03</span></div>
-                <CapitalRelationship product={product} />
+          <div className="c2-research-board c2-discover-board" ref={boardRef} aria-label="Preview of the Discover page">
+            <header className="c2-board-header"><span className="c2-board-brand">Shelf<span>/ Discover</span></span><span className="c2-proof"><Check size={13} aria-hidden="true" /> Current issuer listings</span></header>
+            <div className="c2-discover-preview">
+              <aside className="c2-discover-rail" aria-hidden="true"><strong>Explore</strong><span className="selected">Discover</span><span>Companies</span><span>Products</span><span>Research notes</span></aside>
+              <div className="c2-discover-canvas">
+                <p className="c2-preview-eyebrow">Discover / Company directory</p>
+                <div className="c2-preview-heading"><div><h2>Meet the companies.</h2><p>Start with a name. Follow the issuer record.</p></div><Link href="/discover">Open Discover <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+                <div className="c2-preview-search"><Search size={18} aria-hidden="true" /><span>Search companies or products</span><span className="c2-preview-shortcut">⌘K</span></div>
+                <div className="c2-preview-filters" aria-hidden="true"><span>All sectors</span><span>Public · xStocks</span><span>Private · PreStocks</span></div>
+                <div className="c2-preview-list">
+                  {directoryPreview.length ? directoryPreview.map(({ provider, asset }) => (
+                    <Link href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route} key={`${provider}-${asset.symbol}`}>
+                      <IssuerLogo imageUrl={asset.logoUrl} name={asset.name} source={provider} />
+                      <span><strong>{asset.name}</strong><small>{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"}</small></span>
+                      <span className="c2-preview-symbol">{asset.symbol}</span><ArrowUpRight size={18} aria-hidden="true" />
+                    </Link>
+                  )) : <p>Current company listings appear here when the issuer directory is available.</p>}
+                </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="c2-opening-foot"><a href="#c2-familiar">Explore the everyday <ArrowDown size={15} aria-hidden="true" /></a><button aria-pressed={motionPaused} onClick={() => setMotionPaused((paused) => !paused)} type="button">{motionPaused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}{motionPaused ? "Enable motion" : "Pause motion"}</button></div>
+        <div className="c2-opening-foot"><a href="#c2-familiar">Explore companies <ArrowDown size={15} aria-hidden="true" /></a><button aria-pressed={motionPaused} onClick={() => setMotionPaused((paused) => !paused)} type="button">{motionPaused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}{motionPaused ? "Enable motion" : "Pause motion"}</button></div>
       </section>
 
       <section className="c2-familiar c2-section" id="c2-familiar" data-reveal>
-        <header className="c2-section-heading"><div><p>01 / Recognition</p><h2>Begin with a Product,<br />not a ticker.</h2></div><div><p>Your next research question might<br />already be in your kitchen.</p><Link href="/discover">Discover all products <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
-        <div className="c2-product-gallery">{gallery.map((item, index) => <Link href={("/products/" + item.slug) as Route} key={item.id} className="c2-product"><div className="c2-product-frame"><span className="c2-product-number">0{index + 1}</span><ProductArtwork product={item} sizes="(max-width: 819px) 72vw, 300px" /><span className="c2-product-arrow"><ArrowUpRight size={21} aria-hidden="true" /></span></div><div className="c2-product-caption"><strong>{item.name}</strong><span>{companyById(item.companyId)?.name}</span></div></Link>)}</div>
-        <p className="c2-image-note">Reviewed product families. Imagery may show a representative product or brand identity.</p>
+        <header className="c2-section-heading"><div><p>Company discovery</p><h2>Follow the companies<br />moving right now.</h2></div><div><p>Four familiar xStocks companies, ordered by their one-hour Solana pool change.</p><Link href="/discover">Explore company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
+        {highlights?.items.length ? (
+          <div className="c2-market-gallery">{highlights.items.map((item) => {
+            const rising = item.change1hPct > 0;
+            const falling = item.change1hPct < 0;
+            return <Link href={`/assets/xstocks/${encodeURIComponent(item.symbol)}` as Route} key={item.symbol} className="c2-market-card">
+              <span className="c2-market-card-top"><IssuerLogo imageUrl={item.logoUrl} name={item.name} source="xstocks" /><span>xStocks · Solana</span><ArrowUpRight size={19} aria-hidden="true" /></span>
+              <span className="c2-market-card-name"><strong>{item.name}</strong><small>{item.symbol}</small></span>
+              <span className="c2-market-card-price"><small>Pool price · USD</small><strong>{formatMarketPrice(item.priceUsd)}</strong></span>
+              <span className={`c2-market-card-change${rising ? " is-up" : falling ? " is-down" : ""}`}>
+                {rising ? <ArrowUpRight size={17} aria-hidden="true" /> : falling ? <ArrowDownRight size={17} aria-hidden="true" /> : <Minus size={17} aria-hidden="true" />}
+                {rising ? "+" : ""}{item.change1hPct.toFixed(2)}% <small>past 1h</small>
+              </span>
+              <span className="c2-market-card-foot"><span>Research {item.symbol}</span><ArrowUpRight size={18} aria-hidden="true" /></span>
+            </Link>;
+          })}</div>
+        ) : <div className="c2-market-empty" role="status"><p>{highlightsUnavailable ? "Current market comparisons are unavailable right now." : highlights ? "No xStocks have a qualifying one-hour pool comparison right now." : "Checking current xStocks and Solana markets…"}</p><Link href="/discover">Browse current issuer listings <ArrowUpRight size={16} aria-hidden="true" /></Link></div>}
+        <p className="c2-image-note">{highlights ? `Checked ${new Date(highlights.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. ` : ""}The company selection is editorial. xStocks verifies each issuer and mint; DEX Screener supplies the most liquid qualifying Solana pool price and one-hour change. Pool prices are indicative, not executable quotes or investment recommendations.{highlights?.incomplete ? " Some market feeds were unavailable." : ""}</p>
       </section>
 
-      <section className="c2-story" data-reveal>
-        <div className="c2-section c2-story-grid"><div><p className="c2-kicker">02 / Understanding</p><h2>One familiar thing.<br />A bigger picture.</h2><div className="c2-chapters" aria-label="Research journey">{chapters.map((item, index) => <button key={item.label} type="button" aria-pressed={chapter === index} onClick={() => setChapter(index)}><span>0{index + 1}</span><span><strong>{item.title}</strong>{chapter === index ? <span className="c2-chapter-copy">{item.body}</span> : null}</span><ArrowUpRight size={18} aria-hidden="true" /></button>)}</div></div>
-          <div className="c2-story-visual" key={chapter}><div className="c2-orbit" aria-hidden="true"><span /><span /><span /></div><div className="c2-story-object"><span>{chapters[chapter].label}</span>{chapter === 0 ? <ProductArtwork product={examples[0]} sizes="220px" /> : <strong>{chapter === 1 ? "PepsiCo" : "PEPx"}</strong>}<p>{chapters[chapter].detail}</p>{chapter === 2 ? <small>Issuer-defined exposure.<br />Not an ordinary voting share.</small> : null}<Link href={chapter === 0 ? "/products/doritos-snack" : "/discover?q=PepsiCo"}>Find current tokens <ArrowUpRight size={16} aria-hidden="true" /></Link></div></div>
+      <section className="c2-story" data-reveal ref={storyRef}>
+        <div className="c2-section c2-story-grid"><div><p className="c2-kicker">Understanding</p><h2>From a company<br />to the full picture.</h2><div className="c2-chapters" aria-label="Research journey">{chapters.map((item, index) => <button key={item.label} type="button" aria-pressed={chapter === index} onClick={() => { setChapter(index); setCycle((value) => value + 1); }}><span>0{index + 1}</span><span><strong>{item.title}</strong><span className="c2-chapter-copy-wrap"><span className="c2-chapter-copy">{item.body}</span></span></span><ArrowUpRight size={18} aria-hidden="true" />{chapter === index && storyVisible && !motionPaused && !reducedMotion ? <span className="c2-chapter-progress" key={`${chapter}-${cycle}`} aria-hidden="true" /> : null}</button>)}</div></div>
+          <div className="c2-story-visual"><div className="c2-orbit" aria-hidden="true"><span /><span /><span /></div>{chapters.map((item, index) => {
+            const company = directoryPreview.find((listing) => listing.provider === "xstocks");
+            const href = company ? `/assets/xstocks/${encodeURIComponent(company.asset.symbol)}` as Route : "/discover";
+            return <div className={`c2-story-slide${chapter === index ? " active" : ""}`} aria-hidden={chapter !== index} key={item.label}>
+              <div className="c2-story-object"><span>{item.label}</span>
+                {index === 0 && company ? <IssuerLogo imageUrl={company.asset.logoUrl} name={company.asset.name} source="xstocks" large /> : <strong>{index === 0 ? "Discover" : index === 1 ? "Issuer record" : company?.asset.symbol ?? "xStocks"}</strong>}
+                <p>{index === 0 && company ? company.asset.name : item.detail}</p>
+                {index === 2 ? <small>Issuer-defined exposure.<br />Not an ordinary voting share.</small> : null}
+                <Link href={href} tabIndex={chapter === index ? 0 : -1}>Research current listings <ArrowUpRight size={16} aria-hidden="true" /></Link>
+              </div>
+            </div>;
+          })}</div>
         </div>
       </section>
 
-      <section className="c2-section c2-companies" data-reveal><header className="c2-section-heading"><div><p>03 / Company research</p><h2>Familiar names.<br />Clearer connections.</h2></div><Link href="/discover">Company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></header><ResearchTable companies={familiarCompanies} /></section>
+      <section className="c2-section c2-companies" data-reveal><header className="c2-section-heading"><div><p>Company research</p><h2>Familiar names.<br />Clearer connections.</h2></div><Link href="/discover">Company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></header><ResearchTable companies={familiarCompanies} /></section>
 
       <section className="c2-method c2-section" data-reveal><div><p>Built on evidence</p><h2>Curiosity is the start.<br />Clarity is the point.</h2><p>Every relationship has a source. Every instrument has its own terms. Research is useful whether or not you invest.</p><Link href="/learn/brands-and-companies">How Shelf connects the dots <ArrowUpRight size={17} aria-hidden="true" /></Link></div><dl><div><dt>Reviewed companies</dt><dd>{companies.length.toString().padStart(2, "0")}</dd></div><div><dt>Product relationships</dt><dd>{products.length}</dd></div><div><dt>Companies with supported exposure</dt><dd>{companies.filter((item) => item.instrument).length}</dd></div></dl></section>
 

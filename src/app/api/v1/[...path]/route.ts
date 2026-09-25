@@ -52,6 +52,7 @@ import type {
   WalletSummary,
 } from "@/domain/identity";
 import type { MarketFeed } from "@/domain/market-data";
+import { selectHomeHighlights } from "@/domain/home-highlights";
 import { buildIssuerDirectory } from "@/domain/issuer-spotlight";
 import { readIssuerDirectory } from "@/db/issuer-directory";
 import type { RecognitionMatch } from "@/domain/types";
@@ -70,6 +71,7 @@ import { readMarketHistory, runWithRuntimeState } from "@/db/runtime-store";
 import { LivePreStocksProvider } from "@/providers/prestocks";
 import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
+import { LiveDexScreenerProvider } from "@/providers/dexscreener";
 import { lookupBarcodeProduct } from "@/providers/product-identity";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "@/providers/issuer-verification";
 import type { XStocksListing, XStocksMetadata } from "@/providers/xstocks";
@@ -105,6 +107,7 @@ const ai = env.OPENROUTER_API_KEY
   : undefined;
 const preStocks = new LivePreStocksProvider(env.PRESTOCKS_API_URL);
 const xStocks = new LiveXStocksProvider(env.XSTOCKS_API_BASE_URL);
+const dexMarkets = new LiveDexScreenerProvider();
 const magicIdentity = env.MAGIC_SECRET_KEY
   ? new MagicIdentityProvider({
         secretKey: env.MAGIC_SECRET_KEY!,
@@ -419,6 +422,7 @@ const statusByError: Record<string, number> = {
   SUBMISSIONS_PAUSED: 503,
   PRESTOCKS_UNAVAILABLE: 503,
   XSTOCKS_UNAVAILABLE: 503,
+  DEX_MARKET_UNAVAILABLE: 503,
   ISSUER_INSTRUMENT_UNAVAILABLE: 503,
   SIGNING_UNAVAILABLE: 503,
   TRADE_EXECUTION_DISABLED: 503,
@@ -1684,6 +1688,18 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
       if (!directory.unavailable.length && !directory.stale.length) {
         response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=600");
       }
+      return response;
+    }
+    if (pathIs(path, "home", "highlights")) {
+      const feed = await xStocksListings();
+      if (feed.state !== "current") throw new Error("XSTOCKS_UNAVAILABLE");
+      const { markets, incomplete } = await dexMarkets.markets(feed.listings.map((listing) => listing.mint));
+      const response = success({
+        items: selectHomeHighlights(feed.listings, markets),
+        checkedAt: new Date().toISOString(),
+        incomplete,
+      });
+      response.headers.set("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=300");
       return response;
     }
     if (path[0] === "markets" && path[1] === "history" && path[2]) {
