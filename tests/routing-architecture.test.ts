@@ -185,7 +185,7 @@ describe("frontend route architecture", () => {
   });
 
   it("derives mobile and desktop active state from the actual route", () => {
-    expect(activePrimarySection("/")).toBe("discover");
+    expect(activePrimarySection("/")).toBeNull();
     expect(activePrimarySection("/assets/xstocks/PEPx")).toBe("discover");
     expect(activePrimarySection("/scan/results")).toBe("scan");
     expect(activePrimarySection("/saved/share")).toBe("saved");

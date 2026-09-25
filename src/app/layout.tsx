@@ -17,7 +17,6 @@ import { Notifications } from "@/components/notifications";
 import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
-import { env } from "@/lib/env";
 import { raleway } from "./fonts";
 
 export const metadata: Metadata = {
@@ -33,7 +32,7 @@ export default async function RootLayout({ children, modal }: Readonly<{ childre
   return (
     <html lang="en">
       <body className={raleway.variable}>
-        <AppShell signedIn={signedIn} environment={env.APP_ENV}>
+        <AppShell signedIn={signedIn}>
           {children}
         </AppShell>
         {modal}

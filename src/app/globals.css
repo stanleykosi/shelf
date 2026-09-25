@@ -145,7 +145,6 @@ body {
 }
 
 .header-scan,
-.header-search,
 .header-account {
   display: inline-flex;
   gap: 7px;
@@ -162,34 +161,8 @@ body {
   border-radius: 5px;
 }
 
-.header-search,
 .header-account {
   color: var(--muted);
-}
-
-.header-search kbd {
-  padding: 2px 5px;
-  border: 1px solid var(--line);
-  color: #777d79;
-  background: var(--surface-subtle);
-  font-family: inherit;
-  font-size: 0.67rem;
-}
-
-.environment-status {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  color: #7a807d;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.65rem;
-}
-
-.environment-status i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #85918b;
 }
 
 .application-main {
@@ -671,7 +644,6 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   .app-primary-nav a,
-  .header-search,
   .header-account,
   .home-directory-link,
   .spotlight-company-link {
@@ -688,13 +660,9 @@ body {
   .app-header { height: 60px; }
   .app-header-inner { grid-template-columns: 1fr auto; width: calc(100% - 32px); }
   .app-primary-nav,
-  .header-search span,
-  .header-search kbd,
-  .header-account span,
-  .environment-status { display: none; }
+  .header-account span { display: none; }
   .app-header-actions { gap: 17px; }
   .header-scan { min-height: 38px; padding: 7px 11px; }
-  .header-search { display: inline-flex; }
   .application-main { width: calc(100% - 32px); padding-bottom: 56px; }
 
   .mobile-navigation {

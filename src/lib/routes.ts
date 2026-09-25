@@ -179,7 +179,6 @@ export function activePrimarySection(pathname: string): PrimarySection | null {
   if (pathname === "/saved" || pathname.startsWith("/saved/")) return "saved";
   if (pathname === "/portfolio" || pathname.startsWith("/portfolio/")) return "portfolio";
   if (
-    pathname === "/" ||
     pathname === "/discover" ||
     pathname.startsWith("/products/") ||
     pathname.startsWith("/brands/") ||
