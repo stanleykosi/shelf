@@ -62,5 +62,6 @@ Live issuer results and the Discover company table use optional logo images supp
 - `docs/operator-runbook.md` — local and production operation
 - `docs/production-operations.md` — Vercel, Railway, activation, and rollback
 - `BUILD_STATUS.md` — implementation and readiness record
+- `docs/BRAND_IDENTITY.md` — logo, icon and thumbnail sources, usage and regeneration; local preview at `/brand/index.html`
 
 The approved version-one specification remains in [`docs/product`](docs/product/README.md).

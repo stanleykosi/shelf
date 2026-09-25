@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useSelectedLayoutSegments } from "next/navigation";
 import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, WalletCards as StudioWallet } from "@/components/studio-icons";
 import { HeaderSearch } from "@/components/header-search";
+import { ShelfLogo } from "@/components/shelf-logo";
 import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
 import { activePrimarySection, type PrimarySection } from "@/lib/routes";
 import { Sparkles as StudioSparkles } from "@/components/studio-icons";
@@ -32,15 +33,11 @@ const studioNavigationIcons = {
   assistant: StudioSparkles,
 };
 
-function ShelfMark() {
-  return <span className="shelf-mark" aria-hidden="true"><span /><span /><span /></span>;
-}
-
 export function AppHeader({ activeSection, signedIn }: { activeSection: PrimarySection | null; signedIn: boolean }) {
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <Link className="shelf-wordmark" href="/" aria-label="Shelf home"><ShelfMark /><span>Shelf</span></Link>
+        <Link className="shelf-wordmark" href="/" aria-label="Shelf home"><ShelfLogo /></Link>
         <nav className="app-primary-nav" aria-label="Primary navigation">
           {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={href as Route} key={href}>{label}</Link>)}
         </nav>

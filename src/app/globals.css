@@ -79,6 +79,7 @@ body {
 
 .shelf-wordmark {
   display: inline-flex;
+  min-height: 44px;
   gap: 9px;
   align-items: center;
   justify-self: start;
@@ -87,23 +88,11 @@ body {
   letter-spacing: -0.025em;
 }
 
-.shelf-mark {
-  display: flex;
-  align-items: flex-end;
-  width: 27px;
-  height: 27px;
-  padding: 6px 5px;
-  background: var(--accent);
+.shelf-logo {
+  display: block;
+  width: auto;
+  height: 32px;
 }
-
-.shelf-mark span {
-  width: 3px;
-  background: white;
-}
-
-.shelf-mark span:nth-child(1) { height: 7px; }
-.shelf-mark span:nth-child(2) { height: 14px; margin: 0 3px; }
-.shelf-mark span:nth-child(3) { height: 10px; }
 
 .app-primary-nav {
   display: flex;

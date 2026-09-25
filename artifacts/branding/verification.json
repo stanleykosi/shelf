@@ -1,0 +1,67 @@
+{
+  "imageDimensions": [
+    {
+      "file": "favicon-16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "favicon-32.png",
+      "width": 32,
+      "height": 32
+    },
+    {
+      "file": "favicon-48.png",
+      "width": 48,
+      "height": 48
+    },
+    {
+      "file": "apple-touch-icon.png",
+      "width": 180,
+      "height": 180
+    },
+    {
+      "file": "icon-192.png",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "icon-512.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "avatar-512.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "share-1200x630.png",
+      "width": 1200,
+      "height": 630
+    },
+    {
+      "file": "thumbnail-1920x1080.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "social-1080x1080.png",
+      "width": 1080,
+      "height": 1080
+    }
+  ],
+  "responsiveWidths": [
+    320,
+    390,
+    768,
+    1440
+  ],
+  "metadata": {
+    "og:image": "http://127.0.0.1:3100/opengraph-image.png?39b369c59ba56413",
+    "og:image:width": "1200",
+    "og:image:height": "630",
+    "og:image:alt": "Shelf — The things you know. The companies behind them.\n"
+  },
+  "downloads": 12
+}

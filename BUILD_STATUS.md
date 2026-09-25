@@ -2,6 +2,36 @@
 
 Updated: 2026-09-25
 
+## Shelf brand identity — first local direction
+
+Created an S monogram formed from open shelves and an outlined Raleway wordmark,
+using the accepted ink, mint and paper palette. The local app header and Home
+footer now share `src/components/shelf-logo.tsx`; source geometry and colors live
+in `src/brand/`. Added Next.js favicon, SVG icon, Apple icon, Open Graph image and
+Twitter card metadata. `APP_ORIGIN` supplies the absolute social-image origin.
+
+`public/brand/` contains SVG and transparent PNG logos, black/white variants,
+16/32/48 favicons, 180/192/512 icons, a circular-safe avatar, and 1200 × 630,
+1920 × 1080 and 1080 × 1080 thumbnail layouts. `/brand/index.html` previews the
+system and supplies downloads. `npm run brand:generate` reproduces the exports
+with installed Chromium and the bundled font. Usage and source details are in
+`docs/BRAND_IDENTITY.md`; review screenshots, verification results and the ZIP
+kit are in `artifacts/branding/`.
+
+Lint, strict TypeScript, 131 tests in 26 files, `git diff --check` and the Next.js
+16.3.5 Webpack production build passed. The build reported existing nonfatal
+Magic optional-transport warnings and its API initialization error. Local
+standalone Chromium checks passed for header/footer branding, all icon routes,
+Open Graph/Twitter image metadata, ten PNG dimensions, three ICO frames, all 12
+preview downloads, and unclipped preview layouts at 320/390/768/1440 pixels.
+Review found and fixed tablet sample clipping. Provider API requests were
+intercepted during browser checks; no paid call, financial action or deployment
+occurred. External social-platform caches and physical Apple devices were not tested.
+
+Exact next task: owner review of this first visual direction, then refine the
+symbol or compositions from that feedback. The identity is locally implemented,
+not yet owner-accepted or published.
+
 ## Focus color cleanup — local
 
 Replaced the yellow and brown focus outlines across the global, Home, Discover,

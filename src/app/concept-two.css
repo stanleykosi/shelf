@@ -3,8 +3,7 @@
 .concept-two-shell .app-header { --focus-ring:#b6efd2; background:#111715; border-color:#2b3530; color:#f5f5ef; backdrop-filter:none; }
 .concept-two-shell .app-header-inner { width:min(1328px,calc(100% - 80px)); grid-template-columns:auto auto minmax(0,1fr); gap:clamp(20px,3vw,48px); }
 .concept-two-shell .shelf-wordmark { font-size:25px; font-weight:550; letter-spacing:-1.4px; }
-.concept-two-shell .shelf-mark { background:var(--c2-mint); border-radius:1px; }
-.concept-two-shell .shelf-mark span { background:#17251c; }
+.concept-two-shell .shelf-wordmark .shelf-logo-symbol { color:var(--c2-mint); }
 .concept-two-shell .app-primary-nav a { color:#aeb9b2; font-weight:450; }
 .concept-two-shell .app-primary-nav a.active { color:white; }
 .concept-two-shell .app-primary-nav a.active::after { background:var(--c2-mint); }
