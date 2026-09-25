@@ -29,7 +29,7 @@ describe("GeckoTerminal pool history", () => {
     }) as typeof fetch;
     const day = await fetchPoolCandles(pool, mint, "1D", send, now);
     const week = await fetchPoolCandles(pool, mint, "1W", send, now);
-    expect(day).toHaveLength(2);
+    expect(day).toHaveLength(3);
     expect(week).toHaveLength(3);
     expect(requests[0].toString()).toBe(requests[1].toString());
     expect(requests[0].pathname).toBe(`/api/v2/networks/solana/pools/${pool}/ohlcv/minute`);
@@ -50,10 +50,26 @@ describe("GeckoTerminal pool history", () => {
         [now - 86_400, 12, 14, 11, 13, 85],
       ] } } });
     }) as typeof fetch;
-    expect(await fetchPoolCandles(pool, mint, "1M", send, now)).toHaveLength(2);
+    expect(await fetchPoolCandles(pool, mint, "1M", send, now)).toHaveLength(3);
     expect(await fetchPoolCandles(pool, mint, "3M", send, now)).toHaveLength(3);
     expect(requests[0].toString()).toBe(requests[1].toString());
     expect(requests[0].pathname).toBe(`/api/v2/networks/solana/pools/${pool}/ohlcv/day`);
     expect(requests[0].searchParams.get("limit")).toBe("90");
+  });
+
+  it("requests older observed candles before the earliest visible time", async () => {
+    let requestUrl: URL | null = null;
+    const send = (async (input: RequestInfo | URL) => {
+      requestUrl = new URL(String(input));
+      return Response.json({ data: { attributes: { ohlcv_list: [
+        [1_799_000_000, 10, 12, 9, 11, 75],
+        [1_800_000_000, 11, 13, 10, 12, 80],
+        [1_801_000_000, 12, 14, 11, 13, 85],
+      ] } } });
+    }) as typeof fetch;
+    const candles = await fetchPoolCandles(pool, mint, "1D", send, 1_802_000_000, 1_801_000_000);
+    expect(candles.map((candle) => candle.time)).toEqual([1_799_000_000, 1_800_000_000, 1_801_000_000]);
+    expect(requestUrl).not.toBeNull();
+    expect((requestUrl as URL | null)?.searchParams.get("before_timestamp")).toBe("1801000000");
   });
 });

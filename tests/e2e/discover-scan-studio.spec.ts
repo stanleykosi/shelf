@@ -43,6 +43,17 @@ test("themes filter actual listings and move keyboard focus to the directory", a
   await expect(page).toHaveURL(/market=private/);
 });
 
+test("second and third themes keep their text legible on hover", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "Touch devices do not have a hover state");
+  await page.goto("/discover");
+  for (const theme of ["everyday", "private"]) {
+    const card = page.locator(`.discovery-theme-${theme}`);
+    await card.hover();
+    await expect(card).toHaveCSS("color", /rgb\(24[0-9], 24[0-9], 2[0-9]{2}\)/);
+    await expect(card).toHaveCSS("background-color", theme === "everyday" ? "rgb(85, 89, 69)" : "rgb(76, 85, 112)");
+  }
+});
+
 test("suggestions prepare a query, submission is deliberate, and clearing restores discovery", async ({ page }) => {
   let requests = 0;
   page.on("request", (request) => { if (request.url().includes("/discovery/query")) requests++; });

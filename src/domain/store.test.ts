@@ -54,6 +54,19 @@ describe("production order accounting", () => {
     expect(state.orders.size).toBe(1);
   });
 
+  it("enforces the 5 USDC minimum on the server even if a client bypasses the form", () => {
+    expect(() => createOrder(user, {
+      type: "buy",
+      companyId: "company-pepsico",
+      amountUsdcRaw: "4999999",
+    })).toThrow("ORDER_LIMIT");
+    expect(createOrder(user, {
+      type: "buy",
+      companyId: "company-pepsico",
+      amountUsdcRaw: "5000000",
+    }).legs[0].requestedInputRaw).toBe("5000000");
+  });
+
   it("rejects a reused intent with different economic terms", () => {
     const clientIntentId = "8a5f877d-fccc-4fb3-96f9-16c386c4cab0";
     createOrder(user, {

@@ -2,6 +2,18 @@
 
 Updated: 2026-09-25
 
+## README and build-status merge resolution — local
+
+Resolved the two documentation conflicts from merging `origin/main`. The README
+keeps its Simplified Technical English guide and includes the new brand asset
+locations and preview link. This log keeps both branches' milestone records.
+
+`npm run check` passed: ESLint, strict TypeScript, 131 Vitest tests in 26 files,
+and the Next.js 16.3.5 Webpack production build. Browser tests were not run for
+this documentation resolution. No deployment or live-money action occurred.
+The next product task is owner review of the first brand direction. The broader
+PostgreSQL-backed browser suite remains to be run when local database access works.
+
 ## README rewrite in Simplified Technical English — local
 
 Replaced `README.md` with a fresh project guide. It covers the current product,
@@ -61,6 +73,75 @@ decision, which restores a general assistant alongside issuer-scoped chat.
 not been pushed. No deployment, provider call, or live-money action occurred.
 Next task: review the restored general assistant against the owner's current product
 intent, then commit the lockfile and README corrections if accepted.
+
+## Shelf brand identity — first local direction
+
+Created an S monogram formed from open shelves and an outlined Raleway wordmark,
+using the accepted ink, mint and paper palette. The local app header and Home
+footer now share `src/components/shelf-logo.tsx`; source geometry and colors live
+in `src/brand/`. Added Next.js favicon, SVG icon, Apple icon, Open Graph image and
+Twitter card metadata. `APP_ORIGIN` supplies the absolute social-image origin.
+
+`public/brand/` contains SVG and transparent PNG logos, black/white variants,
+16/32/48 favicons, 180/192/512 icons, a circular-safe avatar, and 1200 × 630,
+1920 × 1080 and 1080 × 1080 thumbnail layouts. `/brand/index.html` previews the
+system and supplies downloads. `npm run brand:generate` reproduces the exports
+with installed Chromium and the bundled font. Usage and source details are in
+`docs/BRAND_IDENTITY.md`; review screenshots, verification results and the ZIP
+kit are in `artifacts/branding/`.
+
+Lint, strict TypeScript, 131 tests in 26 files, `git diff --check` and the Next.js
+16.3.5 Webpack production build passed. The build reported existing nonfatal
+Magic optional-transport warnings and its API initialization error. Local
+standalone Chromium checks passed for header/footer branding, all icon routes,
+Open Graph/Twitter image metadata, ten PNG dimensions, three ICO frames, all 12
+preview downloads, and unclipped preview layouts at 320/390/768/1440 pixels.
+Review found and fixed tablet sample clipping. Provider API requests were
+intercepted during browser checks; no paid call, financial action or deployment
+occurred. External social-platform caches and physical Apple devices were not tested.
+
+Exact next task: owner review of this first visual direction, then refine the
+symbol or compositions from that feedback. The identity is locally implemented,
+not yet owner-accepted or published.
+
+## Focus color cleanup — local
+
+Replaced the yellow and brown focus outlines across the global, Home, Discover,
+Scan, research, workspace and asset detail styles with a shared green focus token.
+The dark header, Home hero, asset chart and mobile navigation use a lighter green
+focus token for contrast. Header and hero search wrappers now show a light green
+border while their inputs remain free of a second outline. Keyboard focus remains
+visible on dropdowns, inputs, buttons, links and disclosure summaries.
+
+`npm run lint`, `npm run typecheck`, `git diff --check` and the Next.js 16.3.5
+Webpack production build passed. Read-only local Chromium checks confirmed the
+computed focus styles on header and hero search, a Discover dropdown, the Scan
+barcode field and the sign-in email field. The build logged the existing nonfatal
+optional Magic SDK transport warnings and Magic API initialization error. No
+deployment or financial action occurred.
+
+## Asset chart panning, mint copy, minimum purchase and Discover hover — local
+
+The xStocks detail chart now starts at the selected range and retains earlier observed
+candles in memory. Panning left requests older GeckoTerminal pages through a validated
+`before` parameter, merges only pages from the same pool and preserves the chart's
+viewport as candles arrive. The mint copy control has no visible button background or
+border; successful copy changes its icon to a check without a success alert. Clipboard
+failure has a small inline fallback instruction. The USDC amount field keeps grouped
+digits and disables purchase review below 5 USDC; the existing server order limit is
+covered by a new regression test. Discover theme cards two and three now use light text
+on their darker hover and keyboard focus states.
+
+`npm run lint`, `npm run typecheck`, `npm run test` (131 tests in 26 files), the focused
+server minimum test (16 tests in its file), `git diff --check`, and the Next.js 16.3.5
+Webpack production build passed. Focused Chromium tests passed for hover, copy state,
+minimum amount and repeated chart pagination. The broader desktop/mobile asset and
+chat run passed 15 checks; three browser-harness assertions were corrected (fast double
+pagination and off-viewport touch gestures). Focused reruns then passed the desktop
+pan and hover checks and the actual mobile touch-pan check; touch hover was skipped as
+inapplicable. The build logged optional Magic transport warnings and its known nonfatal
+Magic API initialization error. No deployment, paid provider call or live-money action
+occurred. The full PostgreSQL-backed browser suite remains outside this UI pass.
 
 ## Home company discovery: 24-hour cards — local
 

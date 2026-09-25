@@ -20,10 +20,25 @@ import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
 import { raleway } from "./fonts";
+import { brandDescription } from "@/brand/identity";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_ORIGIN ?? "http://localhost:3000"),
+  applicationName: "Shelf",
   title: { default: "Shelf", template: "%s · Shelf" },
-  description: "Explore current token listings, check issuer details, and choose what comes next.",
+  description: brandDescription,
+  openGraph: {
+    siteName: "Shelf",
+    title: "Shelf — The things you know. The companies behind them.",
+    description: brandDescription,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shelf — The things you know. The companies behind them.",
+    description: brandDescription,
+  },
   robots: { index: false, follow: false },
 };
 

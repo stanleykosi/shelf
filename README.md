@@ -150,6 +150,10 @@ Browser tests need the database and relevant provider setup. They do not authori
 | `src/db/` and `drizzle/` | Database access, schema, and migrations. |
 | `infrastructure/` | The Railway worker. |
 | `tests/e2e/` | Browser tests. |
+| `src/brand/` and `public/brand/` | Brand sources, logos, icons, and image assets. |
+| `scripts/generate-brand-assets.ts` | Brand export generator. |
+
+Preview the brand assets at `/brand/index.html`.
 
 ## Find more information
 
@@ -160,6 +164,7 @@ Browser tests need the database and relevant provider setup. They do not authori
 - [Readiness report](docs/readiness-report.md)
 - [Operator runbook](docs/operator-runbook.md)
 - [Production operation and rollback](docs/production-operations.md)
+- [Brand identity and asset use](docs/BRAND_IDENTITY.md)
 
 Use the latest product decision when an older summary gives a different rule.
 The build status and readiness report show current implementation work and open activation gates.

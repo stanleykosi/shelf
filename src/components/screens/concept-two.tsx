@@ -9,6 +9,7 @@ import { siApple, siNvidia } from "simple-icons";
 import { ArrowDown, ArrowUpRight, Check, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
 import { articles } from "@/data/catalog";
 import { IssuerLogo } from "@/components/issuer-logo";
+import { ShelfLogo } from "@/components/shelf-logo";
 import type { DirectoryListing, IssuerDirectory } from "@/domain/issuer-spotlight";
 import type { HomeHighlights } from "@/domain/home-highlights";
 import { apiRequest } from "@/lib/api-client";
@@ -285,7 +286,7 @@ export function ConceptTwoHome() {
       </section>
 
       <section className="c2-notes c2-section" data-reveal><header><h2>A little context goes a long way.</h2><Link href="/learn">All research notes <ArrowUpRight size={16} aria-hidden="true" /></Link></header>{articles.slice(0, 3).map((article, index) => <Link href={("/learn/" + article.slug) as Route} key={article.slug}><span>0{index + 1}</span><strong>{article.title}</strong><span>Explainer</span><ArrowUpRight size={19} aria-hidden="true" /></Link>)}</section>
-      <footer className="c2-close"><div><p>Your everyday. A new perspective.</p><h2>See what’s behind it.</h2><Link href="/discover">Start exploring <ArrowUpRight size={20} aria-hidden="true" /></Link></div><div className="c2-footer-line"><span>Shelf</span><p>Recognition. Research. Your decision.</p><Link href="/learn">Research notes</Link></div></footer>
+      <footer className="c2-close"><div><p>Your everyday. A new perspective.</p><h2>See what’s behind it.</h2><Link href="/discover">Start exploring <ArrowUpRight size={20} aria-hidden="true" /></Link></div><div className="c2-footer-line"><span role="img" aria-label="Shelf"><ShelfLogo /></span><p>Recognition. Research. Your decision.</p><Link href="/learn">Research notes</Link></div></footer>
     </div>
   );
 }
