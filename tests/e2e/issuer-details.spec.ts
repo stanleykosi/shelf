@@ -179,6 +179,84 @@ test("purchase amount accepts decimal digits only", async ({ page }) => {
   await expect(amount).toHaveValue("12.34");
   await amount.fill("12.3456789");
   await expect(amount).toHaveValue("12.34");
+  await amount.fill("4.99");
+  await expect(page.getByText("Enter at least 5 USDC to review a purchase.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review purchase" })).toBeDisabled();
+  await amount.fill("5");
+  await expect(page.getByRole("button", { name: "Review purchase" })).toBeEnabled();
+});
+
+test("mint copy uses an icon check without a success alert", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value: string) => {
+      (window as Window & { copiedMint?: string }).copiedMint = value;
+    } } });
+  });
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
+    json: { data: { listing: metaListing } },
+  }));
+  await page.goto("/assets/xstocks/METAx");
+  const copy = page.getByRole("button", { name: "Copy Solana mint" });
+  await expect(copy).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(copy).toHaveCSS("border-top-width", "0px");
+  await copy.click();
+  await expect(page.getByRole("button", { name: "Solana mint copied" })).toBeVisible();
+  await expect(page.getByText("Mint copied.")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { copiedMint?: string }).copiedMint)).toBe(metaListing.asset.mint);
+});
+
+test("panning keeps the viewport and loads successive older candle pages", async ({ page }, info) => {
+  const latest = 1_800_000_000;
+  const candle = (time: number) => ({ time, open: 600, high: 610, low: 590, close: 605, volume: 100 });
+  const recent = Array.from({ length: 200 }, (_, index) => candle(latest - (199 - index) * 900));
+  let olderCalls = 0;
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
+    json: { data: { listing: metaListing } },
+  }));
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx/market?range=*", (route) => {
+    const url = new URL(route.request().url());
+    const before = url.searchParams.get("before");
+    const candles = before ? Array.from({ length: 100 }, (_, index) => candle(Number(before) - (100 - index) * 900)) : recent;
+    if (before) olderCalls++;
+    return route.fulfill({ json: { data: {
+      state: "available", historyState: "available", range: "1D", checkedAt: "2026-09-25T00:10:00.000Z",
+      priceUsd: "605", change24hPct: 1, liquidityUsd: 150_000, venue: "raydium",
+      poolAddress: "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y", candles,
+    } } });
+  });
+  await page.goto("/assets/xstocks/METAx");
+  const chart = page.getByRole("img", { name: /Interactive USD candlestick chart/ });
+  await expect(chart).toHaveAttribute("aria-label", /200 observed pool intervals/);
+  await chart.scrollIntoViewIfNeeded();
+  const bounds = await chart.boundingBox();
+  expect(bounds).not.toBeNull();
+  const touch = info.project.name === "mobile" ? await page.context().newCDPSession(page) : null;
+  async function panOlder() {
+    const y = bounds!.y + 150;
+    const start = bounds!.x + 70;
+    const end = bounds!.x + bounds!.width - 30;
+    if (touch) {
+      await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start, y }] });
+      for (let step = 1; step <= 12; step++) {
+        await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start + (end - start) * step / 12, y }] });
+      }
+      await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    } else {
+      await page.mouse.move(start, y);
+      await page.mouse.down();
+      await page.mouse.move(end, y, { steps: 12 });
+      await page.mouse.up();
+    }
+  }
+  for (let move = 0; move < 5; move++) {
+    await panOlder();
+  }
+  await expect.poll(() => olderCalls).toBeGreaterThan(0);
+  await expect.poll(async () => Number((await chart.getAttribute("aria-label"))?.match(/(\d+) observed/)?.[1] ?? 0)).toBeGreaterThanOrEqual(300);
+  for (let move = 0; move < 5 && olderCalls < 2; move++) {
+    await panOlder();
+  }
+  await expect.poll(() => olderCalls).toBeGreaterThan(1);
 });
 
 test("PreStocks details distinguish reference values from a purchase quote", async ({ page }) => {

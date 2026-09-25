@@ -10,14 +10,14 @@ import type { Company } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
 import type { XStocksDisclosures, XStocksMetadata } from "@/providers/xstocks";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
-import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
+import { Card, EmptyState, ErrorMessage, Field, PageIntro } from "@/components/ui";
 import { IssuerLogo } from "@/components/issuer-logo";
 import { LoadingStatus } from "@/components/loading-feedback";
 import { useNotification } from "@/components/notifications";
 import { signInHref } from "@/lib/routes";
 import { IssuerAssistantScreen } from "@/components/screens/issuer-assistant";
 import { IssuerMarketPanel } from "@/components/issuer-market-panel";
-import { Copy } from "@/components/studio-icons";
+import { Check, Copy } from "@/components/studio-icons";
 
 type Source = "xstocks" | "prestocks";
 
@@ -111,10 +111,14 @@ function PurchaseAmountForm({ listing, lifecycle }: {
   const [authRequired, setAuthRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const issuerUnavailable = provider === "xstocks" && asset.tradingHalted;
+  let amountRaw: bigint | null = null;
+  try { amountRaw = parseUsdc(amount.replaceAll(",", "")); } catch { /* Incomplete input is handled below. */ }
+  const belowMinimum = amountRaw !== null && amountRaw < 5_000_000n;
+  const amountReady = amountRaw !== null && amountRaw >= 5_000_000n;
 
   async function createPurchase(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || issuerUnavailable) return;
+    if (submitting || issuerUnavailable || !amountReady) return;
     setSubmitting(true);
     setError(null);
     setAuthRequired(false);
@@ -150,12 +154,13 @@ function PurchaseAmountForm({ listing, lifecycle }: {
             if (formatted !== null) setAmount(formatted);
           }} /></div>
       </Field>
+      {belowMinimum ? <p className="issuer-purchase-validation" role="status">Enter at least 5 USDC to review a purchase.</p> : null}
       <p className="issuer-purchase-instrument">{provider === "xstocks"
         ? "xStocks tracker certificate · not an ordinary voting share"
         : "PreStocks private-company exposure · liquidity is not guaranteed"}</p>
       {issuerUnavailable ? <p className="notice">xStocks reports a trading halt. Purchase review is paused.</p> : null}
       <button className="issuer-purchase-submit" data-cta="C57" type="submit"
-        disabled={issuerUnavailable || submitting}>{submitting ? "Preparing review…" : "Review purchase"}</button>
+        disabled={issuerUnavailable || submitting || !amountReady}>{submitting ? "Preparing review…" : "Review purchase"}</button>
       {authRequired ? <Link className="issuer-purchase-signin" href={signInHref(`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy`) as Route}>Sign in to continue</Link> : null}
       <ErrorMessage message={error} />
       <p className="issuer-purchase-fineprint">No order is placed from this page. A separate review and wallet approval are required.</p>
@@ -222,11 +227,14 @@ function XStocksDisclosureCard({ symbol }: { symbol: string }) {
 export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symbol: string }) {
   const { asset: listing, metadata, lifecycle, loading, error, retry } = useIssuerAsset(provider, symbol);
   const [saving, setSaving] = useState(false);
-  const [copyMessage, setCopyMessage] = useState("");
+  const [mintCopied, setMintCopied] = useState(false);
+  const [mintCopyFailed, setMintCopyFailed] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [action, setAction] = useState<"buy" | "chat">("buy");
   const [chatVisited, setChatVisited] = useState(false);
   const actionRef = useRef<HTMLElement>(null);
   const notify = useNotification();
+  useEffect(() => () => { if (copyResetTimer.current) clearTimeout(copyResetTimer.current); }, []);
   if (loading) return <LoadingStatus page>Checking the current issuer feed…</LoadingStatus>;
   if (error) return <EmptyState title="Issuer details unavailable">
     <ErrorMessage message={error} />
@@ -258,9 +266,13 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
   async function copyMint() {
     try {
       await navigator.clipboard.writeText(asset.mint);
-      setCopyMessage("Mint copied.");
+      setMintCopied(true);
+      setMintCopyFailed(false);
+      if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+      copyResetTimer.current = setTimeout(() => setMintCopied(false), 2200);
     } catch {
-      setCopyMessage("Copy unavailable. Select the mint to copy it.");
+      setMintCopied(false);
+      setMintCopyFailed(true);
     }
   }
 
@@ -378,11 +390,12 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
               <h2>Token identity and sources</h2>
               <div className="issuer-detail-mint"><span className="muted">Solana token mint</span>
                 <div className="issuer-mint-value"><code className="break-all">{asset.mint}</code>
-                  <button type="button" onClick={copyMint} aria-label="Copy Solana mint" title="Copy Solana mint">
-                    <Copy size={16} aria-hidden="true" />
+                  <button type="button" onClick={copyMint} aria-label={mintCopied ? "Solana mint copied" : "Copy Solana mint"} title={mintCopied ? "Copied" : "Copy Solana mint"}>
+                    {mintCopied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
                   </button></div>
               </div>
-              {copyMessage ? <ResultMessage>{copyMessage}</ResultMessage> : null}
+              <span className="sr-only" aria-live="polite">{mintCopied ? "Solana mint copied" : ""}</span>
+              {mintCopyFailed ? <p className="issuer-mint-error" role="status">Clipboard unavailable. Select the mint to copy it.</p> : null}
               {privateAsset ? <p><strong>Issuer-reported supply:</strong> {formatQuantity(privateAsset.supplyUi)} tokens</p> : null}
               {publicAsset && (metadata?.tokenIsin || metadata?.underlyingIsin) ? <details>
                 <summary>Security identifiers</summary>
