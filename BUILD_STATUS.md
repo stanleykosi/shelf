@@ -2,6 +2,24 @@
 
 Updated: 2026-09-25
 
+## UI-product-design-refractor merge with origin/main — local
+
+Merged the latest `origin/main` into `UI-product-design-refractor`. Preserved the branch's
+accepted Home, Discover, Scan, research workspace, and issuer assistant components.
+Connected main's `/assets/[provider]/[symbol]/chat` page to that assistant. Aligned the
+branch's route contract with main's retired general assistant, company, Markets, and
+allocation-suggestion URLs; Brand pages redirect to Discover search. Updated the two
+affected browser specifications to match those routes.
+
+`npm run lint`, `npm run typecheck`, 121 Vitest tests in 22 files, and the Next.js 16.3.5
+Webpack production build pass. The build reports optional Magic transport module warnings
+and a nonfatal Magic API initialization error in this restricted local environment.
+Focused production browser checks pass on desktop and Pixel 7: 10 issuer chat cases and
+6 retired-route/product-save cases. The local browser run used a matching `APP_ORIGIN` and
+an ephemeral session key; without those, CSRF and guest quota checks fail by design.
+No deployment, push, paid provider call, signing, or money movement occurred. The broad
+browser suite remains for a future local PostgreSQL-backed run.
+
 ## origin/main UI merge reconciliation — local, unpushed
 
 Merged the fetched `origin/main` UI work into local `main` while retaining U36's

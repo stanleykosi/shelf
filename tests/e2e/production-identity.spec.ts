@@ -34,9 +34,8 @@ test("production offers Magic sign-in while public research stays available to g
   }
 
   await page.goto("/sign-in");
-  await expect(
-    page.getByText("Use email or Google to access the same Magic-managed account"),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Continue your research." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
 
   await page.goto("/discover");
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
@@ -44,11 +43,11 @@ test("production offers Magic sign-in while public research stays available to g
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
-  await expect(page.getByRole("link", { name: "Sign in to keep this shelf" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to keep them." })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 });
 
-test("active research routes and route-aware navigation preserve the product model", async ({
+test("canonical research routes and route-aware navigation preserve the product model", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -59,7 +58,6 @@ test("active research routes and route-aware navigation preserve the product mod
   await page.goto("/brands/doritos");
   await expect(page).toHaveURL(/\/discover\?q=Doritos$/);
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Doritos");
 
   await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');

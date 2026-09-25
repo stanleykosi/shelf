@@ -16,7 +16,7 @@ Final verification result: **PASS — all six remaining frontend workstreams com
 
 Existing `/assets/[provider]/[symbol]` and `/buy` use the same functional foundation while
 preserving the newer issuer backend. Approved Home/Discover/Scan/Results compositions remain.
-Default Home promotes the already-accepted Concept 2; explicit historical comparison remains.
+The accepted Home is the sole canonical landing design; the historical comparison is removed.
 
 ## Shared primitives
 
@@ -26,7 +26,7 @@ routes. Mobile tables retain semantic markup and add visible cell labels. Produc
 CapitalRelationship are reused rather than independently reimplemented. Product images now have
 bounded grid widths, smaller requests to the same reviewed source and explicit failure fallback.
 The Discover filter sheet uses Shelf's native modal pattern, including background inertness,
-Escape, initial focus and return focus. Its URL updates preserve comparison context.
+Escape, initial focus and return focus. Its URL updates preserve search and filter context.
 
 No new typeface, palette, animation library, component dependency, generated imagery, shadow
 system, graph language or speculative financial visualization was introduced.
@@ -97,9 +97,7 @@ flags were disabled; no wallet was signed, funded, sent from or deployed.
 
 - Reviewed remote image hosts can time out; the UI now degrades explicitly and keeps identity
   text. Screenshots are not evidence of permanent image-host availability.
-- Historical comparison code remains available explicitly; it is not another accepted direction.
-- Existing unused legacy screen modules remain as functional history; canonical routes no longer
-  render the old combined Admin/Saved/research pages.
+- Unused legacy combined screen modules were removed after canonical routes were restored.
 - Financial screenshots review genuine unavailable/draft states. Live quotes, wallet-provider
   authentication and real transactions were not exercised as part of a frontend refactor.
 - Browser tests run on desktop Chromium and the configured mobile Chromium emulation. Physical

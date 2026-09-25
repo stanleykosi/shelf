@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL;
-test.skip(!baseURL || !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname), "Local design study only");
+test.skip(!baseURL || !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname), "Local UI verification only");
 
 const spotlightListings = [
   { provider: "xstocks", sector: "Technology", asset: { companyId: "issuer:xstocks:AAPLx", name: "Apple", symbol: "AAPLx" } },
@@ -9,7 +9,7 @@ const spotlightListings = [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/v1/issuer/spotlight", (route) => route.fulfill({
+  await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({
     json: { data: { featured: spotlightListings, listings: spotlightListings, unavailable: [], stale: [] } },
   }));
   await page.route("**/api/v1/discovery/query", (route) => route.fulfill({
@@ -17,30 +17,34 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
-test("comparison keeps both concepts accessible and preserves search/filter context", async ({ page }) => {
-  await page.goto("/?concept=2");
+test("the canonical landing page leads into search without a design switcher", async ({ page }) => {
+  await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("The things you know.");
   await page.getByRole("navigation", { name: "Example product" }).getByRole("button", { name: "Apple" }).click();
   await expect(page.getByRole("heading", { name: "Behind Apple." })).toBeVisible();
   await expect(page.locator(".c2-entity-trail").getByRole("link", { name: /iPhone/ })).toHaveAttribute("href", "/products/apple-iphone");
   await page.getByLabel("Search products, brands, or companies").fill("Apple");
   await page.getByRole("button", { name: "Discover", exact: true }).click();
-  await expect(page).toHaveURL(/concept=2.*q=Apple/);
+  await expect(page).toHaveURL(/\/discover\?q=Apple/);
   await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /View AAPLx issuer asset/ })).toHaveAttribute("href", "/assets/xstocks/AAPLx");
-  const comparison = page.getByRole("navigation", { name: "Design comparison" });
-  await comparison.getByRole("link", { name: /01 Concept 1/ }).click();
-  await expect(page).toHaveURL(/q=Apple/);
-  await expect(page).toHaveURL(/concept=1/);
-  await expect(comparison.getByRole("link", { name: /01 Concept 1/ })).toHaveAttribute("aria-current", "page");
-  await comparison.getByRole("link", { name: /02 Concept 2/ }).click();
-  await expect(page).toHaveURL(/concept=2/);
-  await expect(page.getByRole("searchbox", { name: "Search a company or product" })).toHaveValue("Apple");
+  await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+});
+
+test("retired concept links cannot restore the old design", async ({ page }) => {
+  await page.goto("/?concept=1");
+  await expect(page.locator(".c2-home")).toBeVisible();
+  await expect(page.locator(".research-home")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+
+  await page.goto("/discover?concept=1");
+  await expect(page.locator(".discovery-studio")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
 });
 
 test("motion can be paused and reduced-motion preferences keep content visible", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?concept=2");
+  await page.goto("/");
   await expect(page.getByRole("heading", { name: "The things you know.", exact: false })).toBeVisible();
   const animated = await page.locator(".c2-home").evaluate((root) => root.getAnimations({ subtree: true }).length);
   expect(animated).toBe(0);
@@ -53,9 +57,9 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await expect(page.locator(".c2-story-object")).toContainText("Not an ordinary voting share");
 });
 
-test("mobile filters trap focus, dismiss with Escape, and preserve the chosen concept", async ({ page }, info) => {
+test("mobile filters trap focus, dismiss with Escape, and preserve the selected market", async ({ page }, info) => {
   test.skip(info.project.name !== "mobile", "Mobile filter sheet");
-  await page.goto("/discover?concept=2&entity=company");
+  await page.goto("/discover");
   const trigger = page.getByRole("button", { name: "Filters", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog");
@@ -69,7 +73,7 @@ test("mobile filters trap focus, dismiss with Escape, and preserve the chosen co
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole("button", { name: /^Filters/ })).toBeFocused();
-  await expect(page).toHaveURL(/concept=2.*market=private/);
+  await expect(page).toHaveURL(/market=private/);
   await page.reload();
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(1);
   await expect(page.locator(".issuer-spotlight-table").getByText("Private exposure", { exact: true })).toBeVisible();
@@ -80,7 +84,7 @@ test("both surfaces fit the viewport matrix and clear mobile navigation", async 
   test.skip(info.project.name !== "chromium", "One viewport matrix");
   for (const width of [390, 430, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const path of ["/?concept=2", "/discover?concept=2"]) {
+    for (const path of ["/", "/discover"]) {
       await page.goto(path);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (width < 820) {

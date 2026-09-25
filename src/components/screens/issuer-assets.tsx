@@ -12,6 +12,8 @@ import type { XStocksDisclosures, XStocksMetadata } from "@/providers/xstocks";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
 import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
 import { IssuerLogo } from "@/components/issuer-logo";
+import { LoadingStatus } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
 
 type Source = "xstocks" | "prestocks";
 
@@ -144,11 +146,10 @@ function XStocksDisclosureCard({ symbol }: { symbol: string }) {
 
 export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symbol: string }) {
   const { asset: listing, metadata, lifecycle, loading, error, retry } = useIssuerAsset(provider, symbol);
-  const [saveMessage, setSaveMessage] = useState("");
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
-  if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
+  const notify = useNotification();
+  if (loading) return <LoadingStatus page>Checking the current issuer feed…</LoadingStatus>;
   if (error) return <EmptyState title="Issuer details unavailable">
     <ErrorMessage message={error} />
     <button className="secondary" onClick={retry}>Try again</button>
@@ -166,12 +167,11 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
     setSaving(true);
     try {
       await postJson("watchlist/items", { companyId: asset.companyId });
-      setSaveMessage("Saved to your private watchlist.");
-      setSaveError(null);
+      notify("Saved to your private watchlist.", "success");
     } catch (reason) {
-      setSaveError(authenticationIsRequired(reason)
+      notify(authenticationIsRequired(reason)
         ? "Sign in to save this asset to your private watchlist."
-        : reason instanceof Error ? reason.message : "Could not save this asset");
+        : reason instanceof Error ? reason.message : "Could not save this asset", "error");
     } finally {
       setSaving(false);
     }
@@ -235,8 +235,6 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
           <button className="secondary" disabled={saving} onClick={saveToWatchlist}>
             {saving ? "Saving…" : "Save to watchlist"}
           </button>
-          {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}
-          <ErrorMessage message={saveError} />
         </Card>
       </div>
       {publicAsset ? (
@@ -313,7 +311,7 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
   const [amount, setAmount] = useState("10");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
+  if (loading) return <LoadingStatus page>Checking the current issuer feed…</LoadingStatus>;
   if (feedError) return <ErrorMessage message={feedError} />;
   if (!listing) return <EmptyState title="Asset unavailable">The issuer no longer lists this token.</EmptyState>;
   const { asset } = listing;

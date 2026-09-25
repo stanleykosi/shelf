@@ -18,7 +18,7 @@ test("guest Saved starts empty and Product removal can be undone", async ({ page
   await expect(page.getByRole("heading", { name: "No saved Products" })).toBeVisible();
   await page.getByRole("button", { name: "Undo removal" }).click();
   await expect(page.getByRole("heading", { name: "Doritos snack" })).toBeVisible();
-  await page.getByRole("link", { name: "Companies (0)" }).click();
+  await page.getByRole("link", { name: /Companies\s*0/ }).click();
   await expect(page).toHaveURL(/view=companies/);
   await expect(page.getByRole("heading", { name: "No saved Companies" })).toBeVisible();
 });

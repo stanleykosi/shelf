@@ -1,11 +1,5 @@
-/* Concept 2 is opt-in via ?concept=2. Nothing here restyles other product routes. */
-.concept-comparison { display:flex; align-items:center; justify-content:center; gap:20px; min-height:38px; padding:5px 16px; background:#e9ebe8; color:#535a55; font-size:12px; }
-.concept-comparison > span { margin-right:12px; font-family:ui-monospace,monospace; }
-.concept-comparison a { display:flex; gap:7px; padding:3px 0; border-bottom:1px solid transparent; }
-.concept-comparison a[aria-current] { color:#122d24; border-color:currentColor; }
+/* The accepted Shelf visual system is active on every route. */
 .concept-two-shell { --c2-black:#111715; --c2-paper:#f5f5ef; --c2-mint:#b6efd2; background:var(--c2-paper); }
-.concept-two-shell .concept-comparison { background:#1d2722; color:#c0c8c2; }
-.concept-two-shell .concept-comparison a[aria-current] { color:#c3f1d7; }
 .concept-two-shell .app-header { background:#111715; border-color:#2b3530; color:#f5f5ef; backdrop-filter:none; }
 .concept-two-shell .app-header-inner { width:min(1328px,calc(100% - 80px)); grid-template-columns:1fr auto 1fr; }
 .concept-two-shell .shelf-wordmark { font-size:25px; font-weight:550; letter-spacing:-1.4px; }
@@ -197,8 +191,6 @@
   .c2-method { gap:50px; }
 }
 @media (max-width:819px) {
-  .concept-comparison { min-height:38px; gap:16px; font-size:11px; }
-  .concept-comparison > span { margin-right:0; }
   .concept-two-shell .app-header-inner { width:calc(100% - 32px); grid-template-columns:1fr auto; }
   .concept-two-shell .shelf-wordmark { font-size:23px; }
   .concept-two-shell .application-main { width:100%; padding:0; }

@@ -22,7 +22,7 @@ const listings = [
 }));
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/v1/issuer/spotlight", (route) => route.fulfill({ json: { data: { featured: listings, listings, stale: [], unavailable: [] } } }));
+  await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({ json: { data: { featured: listings, listings, stale: [], unavailable: [] } } }));
   await page.route("**/api/v1/me", (route) => route.fulfill({ status: 401, json: { error: { code: "AUTH_REQUIRED" } } }));
   await page.route("**/api/v1/discovery/query", (route) => route.fulfill({ json: { data: { kind: "company", listings: [listings[0]], matches: [], stale: [], unavailable: [] } } }));
 });
@@ -64,7 +64,7 @@ test("suggestions prepare a query, submission is deliberate, and clearing restor
 
 test("feed failure has a useful retry and does not manufacture listings", async ({ page }) => {
   let attempts = 0;
-  await page.route("**/api/v1/issuer/spotlight", (route) => {
+  await page.route("**/api/v1/issuer/directory", (route) => {
     attempts++;
     return attempts === 1
       ? route.fulfill({ status: 503, json: { error: { code: "PROVIDER_UNAVAILABLE" } } })

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { IssuerChatScreen } from "@/components/screens/discovery";
+import { IssuerAssistantScreen } from "@/components/screens/issuer-assistant";
 
 export default async function Page({ params }: {
   params: Promise<{ provider: string; symbol: string }>;
@@ -12,5 +12,5 @@ export default async function Page({ params }: {
     notFound();
   }
 
-  return <IssuerChatScreen issuer={{ provider, symbol }} />;
+  return <IssuerAssistantScreen issuer={{ provider, symbol }} />;
 }

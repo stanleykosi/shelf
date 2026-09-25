@@ -23,7 +23,7 @@ try {
   for (const width of [1440, 390, 1280, 430]) {
     const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 1000 } });
     page.on("pageerror", (error) => problems.push(error.message));
-    for (const [name, path] of [["home", "/?concept=2"], ["discover", "/discover?concept=2"]]) {
+    for (const [name, path] of [["home", "/"], ["discover", "/discover"]]) {
       await page.goto(baseURL + path, { waitUntil: "networkidle" });
       await prepareImages(page);
       await page.waitForTimeout(1100);
@@ -40,20 +40,17 @@ try {
       console.log(name + " " + width + "px captured");
     }
     if (width === 1440) {
-      for (const [name, path] of [["search", "/discover?concept=2&q=Apple"], ["filtered", "/discover?concept=2&entity=company&market=private&availability=available"]]) {
+      for (const [name, path] of [["search", "/discover?q=Apple"], ["filtered", "/discover?market=private"]]) {
         await page.goto(baseURL + path, { waitUntil: "networkidle" });
         await prepareImages(page);
         await page.screenshot({ path: output + "/discover-" + name + ".png", fullPage: true });
       }
-      await page.goto(baseURL + "/", { waitUntil: "networkidle" });
-      await prepareImages(page);
-      await page.screenshot({ path: output + "/concept-1-comparison.png" });
     }
     await page.close();
   }
   const recording = await browser.newContext({ viewport: { width: 1440, height: 1000 }, recordVideo: { dir: output + "/motion", size: { width: 1440, height: 1000 } } });
   const page = await recording.newPage();
-  await page.goto(baseURL + "/?concept=2", { waitUntil: "networkidle" });
+  await page.goto(baseURL + "/", { waitUntil: "networkidle" });
   await prepareImages(page);
   await page.waitForTimeout(1400);
   await page.getByRole("navigation", { name: "Example product" }).getByRole("button", { name: "Apple" }).click();
