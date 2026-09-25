@@ -35,7 +35,7 @@ Explain on financial screens that a stock token is an issuer-defined instrument 
 | PR-13 | Shelf-origin portfolio | Tracked open lots and chain reconciliation; external deposits distinguished |
 | PR-14 | Records/history | Immutable successful/failed/pending actions, CSV/JSON export, fees and corporate-action context |
 | PR-15 | Corporate-action explanations | Historical/effective multiplier context, source links, cash-versus-reinvestment distinction |
-| PR-16 | Educational AI | Grounded answers, citations, uncertainty, clear AI labeling, no signing tools |
+| PR-16 | Issuer-scoped educational AI | Grounded answers from the exact current token issuer record, citations, uncertainty, clear AI labeling, no general chat or signing tools |
 | PR-17 | AI allocation suggestions | Editable supported-asset drafts; reasons/risks; deterministic limits; never auto-execute |
 | PR-18 | AI shelf organization/summary | Proposed grouping/summary; changes require explicit application; undo where nonfinancial |
 | PR-19 | Link sharing | Explicit sanitized snapshot, random secret, expiry/revoke; no profile/financial data |

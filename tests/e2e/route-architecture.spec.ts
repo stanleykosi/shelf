@@ -11,9 +11,6 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   request,
 }) => {
   const permanentRedirects = [
-    ["/markets?q=apple", "/discover?q=apple"],
-    ["/markets/public", "/discover?market=public"],
-    ["/markets/private", "/discover?market=private"],
     ["/shelf", "/saved"],
     ["/shelf/share", "/saved/share"],
     ["/wallet", "/account/wallet"],
@@ -22,14 +19,12 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
     ["/history", "/portfolio/activity"],
     ["/history/owned-record", "/portfolio/activity/owned-record"],
     ["/settings", "/account"],
-    ["/invest/suggest", "/invest/basket?source=ai"],
     ["/invest/buy?companyId=company-pepsico", "/invest/pepsico"],
     ["/invest/sell?assetId=instrument-pepx", "/portfolio/instrument-pepx/sell"],
     ["/admin/status", "/admin"],
     ["/admin/invites", "/admin/access"],
     ["/admin/orders", "/admin/operations"],
     ["/products/product-doritos-snack", "/products/doritos-snack"],
-    ["/companies/company-pepsico", "/companies/pepsico"],
   ] as const;
 
   for (const [source, destination] of permanentRedirects) {
@@ -62,7 +57,22 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   }
 });
 
-test("the Home product gallery still leads to a guest's saved product", async ({ page }) => {
+test("retired research and general chat URLs return 404 without redirecting", async ({ request }) => {
+  for (const path of [
+    "/assistant",
+    "/assistant?provider=xstocks&symbol=METAx",
+    "/companies/company-pepsico",
+    "/companies/pepsico",
+    "/invest/suggest",
+    "/markets",
+    "/markets/public",
+    "/markets/private",
+  ]) {
+    expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+  }
+});
+
+test("a guest can still save a discovered product", async ({ page }) => {
   await page.route("**/api/v1/shelf", (route) => route.fulfill({
     status: 401,
     contentType: "application/json",
@@ -74,12 +84,7 @@ test("the Home product gallery still leads to a guest's saved product", async ({
     body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
   }));
 
-  await page.goto("/");
-  for (const product of ["Doritos snack", "Olay skincare", "iPhone", "Nike apparel", "Tide laundry"]) {
-    await expect(page.locator(".home-product-gallery .product-tile").filter({ hasText: product })).toBeVisible();
-  }
-
-  await page.locator(".home-product-gallery .product-tile").filter({ hasText: "Doritos snack" }).click();
+  await page.goto("/products/doritos-snack");
   await expect(page).toHaveURL(/\/products\/doritos-snack$/);
   await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();

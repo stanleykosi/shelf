@@ -2,6 +2,33 @@
 
 Updated: 2026-09-25
 
+## U36 retired Home research and general chat paths — local, uncommitted
+
+Home now offers search, Scan, and a short guide to token details. Its product gallery,
+relationship explorer, company research table, coverage metrics, research notes, and links
+into the old research presentation were removed. Current issuer token details remain the
+company and stock-token research destination. The only AI chat entry is the exact issuer
+token page; its chat lives at `/assets/[provider]/[symbol]/chat`. The answer API requires
+issuer context on every question and refetches that exact listing. The standalone general
+assistant, Markets pages, legacy company research URL, and old allocation-draft redirect
+were removed; these URLs return 404 without redirecting. Editable allocation suggestions
+remain in the basket flow. Numbered product decisions, screens, flows, API and acceptance
+contracts were synchronized. Historical design and route-verification documents remain
+archived as prior evidence, with the current decision marked in the design guide.
+
+`npm run lint`, `npm run typecheck`, `npm run test` (17 files, 101 tests), `npm run build`
+and `git diff --check` passed. The Next.js 16.3.5 build route list contains the scoped
+chat page and omits retired pages. Local desktop/mobile Chromium passed 21 focused Home,
+Discover and issuer-chat checks with five device-specific skips, including the rejection
+of an unscoped answer request. Two additional desktop/mobile checks confirmed that all
+retired URLs return 404 without redirects. A 390-pixel mobile screenshot was inspected;
+the search input and button fit without clipping. The full route-architecture browser
+suite was not green because the local PostgreSQL credentials fail authentication, which
+causes the unrelated `/account` auth check to return 500; Docker/PostgreSQL binaries are
+unavailable in this WSL environment. No deployment, paid AI call or real-money action
+occurred. Next task: make a working local PostgreSQL test instance available before
+rerunning the full browser suite. Financial activation remains separately gated.
+
 ## U35 issuer token detail restructuring — production, uncommitted
 
 Compared the current Shelf detail page against xStocks' public asset, multiplier,

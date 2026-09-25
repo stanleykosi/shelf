@@ -2,7 +2,6 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
 import { preload } from "react-dom";
 import {
-  AssistantScreen,
   LearnScreen,
   ProductScreen,
   ScanResultsScreen,
@@ -137,17 +136,6 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
 }
 
-export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
-  const { slug } = await params;
-  const company = companyBySlug(slug);
-  if (!company) {
-    const legacyCompany = companyById(slug);
-    if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
-    notFound();
-  }
-  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
-}
-
 export function LearnPage() {
   return <LearnScreen />;
 }
@@ -156,21 +144,6 @@ export async function LearningArticlePage({ params }: { params: AsyncParams<{ sl
   const { slug } = await params;
   if (!articles.some((article) => article.slug === slug)) notFound();
   return <LearnScreen slug={slug} />;
-}
-
-export async function AssistantPage({ searchParams }: { searchParams: AsyncQuery }) {
-  const query = await searchParams;
-  const provider = first(query.provider);
-  const symbol = first(query.symbol);
-  if (!provider && !symbol) return <AssistantScreen key="general" />;
-  if (
-    (provider !== "xstocks" && provider !== "prestocks") ||
-    !symbol ||
-    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
-  ) {
-    notFound();
-  }
-  return <AssistantScreen key={`${provider}:${symbol}`} issuer={{ provider, symbol }} />;
 }
 
 export function SavedPage() {
@@ -359,12 +332,6 @@ export async function LegacySellPage({ searchParams }: { searchParams: AsyncQuer
   permanentRedirect(`/portfolio/${instrumentId}/sell`);
 }
 
-export const MarketsLegacyPage = (props: { searchParams: AsyncQuery }) =>
-  LegacyRedirectPage({ pathname: "/markets", ...props });
-export const PublicMarketsLegacyPage = (props: { searchParams: AsyncQuery }) =>
-  LegacyRedirectPage({ pathname: "/markets/public", ...props });
-export const PrivateMarketsLegacyPage = (props: { searchParams: AsyncQuery }) =>
-  LegacyRedirectPage({ pathname: "/markets/private", ...props });
 export const ShelfLegacyPage = (props: { searchParams: AsyncQuery }) =>
   LegacyRedirectPage({ pathname: "/shelf", ...props });
 export const ShelfShareLegacyPage = (props: { searchParams: AsyncQuery }) =>
@@ -383,8 +350,6 @@ export const WelcomeLegacyPage = (props: { searchParams: AsyncQuery }) =>
   LegacyRedirectPage({ pathname: "/welcome", ...props });
 export const EligibilityLegacyPage = (props: { searchParams: AsyncQuery }) =>
   LegacyRedirectPage({ pathname: "/eligibility", ...props });
-export const SuggestLegacyPage = (props: { searchParams: AsyncQuery }) =>
-  LegacyRedirectPage({ pathname: "/invest/suggest", ...props });
 export const AdminStatusLegacyPage = (props: { searchParams: AsyncQuery }) =>
   LegacyRedirectPage({ pathname: "/admin/status", ...props });
 export const AdminInvitesLegacyPage = (props: { searchParams: AsyncQuery }) =>

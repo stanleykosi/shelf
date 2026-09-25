@@ -4,7 +4,7 @@ These are functional UX decisions, not a visual identity. The frontend teammate 
 
 ## Information architecture
 
-Mobile primary navigation: **Discover · Scan · Shelf · Portfolio**. Scan is visually prominent but still has a text label. Account/wallet/settings live in the account menu. Learning content is reached from Discover, products, companies and the assistant. Desktop uses the same destinations in a header/sidebar; preserve route meaning.
+Mobile primary navigation: **Discover · Scan · Saved · Portfolio**. Scan is visually prominent but still has a text label. Account/wallet/settings live in the account menu. Learning content is available at `/learn`; AI chat is entered only from a current token detail page. Desktop uses the same destinations in a header/sidebar; preserve route meaning.
 
 In Discover, the active U31 browse view has a per-visit rotating featured selection and a full
 directory of current xStocks and PreStocks assets, ten per page. Market grouping and editorial
@@ -138,8 +138,8 @@ Declined invitation or unavailable Google leaves the temporary shelf intact. Ema
 
 ## J07 — Ask, learn, and get allocation suggestions
 
-1. Ask a company question from the company's context or open the assistant.
-2. Consent context identifies exactly what is sent: question and relevant catalog/source content, not wallet/email or receipts.
+1. Open an exact current xStocks or PreStocks token detail page and choose **Chat with AI**.
+2. The chat identifies exactly what is sent: question and the server-fetched issuer record, not wallet/email or receipts.
 3. Display answer with sources and verification timestamps. Unsupported claims receive uncertainty, not invented citations.
 4. Suggest an allocation asks for an explicit budget and user-chosen categories/companies; optional “use my shelf” consent supplies only relevant normalized catalog IDs.
 5. Return suggested candidates, editable weights, rationale and concentration warnings. Users can reject, edit or Apply to basket.
@@ -158,7 +158,7 @@ Declined invitation or unavailable Google leaves the temporary shelf intact. Ema
 
 ## J09 — Learn and discover again
 
-Home and learning pages retain source-backed product and company explainers: what a parent company is, why brands overlap, what a stock token represents, how fees work, and how dividends/splits affect displayed quantities. Discover's active browse area is the live company spotlight described above. No personalized purchase recommendation is smuggled into “education.” Saving and learning remain useful without funding.
+Home offers Scan and search into current issuer listings, then points to token detail for instrument facts and scoped AI chat. It has no product gallery, company-research table, relationship explorer or general chat link. Versioned learning articles remain available at `/learn`, without a general AI entry. Discover's active browse area is the live company spotlight described above. No personalized purchase recommendation is smuggled into education. Saving and learning remain useful without funding.
 
 ## Global behavior
 

@@ -38,19 +38,19 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
-test("Home teaches the entity path and starts discovery without a financial CTA", async ({
+test("Home points to current tokens and their issuer-scoped chat", async ({
   page,
 }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "See the company behind what you know." }),
+    page.getByRole("heading", { name: "Explore tokens with the source in view." }),
   ).toBeVisible();
   await expect(page.getByRole("search")).toBeVisible();
-  await expect(page.getByText("Relationship explorer")).toBeVisible();
-  await expect(page.getByText("Product", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Brand", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Company", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Understand the instrument before you act." })).toBeVisible();
+  await expect(page.getByText("Product-led company research")).toHaveCount(0);
+  await expect(page.getByText("Relationship explorer")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Browse current listings" })).toHaveAttribute("href", "/discover");
   await expect(page.getByRole("link", { name: "Scan a product" })).toBeVisible();
   await expect(page.getByRole("link", { name: /buy|choose amount/i })).toHaveCount(0);
 
@@ -242,7 +242,7 @@ for (const route of ["/", "/discover"] as const) {
   test("mobile bottom navigation clears final content on " + route, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "Mobile-only clearance assertion");
     await page.goto(route);
-    const finalContent = route === "/" ? page.locator(".learning-section") : page.locator(".issuer-spotlight-table");
+    const finalContent = route === "/" ? page.locator(".home-token-guide") : page.locator(".issuer-spotlight-table");
     await finalContent.scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
@@ -251,7 +251,7 @@ for (const route of ["/", "/discover"] as const) {
       const navigation = document.querySelector(".mobile-navigation");
       if (!content || !navigation) return -1;
       return navigation.getBoundingClientRect().top - content.getBoundingClientRect().bottom;
-    }, route === "/" ? ".learning-section" : ".issuer-spotlight-table");
+    }, route === "/" ? ".home-token-guide" : ".issuer-spotlight-table");
     expect(clearance).toBeGreaterThanOrEqual(0);
   });
 }

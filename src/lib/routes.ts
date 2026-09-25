@@ -29,7 +29,6 @@ const knownStaticPaths = new Set([
   "/scan",
   "/scan/results",
   "/learn",
-  "/assistant",
   "/saved",
   "/saved/share",
   "/sign-in",
@@ -52,7 +51,6 @@ const knownStaticPaths = new Set([
 const singleSegmentRoutes = new Set([
   "products",
   "brands",
-  "companies",
   "learn",
   "share",
   "invest",
@@ -84,7 +82,7 @@ function isKnownDynamicPath(pathname: string) {
 
   if (
     segments[1] === "assets" &&
-    (segments.length === 4 || (segments.length === 5 && segments[4] === "buy")) &&
+    (segments.length === 4 || (segments.length === 5 && (segments[4] === "buy" || segments[4] === "chat"))) &&
     (segments[2] === "xstocks" || segments[2] === "prestocks") &&
     isSafePathSegment(segments[3]) &&
     /^[a-zA-Z0-9.-]{1,32}$/.test(segments[3] ?? "")
@@ -93,6 +91,7 @@ function isKnownDynamicPath(pathname: string) {
   if (
     segments.length === 3 &&
     singleSegmentRoutes.has(segments[1] ?? "") &&
+    !(segments[1] === "invest" && segments[2] === "suggest") &&
     isSafePathSegment(segments[2])
   ) {
     return true;
@@ -124,17 +123,6 @@ export function legacyRedirectFor(
   pathname: string,
   searchParams: URLSearchParams,
 ): LegacyRedirect | undefined {
-  if (pathname === "/markets" || pathname === "/markets/public" || pathname === "/markets/private") {
-    const target = new URLSearchParams();
-    if (pathname !== "/markets") {
-      target.set("market", pathname.endsWith("/private") ? "private" : "public");
-    }
-    return {
-      destination: withSafeQuery("/discover", searchParams, target),
-      permanent: true,
-    };
-  }
-
   const staticRedirects: Record<string, { pathname: string; permanent: boolean }> = {
     "/shelf": { pathname: "/saved", permanent: true },
     "/shelf/share": { pathname: "/saved/share", permanent: true },
@@ -145,7 +133,6 @@ export function legacyRedirectFor(
     "/settings": { pathname: "/account", permanent: true },
     "/welcome": { pathname: "/onboarding", permanent: false },
     "/eligibility": { pathname: "/onboarding/availability", permanent: false },
-    "/invest/suggest": { pathname: "/invest/basket", permanent: true },
     "/admin/status": { pathname: "/admin", permanent: true },
     "/admin/invites": { pathname: "/admin/access", permanent: true },
     "/admin/orders": { pathname: "/admin/operations", permanent: true },
@@ -153,9 +140,8 @@ export function legacyRedirectFor(
   const redirect = staticRedirects[pathname];
   if (!redirect) return undefined;
 
-  const initial = pathname === "/invest/suggest" ? new URLSearchParams({ source: "ai" }) : undefined;
   return {
-    destination: withSafeQuery(redirect.pathname, searchParams, initial),
+    destination: withSafeQuery(redirect.pathname, searchParams),
     permanent: redirect.permanent,
   };
 }
@@ -197,11 +183,9 @@ export function activePrimarySection(pathname: string): PrimarySection | null {
     pathname === "/discover" ||
     pathname.startsWith("/products/") ||
     pathname.startsWith("/brands/") ||
-    pathname.startsWith("/companies/") ||
     pathname.startsWith("/assets/") ||
     pathname === "/learn" ||
-    pathname.startsWith("/learn/") ||
-    pathname === "/assistant"
+    pathname.startsWith("/learn/")
   ) {
     return "discover";
   }

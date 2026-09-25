@@ -842,10 +842,10 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
             id="C78"
             href={holding.companyId.startsWith("issuer:")
               ? `/assets/${holding.companyId.split(":")[1]}/${encodeURIComponent(holding.symbol)}`
-              : `/companies/${companyById(holding.companyId)?.slug ?? holding.companyId}`}
+              : `/discover?q=${encodeURIComponent(companyById(holding.companyId)?.name ?? holding.symbol)}`}
             secondary
           >
-            View company
+            {holding.companyId.startsWith("issuer:") ? "View token details" : "Search issuer listings"}
           </CtaLink>
           <CtaLink id="C79" href="/learn/splits-and-dividends" secondary>
             Why did my quantity change?

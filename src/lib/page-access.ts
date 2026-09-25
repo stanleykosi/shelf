@@ -6,7 +6,6 @@ const legacyMemberRoutes = new Set([
   "/invest/basket",
   "/invest/buy",
   "/invest/sell",
-  "/invest/suggest",
   "/portfolio",
   "/settings",
   "/shelf/share",

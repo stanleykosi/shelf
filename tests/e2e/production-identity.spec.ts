@@ -38,16 +38,9 @@ test("production offers Magic sign-in while public research stays available to g
     page.getByText("Use email or Google to access the same Magic-managed account"),
   ).toBeVisible();
 
-  await page.goto("/markets");
-  await expect(page).toHaveURL(/\/discover$/);
+  await page.goto("/discover");
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
-
-  if (!isLocal) {
-    await page.goto("/companies/openai", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/discover\?q=OpenAI$/);
-    await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("OpenAI");
-  }
 
   await page.goto("/shelf", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/saved$/, { timeout: 15_000 });
@@ -55,7 +48,7 @@ test("production offers Magic sign-in while public research stays available to g
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 });
 
-test("canonical research routes and route-aware navigation preserve the product model", async ({
+test("active research routes and route-aware navigation preserve the product model", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -67,9 +60,6 @@ test("canonical research routes and route-aware navigation preserve the product 
   await expect(page).toHaveURL(/\/discover\?q=Doritos$/);
   await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Doritos");
-
-  await page.goto("/companies/company-pepsico", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/discover\?q=PepsiCo$/);
 
   await page.goto("/scan", { waitUntil: "domcontentloaded" });
   const mobileNavigation = page.locator('nav[aria-label="Mobile navigation"]');

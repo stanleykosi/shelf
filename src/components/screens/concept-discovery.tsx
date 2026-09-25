@@ -4,18 +4,11 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
-import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
 import { issuerSectors, selectFeaturedCompanies, type DirectoryListing, type IssuerDirectory, type IssuerSector } from "@/domain/issuer-spotlight";
 import { apiRequest, postJson } from "@/lib/api-client";
 import { IssuerLogo } from "@/components/issuer-logo";
-import {
-  ProductTile,
-  RelationshipExplorer,
-  ResearchTable,
-  SearchCommand,
-  SectionHeader,
-} from "@/components/discovery-patterns";
+import { SearchCommand } from "@/components/discovery-patterns";
 
 const searchErrorMessages: Record<string, string> = {
   AI_PROVIDER_UNAVAILABLE: "Product ownership lookup is temporarily unavailable. Try again later.",
@@ -26,34 +19,20 @@ const searchErrorMessages: Record<string, string> = {
 };
 
 export function ConceptHomeScreen() {
-  const featuredProducts = [
-    "product-doritos-snack",
-    "product-apple-iphone",
-    "product-tide-laundry",
-    "product-nike-apparel",
-    "product-olay-skincare",
-  ].map((id) => productById(id)).filter((product) => product !== undefined);
-  const familiarCompanies = companies
-    .filter((company) => products.some((product) => product.companyId === company.id))
-    .slice(0, 6);
-  const relationshipProduct = productById("product-doritos-snack");
-  const relationshipCompany = companyById("company-pepsico");
-  const supportedCompanyCount = companies.filter((company) => company.instrument).length;
-
   return (
-    <div className="research-home">
+    <div className="home-page">
       <section className="research-hero" aria-labelledby="home-title">
         <div className="research-hero-copy">
-          <p className="hero-context">Product-led company research</p>
-          <h1 id="home-title">See the company behind what you know.</h1>
+          <p className="hero-context">Current issuer listings</p>
+          <h1 id="home-title">Explore tokens with the source in view.</h1>
           <p className="research-hero-lede">
-            Search a company against current xStocks and PreStocks listings. If neither matches,
-            Shelf sends the term to OpenRouter to suggest a product owner.
+            Search current xStocks and PreStocks listings, or scan a product to find a likely owner.
+            Open a token to check issuer details and ask AI about that specific listing.
           </p>
           <form className="home-search-command" action="/discover" role="search">
             <Search size={20} aria-hidden="true" />
-            <label className="sr-only" htmlFor="home-research-search">Search a company or product</label>
-            <input id="home-research-search" name="q" placeholder="Search a company or product" type="search" />
+            <label className="sr-only" htmlFor="home-issuer-search">Search a company or product</label>
+            <input id="home-issuer-search" name="q" placeholder="Search a company or product" type="search" />
             <button type="submit"><span>Search</span><ArrowRight size={17} aria-hidden="true" /></button>
           </form>
           <div className="hero-actions">
@@ -61,61 +40,16 @@ export function ConceptHomeScreen() {
             <span>Camera, upload, barcode, or link</span>
           </div>
         </div>
-        {relationshipProduct && relationshipCompany ? (
-          <RelationshipExplorer company={relationshipCompany} product={relationshipProduct} />
-        ) : null}
-      </section>
-
-      <section className="research-home-section product-discovery-section">
-        <SectionHeader
-          title="Start with something familiar"
-          description="Products are the entry point—not tickers."
-          action={<Link className="quiet-link" href="/discover">Explore companies <ArrowRight size={15} aria-hidden="true" /></Link>}
-        />
-        <div className="home-product-gallery">
-          {featuredProducts.map((product) => <ProductTile key={product.id} product={product} />)}
-        </div>
-      </section>
-
-      <section className="research-home-section company-research-section">
-        <SectionHeader
-          title="Companies behind familiar brands"
-          description="Reviewed relationships with current issuer availability checked from live feeds."
-          action={<Link className="quiet-link" href="/discover">Explore issuers <ArrowRight size={15} aria-hidden="true" /></Link>}
-        />
-        <ResearchTable companies={familiarCompanies} />
-      </section>
-
-      <section className="research-home-section methodology-section">
-        <div className="methodology-copy">
-          <h2>Research coverage</h2>
-          <p>
-            Shelf documents the path from Product to Company before showing whether a supported
-            instrument exists. Familiarity is context, not a recommendation.
-          </p>
-          <Link className="quiet-link" href="/learn/brands-and-companies">How relationships are verified <ArrowRight size={15} aria-hidden="true" /></Link>
-        </div>
-        <dl className="coverage-metrics">
-          <div><dt>Reviewed companies</dt><dd>{companies.length}</dd></div>
-          <div><dt>Reviewed issuer records</dt><dd>{supportedCompanyCount}</dd></div>
-          <div><dt>Verified relationships</dt><dd>{products.length}</dd></div>
-        </dl>
-        <div className="methodology-principles" aria-label="Research methodology principles">
-          <span><strong>Reviewed relationships</strong>Ownership links are checked against named sources.</span>
-          <span><strong>Source-linked research</strong>Dates and regional context remain attached.</span>
-          <span><strong>Explicit availability</strong>Research-only and supported exposure stay distinct.</span>
-        </div>
-      </section>
-
-      <section className="research-home-section learning-section">
-        <SectionHeader title="Research notes" action={<Link className="quiet-link" href="/learn">All notes <ArrowRight size={15} aria-hidden="true" /></Link>} />
-        <div className="editorial-list">
-          {articles.slice(0, 3).map((article, index) => (
-            <Link href={("/learn/" + article.slug) as Route} key={article.slug}>
-              <span>{String(index + 1).padStart(2, "0")}</span><strong>{article.title}</strong><small>Explainer</small>
-            </Link>
-          ))}
-        </div>
+        <aside className="home-token-guide" aria-label="What you can do on a token detail page">
+          <p className="hero-context">On the token page</p>
+          <h2>Understand the instrument before you act.</h2>
+          <ol>
+            <li><strong>Read the issuer facts</strong><span>See what the token represents and where its details came from.</span></li>
+            <li><strong>Ask about this token</strong><span>Chat with AI using the current issuer listing as its source.</span></li>
+            <li><strong>Choose what comes next</strong><span>Save it or review an amount only when you are ready.</span></li>
+          </ol>
+          <Link className="home-directory-link" href="/discover">Browse current listings <ArrowRight size={17} aria-hidden="true" /></Link>
+        </aside>
       </section>
     </div>
   );

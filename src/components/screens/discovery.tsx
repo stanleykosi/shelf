@@ -800,9 +800,9 @@ export function ShelfScreen() {
                     <Link className="button" href={(
                       company.id.startsWith("issuer:") && company.instrument
                         ? `/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}`
-                        : `/companies/${company.slug}`
+                        : `/discover?q=${encodeURIComponent(company.name)}`
                     ) as Route}>
-                      Research
+                      {company.instrument ? "View token details" : "Search issuer listings"}
                     </Link>
                     <button className="ghost" onClick={() => removeWatchedCompany(company.id)}>
                       Remove
@@ -846,7 +846,7 @@ export function ShelfScreen() {
               return <Card key={companyId}>
                 <p>{provider === "xstocks" ? "Public · xStocks" : "Private · PreStocks"} · {symbol}</p>
                 <div className="actions">
-                  <Link className="button" href={`/assets/${provider}/${encodeURIComponent(symbol)}` as Route}>Research</Link>
+                  <Link className="button" href={`/assets/${provider}/${encodeURIComponent(symbol)}` as Route}>View token details</Link>
                   <button className="ghost" onClick={() => {
                     const next = guestIssuerIds.filter((id) => id !== companyId);
                     setGuestIssuerIds(next);
@@ -881,9 +881,6 @@ export function LearnScreen({ slug }: { slug?: string }) {
           <div className="actions">
             <CtaLink id="C33" href="/discover">
               Explore related brands
-            </CtaLink>
-            <CtaLink id="C34" href="/assistant" secondary>
-              Ask a question
             </CtaLink>
           </div>
         </Card>
@@ -929,13 +926,11 @@ const chatErrorMessages: Record<string, string> = {
   NOT_FOUND: "This issuer listing is no longer available. Return to token details to check it.",
 };
 
-export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
+export function IssuerChatScreen({ issuer }: { issuer: IssuerChatReference }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [listing, setListing] = useState<IssuerListing | null>(null);
-  const [contextStatus, setContextStatus] = useState<"loading" | "ready" | "unavailable">(
-    issuer ? "loading" : "ready",
-  );
+  const [contextStatus, setContextStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [quotaReady, setQuotaReady] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -945,8 +940,7 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
     userMessageId: string;
   } | null>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
-  const provider = issuer?.provider;
-  const symbol = issuer?.symbol;
+  const { provider, symbol } = issuer;
 
   useEffect(() => {
     let active = true;
@@ -957,7 +951,6 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
   }, []);
 
   useEffect(() => {
-    if (!provider || !symbol) return;
     let active = true;
     apiRequest<{ listing: IssuerListing | null }>(
       `issuer/asset/${provider}/${encodeURIComponent(symbol)}`,
@@ -1056,48 +1049,46 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
   }
 
   const asset = listing?.asset;
-  const sourceName = issuer?.provider === "xstocks" ? "xStocks" : "PreStocks";
-  const sourceUrl = issuer?.provider === "xstocks"
+  const sourceName = provider === "xstocks" ? "xStocks" : "PreStocks";
+  const sourceUrl = provider === "xstocks"
     ? "https://xstocks.fi/"
     : listing?.provider === "prestocks" ? listing.asset.issuerUrl : "https://prestocks.com/";
   const chatReady = contextStatus === "ready" && quotaReady;
 
   return (
     <>
-      <PageIntro eyebrow="AI assistant" title={asset ? `Chat about ${asset.name}` : issuer ? `Chat about ${issuer.symbol}` : "Ask about products, companies and stock tokens"}>
+      <PageIntro eyebrow="Token AI chat" title={asset ? `Chat about ${asset.name}` : `Chat about ${symbol}`}>
         <p>Ask questions about the issuer details. AI can explain the source, but it may be wrong and cannot place orders or sign transactions.</p>
       </PageIntro>
-      {issuer ? (
-        <Card className="stack issuer-chat-context">
-          {contextStatus === "loading" ? <p role="status">Loading current {sourceName} details…</p> : null}
-          {contextStatus === "unavailable" ? (
-            <>
-              <h2>Issuer details unavailable</h2>
-              <p>Chat is paused until the current {sourceName} listing can be checked.</p>
-              <CtaLink id="issuer-chat-retry" href={`/assets/${issuer.provider}/${issuer.symbol}`} secondary>
-                Return to token details
-              </CtaLink>
-            </>
-          ) : null}
-          {asset ? (
-            <>
-              <div className="issuer-chat-heading">
-                <IssuerLogo imageUrl={asset.logoUrl} name={asset.name} source={issuer.provider} />
-                <div>
-                  <span className="badge">{sourceName} context loaded</span>
-                  <h2>{asset.name} · {asset.symbol}</h2>
-                </div>
+      <Card className="stack issuer-chat-context">
+        {contextStatus === "loading" ? <p role="status">Loading current {sourceName} details…</p> : null}
+        {contextStatus === "unavailable" ? (
+          <>
+            <h2>Issuer details unavailable</h2>
+            <p>Chat is paused until the current {sourceName} listing can be checked.</p>
+            <CtaLink id="issuer-chat-retry" href={`/assets/${issuer.provider}/${issuer.symbol}`} secondary>
+              Return to token details
+            </CtaLink>
+          </>
+        ) : null}
+        {asset ? (
+          <>
+            <div className="issuer-chat-heading">
+              <IssuerLogo imageUrl={asset.logoUrl} name={asset.name} source={issuer.provider} />
+              <div>
+                <span className="badge">{sourceName} context loaded</span>
+                <h2>{asset.name} · {asset.symbol}</h2>
               </div>
-              <p>{asset.description || "The issuer has not supplied a description."}</p>
-              <p className="muted">Issuer feed checked {new Date(asset.observedAt).toLocaleString()}. The token mint and market details are rechecked for each answer.</p>
-              <div className="actions">
-                <Link href={`/assets/${issuer.provider}/${encodeURIComponent(asset.symbol)}` as Route}>View token details</Link>
-                <a href={sourceUrl} target="_blank" rel="noreferrer">Issuer source</a>
-              </div>
-            </>
-          ) : null}
-        </Card>
-      ) : null}
+            </div>
+            <p>{asset.description || "The issuer has not supplied a description."}</p>
+            <p className="muted">Issuer feed checked {new Date(asset.observedAt).toLocaleString()}. The token mint and market details are rechecked for each answer.</p>
+            <div className="actions">
+              <Link href={`/assets/${issuer.provider}/${encodeURIComponent(asset.symbol)}` as Route}>View token details</Link>
+              <a href={sourceUrl} target="_blank" rel="noreferrer">Issuer source</a>
+            </div>
+          </>
+        ) : null}
+      </Card>
       <Card className="stack">
         <div className="assistant-conversation" role="log" aria-label="AI conversation" aria-live="polite">
           {messages.length ? messages.map((message) => (
@@ -1105,22 +1096,20 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
               <strong>{message.role === "user" ? "You" : "Shelf AI"}</strong>
               <p>{message.content}</p>
               {message.sourceIds?.length ? (
-                <p className="muted">Source: {issuer ? `${sourceName} issuer feed` : message.sourceIds.join(", ")}</p>
+                <p className="muted">Source: {sourceName} issuer feed</p>
               ) : null}
               {message.uncertainty?.length ? (
                 <p className="muted">Uncertainty: {message.uncertainty.join(" ")}</p>
               ) : null}
             </div>
-          )) : (
-            <p className="muted">{issuer
-              ? "The current issuer details are ready. Ask your first question when you are ready."
-              : "Ask a question to start a conversation."}</p>
-          )}
+          )) : contextStatus === "ready" ? (
+            <p className="muted">The current issuer details are ready. Ask your first question when you are ready.</p>
+          ) : null}
           {!quotaReady ? <p role="status">Preparing your chat…</p> : null}
           {pending ? <p role="status">Thinking through the current source…</p> : null}
           <div ref={conversationEndRef} />
         </div>
-        {issuer && contextStatus === "ready" && !messages.length ? (
+        {contextStatus === "ready" && !messages.length ? (
           <div className="assistant-suggestions" aria-label="Suggested questions">
             <button className="secondary" onClick={() => setQuestion("What does this token represent?")}>What does this token represent?</button>
             <button className="secondary" onClick={() => setQuestion("What does the issuer say about trading and liquidity?")}>How does trading work?</button>
@@ -1142,7 +1131,7 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              placeholder={asset ? `Ask about ${asset.name} or ${asset.symbol}` : "Ask about a product, company or stock token"}
+              placeholder={asset ? `Ask about ${asset.name} or ${asset.symbol}` : `Ask about ${symbol}`}
             />
           </Field>
           <div className="actions">
@@ -1155,7 +1144,6 @@ export function AssistantScreen({ issuer }: { issuer?: IssuerChatReference }) {
             <button className="ghost" data-cta="C37" type="button" disabled={!messages.length && !question} onClick={clearConversation}>
               Clear chat
             </button>
-            {!issuer ? <CtaLink id="C38" href="/invest/basket?source=ai" secondary>Suggest an allocation</CtaLink> : null}
           </div>
         </form>
         <ErrorMessage message={error} />

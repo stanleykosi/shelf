@@ -8,7 +8,7 @@ import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: { default: "Shelf", template: "%s · Shelf" },
-  description: "Scan a product. Discover the company. Choose what to own.",
+  description: "Explore current token listings, check issuer details, and choose what comes next.",
   robots: { index: false, follow: false },
 };
 

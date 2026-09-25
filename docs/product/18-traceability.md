@@ -14,7 +14,8 @@ Use this as the completion checklist in the application repository. References i
 | U30 live company spotlight | PR01–PR04, PR24 | U31 replaces the 27-entry pool with /issuer/directory, preserving the logo-led table, sector/market filters and issuer detail links | current feed records only, per-visit rotation, clear xStocks/PreStocks distinction and no-result/feed-error states |
 | U31 full issuer directory and fast browsing | PR01–PR04, PR24 | Railway refreshes validated full-feed snapshots; Vercel serves a slim cached directory; Discover picks ten featured assets per visit and paginates every current issuer listing by ten | full xStocks/PreStocks coverage, no extra fetch on page changes, provider grouping and sector filters, cache/stale warnings, desktop/mobile pagination and measured warm-load latency |
 | U33 direct Scan submissions | PR01–PR04, PR16, PR21 | camera, barcode, upload, screenshot, receipt and link submit without a consent checkbox or consent fields; server retains OpenRouter ZDR/no-data-collection policy, transient image handling and quota checks | desktop/mobile browser submissions for all scan inputs; exact request bodies; no consent gate or paid provider call in tests |
-| U34 issuer-scoped multi-turn chat | PR03, PR16, PR21, PR24 | /assets/[provider]/[symbol] → /assistant → /ai/answer; server refetches the complete bounded public issuer response for every turn, with no server transcript; signed guest quota cookie | xStocks and PreStocks browser journeys, no automatic AI call, follow-up history, source validation, context outage, simultaneous-user isolation and privacy/budget contract tests |
+| U34 issuer-scoped multi-turn chat | PR03, PR16, PR21, PR24 | /assets/[provider]/[symbol] → /assets/[provider]/[symbol]/chat → /ai/answer; server refetches the complete bounded public issuer response for every turn, with no server transcript; signed guest quota cookie | xStocks and PreStocks browser journeys, no automatic AI call, follow-up history, source validation, context outage, simultaneous-user isolation and privacy/budget contract tests |
+| U36 retired research and general chat paths | PR03, PR16, PR24 | Home has Scan/search/token guidance; `/assistant`, `/markets*`, `/companies/[slug]` and `/invest/suggest` return 404; `/ai/answer` requires issuer context | Home browser contract, route 404 checks, no-issuer API rejection, token chat regression |
 | U35 useful token details | PR03, PR09, PR16, PR24 | exact /issuer/asset plus optional /issuer/asset/xstocks/{symbol}/disclosures; issuer-specific exposure, identifiers, session, reserves, multiplier and PreStocks reference metrics | adapter contract, desktop/mobile issuer pages, optional disclosure outage, real read-only provider response |
 | U02 English/global ambition | PR03, PR23 | S13 /eligibility/check, /capabilities | T03,T33 |
 | U03 private real-money prototype | PR07–PR15, PR22–PR26 | financial routes, invites, release gates | T06–T21,T30–T35; R0–R2 |
@@ -31,7 +32,7 @@ Use this as the completion checklist in the application repository. References i
 | U14 guests/scan-first | PR01, PR06, PR25 | S01–S08; local shelf + /shelf/merge | T01,T05,T36 |
 | U15 private/link-share | PR05, PR19, PR21 | S07/S25; /shelf/share,/shares/* | T04,T27 |
 | U16 working name/team visual design | PR24 | native UX contract, semantic style hooks | T29,T35 |
-| U17 discovery/learning retention | PR25 | S02/S06/S08/S09; /learn/* | T22,T36 |
+| U17 discovery/learning retention | PR25 | S02/S06/S08/S09; /learn/* and issuer-scoped chat | T22,T36 |
 | U18 economical choices | PR23 | adapters, document13 budgets | T25,T31,T32 |
 | U19 prototype/private scale | PR22, PR23 | invite cap, owner controls, R0–R2 | T30–T33 |
 | U20 single owner | PR22 | S27; owner-authenticated /admin/* | T07,T30 |
@@ -43,7 +44,7 @@ Use this as the completion checklist in the application repository. References i
 
 Each range references explicit actions in document03. In the build repository map each action to a component, handler/route, loading guard and test. Repeated mobile/desktop presentations must share behavior.
 
-Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed products. S06 company investment research uses current issuer assets and automatic product ownership lookup through unified Discover; brand pages redirect to product lookup. Saving a product and watching an issuer are distinct actions. The separate S10 draft screen and C40–C42 are retired in favor of the editable basket draft action C62.
+Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed products. S06 token details are the company and stock-token research destination; unified Discover handles product ownership lookup and exact issuer selection. Brand pages redirect to Discover search. Saving a product and watching an issuer are distinct actions. General assistant C34 and its chat allocation actions C38–C39 are retired; allocation remains in the editable basket flow. The separate S10 draft screen and C40–C42 are retired in favor of the editable basket draft action C62.
 
 | Screen | CTA IDs | Action family | Tests |
 |---|---|---|---|
@@ -54,9 +55,9 @@ Canonical S05 product pages retain C18–C19 shelf save/remove for reviewed prod
 | S05 | C18–C20 | Product save/remove/company | T03,T04 |
 | S06 | C21–C24 | Amount/education/sources/token detail | T03,T09,T22 |
 | S07 | C25–C32 | Shelf CRUD/companies/summary/share/sign-in/sort | T04,T05,T24,T27 |
-| S08 | C33–C34 | Learn/explore/ask | T22,T36 |
-| S09 | C35–C39 | AI send/stop/clear/suggest/draft | T22–T26 |
-| S10 | C40–C42 | Generate/edit/apply allocation | T10,T23 |
+| S08 | C33 | Learn/explore; C34 retired | T22,T36 |
+| S09 | C35–C37 | Exact issuer chat send/stop/clear; C38–C39 retired | T22–T26 |
+| S10 | C40–C42 retired | Separate allocation draft route retired; S16 owns editable suggestions | T10,T23 |
 | S11 | C43–C46 | Email/Google/guest/recovery | T05–T07 |
 | S12 | C47–C49 | Onboard/merge/skip | T05,T07 |
 | S13 | C50 | Eligibility + contextual learning/support exits | T33,T36 |

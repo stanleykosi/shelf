@@ -51,7 +51,7 @@ describe("core safety contracts", () => {
     expect(premiumLabel(-250)).toBe("2.50% discount");
     expect(premiumBps("0", "10")).toBeNull();
 
-    for (const path of ["/discover", "/markets/private", "/shelf", "/share/token"]) {
+    for (const path of ["/discover", "/assets/xstocks/PEPx/chat", "/shelf", "/share/token"]) {
       expect(pageAccess(path)).toBe("public");
     }
     for (const path of ["/settings", "/wallet", "/portfolio", "/history", "/orders/id/review"]) {

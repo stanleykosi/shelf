@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useState } from "react";
 import type { Company, Product } from "@/domain/types";
 import type { CatalogReport, CreatedShare } from "@/domain/store";
@@ -106,9 +107,13 @@ export function ShareScreen({ token }: { token?: string }) {
                   : "Public · xStocks"}
               </span>
               <h2>{company.name}</h2>
-              <p className="muted">Research watchlist entry · no position information</p>
-              <Link className="button secondary" href={`/companies/${company.slug}`}>
-                View company
+              <p className="muted">Saved company · no position information</p>
+              <Link className="button secondary" href={(
+                company.instrument
+                  ? `/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}`
+                  : `/discover?q=${encodeURIComponent(company.name)}`
+              ) as Route}>
+                {company.instrument ? "View token details" : "Search issuer listings"}
               </Link>
             </Card>
           ))}

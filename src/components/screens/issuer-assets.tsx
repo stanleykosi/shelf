@@ -228,7 +228,7 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
             </Link>}
           <Link
             className="button secondary"
-            href={`/assistant?provider=${provider}&symbol=${encodeURIComponent(asset.symbol)}` as Route}
+            href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/chat` as Route}
           >
             Chat with AI
           </Link>
