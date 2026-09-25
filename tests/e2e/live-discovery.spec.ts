@@ -109,8 +109,8 @@ test("a reviewed product keeps its source and links only to a live issuer mint",
   }));
 
   await page.goto("/products/doritos-snack");
-  await expect(page.getByRole("heading", { name: "Relationship explorer" })).toBeVisible();
-  await expect(page.locator(".c2-entity-trail")).toContainText("PepsiCo");
+  await expect(page.getByRole("heading", { name: "Relationship explorer" })).toHaveCount(0);
+  await expect(page.locator(".journey-facts")).toContainText("PepsiCo");
   await expect(page.getByRole("link", { name: /View .*exposure|Buy|Invest/i })).toHaveCount(0);
   await page.getByRole("link", { name: "View company research" }).click();
   await expect(page).toHaveURL(/\/companies\/pepsico$/);

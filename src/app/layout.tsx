@@ -7,6 +7,8 @@ import "./research-workspace.css";
 import "./platform-composition.css";
 import "./discovery-studio.css";
 import "./research-journey.css";
+import "./feedback.css";
+import { Notifications } from "@/components/notifications";
 import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
@@ -29,6 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <AppShell signedIn={signedIn} environment={env.APP_ENV}>
           {children}
         </AppShell>
+        <Notifications />
       </body>
     </html>
   );

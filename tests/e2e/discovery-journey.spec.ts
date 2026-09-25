@@ -58,7 +58,7 @@ test("issuer failures recover and source identity stays separate from purchase a
   await page.getByText("Token identity", { exact: true }).click();
   await expect(page.locator("code")).toHaveText("synthetic-ui-fixture");
   await page.getByRole("button", { name: "Save to watchlist" }).click();
-  await expect(page.locator("main").getByRole("alert")).toContainText("Sign in");
+  await expect(page.locator("[data-sonner-toast]")).toContainText("Sign in");
   await page.addScriptTag({ content: axe.source });
   const audit = await page.evaluate(async () => (window as Window & { axe: typeof import("axe-core") }).axe.run(document, { runOnly: ["wcag2a", "wcag2aa", "wcag21aa"] }));
   expect(audit.violations).toEqual([]);

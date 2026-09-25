@@ -9,6 +9,8 @@ import { companyById, products, sources } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";
 
+import { PendingButton } from "@/components/loading-feedback";
+
 const reviewedProductImages: Partial<
   Record<Product["slug"], { alt: string; src: string; fit: "cover" | "contain" }>
 > = {
@@ -237,9 +239,7 @@ export function SearchCommand({
       <label className="sr-only" htmlFor="catalog-search">Search a company or product</label>
       <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Company or product" ref={inputRef} type="search" value={value} />
       {value ? <button onClick={onClear} type="button">Clear</button> : <kbd>⌘ K</kbd>}
-      <button className="search-submit" disabled={!value.trim() || searching} type="submit">
-        {searching ? "Searching…" : "Search"}
-      </button>
+      <PendingButton className="search-submit" pending={searching} pendingLabel="Searching…" disabled={!value.trim()} type="submit">Search</PendingButton>
     </form>
   );
 }

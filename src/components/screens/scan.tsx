@@ -1,9 +1,11 @@
 "use client";
 
+import { LoadingStatus, Spinner } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, ArrowRight, Barcode, Camera, CameraOff, Check, LinkSymbol as LinkIcon, LockKeyhole, ReceiptText, Search, ShieldCheck, SwitchCamera, Upload } from "@/components/studio-icons";
 import type { RecognitionMatch } from "@/domain/types";
 import { apiRequest } from "@/lib/api-client";
@@ -19,10 +21,17 @@ type CameraState = "idle" | "requesting" | "active" | "denied" | "unavailable";
 type BarcodeDetectorApi = { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
 type BarcodeDetectorConstructor = { new(options: { formats: string[] }): BarcodeDetectorApi; getSupportedFormats(): Promise<string[]> };
 
+const subscribeHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
 export function ScanScreen() {
+  const ready = useSyncExternalStore(subscribeHydration, clientReady, serverReady);
   const params = useSearchParams();
   const requested = params.get("method");
   const mode: Method = methods.includes(requested as Method) ? requested as Method : "camera";
+  // File selections cannot be replayed reliably before client event handlers attach.
+  if (!ready) return <LoadingStatus page>Preparing the scanner…</LoadingStatus>;
   // Keep the entrance outside the keyed workspace: changing input methods should
   // be immediate, especially when navigating with the keyboard.
   return <div className="scan-studio-entry"><ScanWorkspace key={mode} mode={mode} /></div>;
@@ -39,7 +48,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [preparing, setPreparing] = useState(false);
-  const [message, setMessage] = useState("");
+  const setMessage = useNotification();
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -103,7 +112,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
     }
     void startDetection();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [camera, mode, stopCamera]);
+  }, [camera, mode, stopCamera, setMessage]);
 
   async function openCamera(nextFacing = facing) {
     stopCamera();
@@ -203,7 +212,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
             {dragging ? <div className="scan-drop-feedback"><Upload size={26} /><strong>Drop to preview</strong><span>Nothing is sent until you give permission.</span></div> : null}
             <video ref={videoRef} autoPlay muted playsInline aria-label="Camera preview" hidden={camera !== "active"} />
             {image ? <Image src={image} alt="Your image, kept only for this identification request" width={800} height={600} unoptimized /> : camera !== "active" ? <div className="scan-media-prompt" aria-live="polite">
-              {camera === "idle" && !preparing && mode === "camera" ? <ScanIllustration /> : camera === "denied" || camera === "unavailable" ? <CameraOff size={28} aria-hidden="true" /> : mode === "upload" || mode === "screenshot" || mode === "receipt" ? <span className="scan-upload-symbol"><Upload size={30} aria-hidden="true" /></span> : <Camera size={28} aria-hidden="true" />}
+              {preparing || camera === "requesting" ? <Spinner /> : camera === "idle" && mode === "camera" ? <ScanIllustration /> : camera === "denied" || camera === "unavailable" ? <CameraOff size={28} aria-hidden="true" /> : mode === "upload" || mode === "screenshot" || mode === "receipt" ? <span className="scan-upload-symbol"><Upload size={30} aria-hidden="true" /></span> : <Camera size={28} aria-hidden="true" />}
               <h3>{preparing ? "Preparing image" : camera === "requesting" ? "Waiting for camera permission" : camera === "denied" ? "Camera access is blocked" : camera === "unavailable" ? "No camera available" : mode === "receipt" ? "Keep just the product lines" : mode === "upload" || mode === "screenshot" ? "Choose a photo or screenshot" : "Show the product"}</h3>
               <p>{camera === "denied" ? "Allow camera access in your browser’s site settings, or upload an image." : camera === "unavailable" ? "Connect a camera, upload an image, or search manually." : mode === "receipt" ? "Remove names, addresses and payment details before choosing your image." : mode === "upload" || mode === "screenshot" ? "Drop an image here, or choose one from your device." : "Keep the product name and packaging in view. Nothing is sent when you open the camera."}</p>
               {camera === "requesting" ? <button className="scan-secondary" onClick={() => { stopCamera(); setCamera("idle"); }}>Cancel camera request</button> : mode !== "upload" && mode !== "screenshot" && mode !== "receipt" ? <button className="scan-primary" data-cta="C05" onClick={() => openCamera()} disabled={busy}><Camera size={17} aria-hidden="true" />{camera === "idle" ? "Open camera" : "Try camera again"}</button> : <button className="scan-primary" data-cta="C10" onClick={() => fileRef.current?.click()} disabled={preparing || busy}><Upload size={17} aria-hidden="true" />Choose image</button>}
@@ -232,7 +241,8 @@ function ScanWorkspace({ mode }: { mode: Method }) {
         </section> : null}
         {offline ? <p className="scan-alert" role="status">You’re offline. Manual catalog search is still available; identification needs a connection.</p> : null}
         {error ? <p className="scan-alert" role="alert">{error}</p> : null}
-        <p role="status" className="scan-status">{busy ? mode === "barcode" || mode === "link" ? "Identifying product details…" : "Identifying products…" : message}</p>
+        {preparing ? <LoadingStatus>Preparing image…</LoadingStatus> : null}
+        {busy ? <LoadingStatus>{mode === "barcode" || mode === "link" ? "Identifying product details…" : "Identifying products…"}</LoadingStatus> : null}
         {busy ? <div className="scan-actions"><button className="scan-secondary" onClick={() => requestRef.current?.abort()}>Cancel identification</button><small>Cancellation is best effort once processing has started.</small></div> : (image && visual) || mode === "barcode" || mode === "link" ? <button className="scan-primary scan-identify" aria-describedby="scan-consent-state" data-cta={mode === "barcode" ? "C09" : mode === "link" ? "C12" : mode === "receipt" ? "C11" : "C08"} disabled={offline || preparing || !consent || (mode === "barcode" && !barcode) || (mode === "link" && !url.trim())} onClick={identify}>{mode === "barcode" || mode === "link" ? "Find product" : "Identify products"}<ArrowRight size={18} aria-hidden="true" /></button> : null}
       </section>
       <aside className="scan-methods" aria-label="Identification methods">

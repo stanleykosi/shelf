@@ -19,16 +19,13 @@ test.beforeEach(async ({ page }) => {
 test("Product, Brand and Company retain separate routes and progressive evidence", async ({ page }) => {
   await page.goto("/products/doritos-snack");
   await expect(page.getByRole("heading", { name: "Doritos snack", exact: true })).toBeVisible();
-  const trail = page.locator(".c2-entity-trail");
-  await expect(trail.locator('a[href="/brands/doritos"]')).toBeVisible();
-  await expect(trail.locator('a[href="/companies/pepsico"]')).toBeVisible();
-  const evidence = page.locator("details.scan-evidence");
-  await expect(evidence.locator(".c2-evidence-ledger")).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "Relationship explorer" })).toHaveCount(0);
+  const evidence = page.locator("details").filter({ has: page.locator("summary", { hasText: "Relationship evidence and regional context" }) });
+  await expect(evidence.locator(".research-rows")).not.toBeVisible();
   await evidence.locator("summary").click();
-  await expect(evidence.getByText("Global parent", { exact: true })).toBeVisible();
-  await expect(evidence.getByText("Reviewed", { exact: true })).toBeVisible();
+  await expect(evidence.getByText("global parent", { exact: true })).toBeVisible();
   await expect(evidence.locator('a[href^="https://"]')).toBeVisible();
-  await trail.locator('a[href="/brands/doritos"]').click();
+  await page.locator('.product-research-intro a[href="/brands/doritos"]').click();
   await expect(page).toHaveURL(/\/brands\/doritos$/);
   await expect(page.getByRole("heading", { name: "Doritos", exact: true })).toBeVisible();
   await expect(page.getByText(/A Brand is the identity you recognize/)).toBeVisible();
@@ -43,7 +40,7 @@ test("invalid guest storage never becomes a false save and research remains avai
   await page.goto("/products/doritos-snack");
   await expect(page.locator("main").getByRole("alert")).toContainText("Temporary saving is unavailable");
   await page.getByRole("button", { name: "Save product", exact: true }).click();
-  await expect(page.locator("main").getByRole("alert")).toContainText("could not be updated");
+  await expect(page.locator("[data-sonner-toast]")).toContainText("could not be updated");
   await expect(page.getByRole("button", { name: "Remove product from Saved" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View company research" })).toHaveAttribute("href", "/companies/pepsico");
   await page.evaluate(() => sessionStorage.removeItem("shelf:guest-items"));
@@ -72,7 +69,7 @@ test("Saved status service failure stays disabled until an explicit retry succee
   await page.getByRole("button", { name: "Retry saved status" }).click();
   await expect(page.getByRole("button", { name: "Save product", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Save product", exact: true }).click();
-  await expect(page.locator("main").getByRole("alert")).toContainText("could not be updated");
+  await expect(page.locator("[data-sonner-toast]")).toContainText("could not be updated");
   await expect(page.getByRole("button", { name: "Remove product from Saved" })).toHaveCount(0);
   expect(writes).toBe(1);
 });
@@ -97,20 +94,15 @@ test("390px Product imagery has its own space and does not overlap identity text
     const identity = document.querySelector(".product-research-hero");
     const image = identity!.querySelector(".research-product-image")!.getBoundingClientRect();
     const heading = identity!.querySelector("h1")!.getBoundingClientRect();
-    const trail = document.querySelector(".c2-entity-trail > a")!;
-    const trailImage = trail.querySelector(".research-product-image")!.getBoundingClientRect();
-    const trailText = trail.querySelector("small")!.getBoundingClientRect();
     return {
       imageWidth: image.width,
       imageHeight: image.height,
       identitySeparated: image.right <= heading.left + 1 || image.bottom <= heading.top + 1,
-      trailSeparated: trailImage.bottom <= trailText.top + 1,
       overflow: document.documentElement.scrollWidth > window.innerWidth,
     };
   });
   expect(dimensions.imageWidth).toBeGreaterThan(0);
   expect(dimensions.imageHeight).toBeGreaterThan(0);
   expect(dimensions.identitySeparated).toBe(true);
-  expect(dimensions.trailSeparated).toBe(true);
   expect(dimensions.overflow).toBe(false);
 });

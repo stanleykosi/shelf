@@ -102,6 +102,11 @@ test("preview consent and alternate inputs remain accessible", async ({ page }) 
       await page.getByLabel("Choose image file").setInputFiles(scanUpload);
       await expect(page.getByRole("heading", { name: "Check your image" })).toBeVisible();
     }
+    await expect(page.locator(".scan-studio-entry")).toBeVisible();
+    await page.locator("main").evaluate(async (element) => {
+      const entrances = element.getAnimations({ subtree: true }).filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+      await Promise.all(entrances.map((animation) => animation.finished.catch(() => undefined)));
+    });
     await page.addScriptTag({ content: axe.source });
     const audit = await page.evaluate(async () => (window as Window & { axe: typeof import("axe-core") }).axe.run(document, { runOnly: ["wcag2a", "wcag2aa", "wcag21aa"] }));
     expect(audit.violations.map((violation) => ({ id: violation.id, nodes: violation.nodes.map((node) => node.failureSummary) })), `${method} accessibility`).toEqual([]);

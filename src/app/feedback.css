@@ -1,0 +1,24 @@
+.shelf-spinner { display: inline-block; width: 19px; height: 19px; flex-shrink: 0; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: shelf-spin 700ms linear infinite; }
+@keyframes shelf-spin { to { transform: rotate(360deg); } }
+.loading-feedback { display: flex; align-items: center; gap: 12px; padding: 16px 0; color: #58674f; font-size: 14px; font-family: var(--font-raleway), sans-serif; }
+.loading-feedback-page { min-height: 260px; justify-content: center; }
+.pending-button { position: relative; }
+.pending-button-label { display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
+.pending-button[aria-busy=true] .pending-button-label { visibility: hidden; }
+.pending-button-indicator { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+body [data-sonner-toaster] { font-family: var(--font-raleway), sans-serif; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast { background: #fffefa; color: #20372b; border: 1px solid #cddbcc; border-radius: 12px; padding: 20px 48px 20px 20px; gap: 13px; box-shadow: 0 12px 40px #192b211a; font-size: 14px; line-height: 1.5; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast [data-icon] { width: 21px; height: 21px; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast [data-icon] svg { width: 21px; height: 21px; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast[data-type=error] { background: #fff8f3; color: #71362a; border-color: #e3c7b9; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast [data-close-button] { left: auto; right: 0; top: 0; transform: none; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; box-shadow: none; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast [data-close-button]:focus-visible { outline: 2px solid #8b6c31; outline-offset: -5px; }
+[data-sonner-toaster] [data-sonner-toast].shelf-toast [data-close-button] svg { width: 17px; height: 17px; }
+@media (prefers-reduced-motion: reduce) {
+  .shelf-spinner { animation: none; border-style: dotted; border-right-color: currentColor; }
+  [data-sonner-toast] { transition: opacity 120ms ease !important; }
+}
+
+@media (max-width: 819px) {
+  body [data-sonner-toaster][data-y-position=bottom] { bottom: calc(88px + env(safe-area-inset-bottom)); }
+}

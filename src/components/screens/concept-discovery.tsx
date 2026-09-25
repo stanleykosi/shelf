@@ -18,6 +18,8 @@ import {
   SectionHeader,
 } from "@/components/discovery-patterns";
 
+import { LoadingStatus, PendingButton, Spinner } from "@/components/loading-feedback";
+
 const searchErrorMessages: Record<string, string> = {
   AI_PROVIDER_UNAVAILABLE: "Product ownership lookup is temporarily unavailable. Try again later.",
   AI_PRIVACY_UNAVAILABLE: "Product ownership lookup is unavailable under Shelf's privacy settings.",
@@ -229,7 +231,7 @@ function LiveSearchResults({
         <p>Live issuer search for <strong>“{query}”</strong></p>
         <span>xStocks + PreStocks</span>
       </div>
-      {searching ? <p role="status">Checking issuer feeds and, if needed, product ownership…</p> : null}
+      {searching ? <LoadingStatus>Checking issuer feeds and, if needed, product ownership…</LoadingStatus> : null}
       {error ? <div className="research-empty"><h2>Search unavailable</h2><p>{error}</p><button onClick={onRetry} type="button">Retry search</button></div> : null}
       {result?.unavailable.length ? <p className="live-search-caution">{result.unavailable.join(" and ")} feed unavailable. Results may be incomplete.</p> : null}
       {result?.stale.length ? <p className="live-search-caution">{result.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
@@ -475,7 +477,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
               <h2 id="spotlight-heading" ref={directoryRef} tabIndex={-1}>Companies to explore<span className="discovery-count">{spotlight?.listings.length ?? "—"}</span></h2>
               <p>A rotating spotlight from xStocks and PreStocks. An invitation to research, not a performance ranking.</p>
             </div>
-            <button disabled={spotlightLoading} onClick={() => void loadSpotlight()} type="button"><RefreshCw size={14} aria-hidden="true" />{spotlightLoading && spotlight ? "Refreshing…" : "Refresh mix"}</button>
+            <PendingButton pending={spotlightLoading} pendingLabel="Refreshing company mix…" onClick={() => void loadSpotlight()} type="button"><RefreshCw size={14} aria-hidden="true" />Refresh mix</PendingButton>
           </div>
           {spotlight?.unavailable.length ? <p className="live-search-caution">{spotlight.unavailable.join(" and ")} feed unavailable. This selection may be incomplete.</p> : null}
           {spotlight?.stale.length ? <p className="live-search-caution">{spotlight.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}
@@ -499,7 +501,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
                 <p><strong>{showingFullList ? "Spotlight directory" : "Featured companies"}</strong></p>
                 <span>{visibleListings.length} companies</span>
               </div>
-              {spotlightLoading && !spotlight ? <div className="discovery-loading" role="status"><span>Loading current issuer listings…</span><div aria-hidden="true">{[0, 1, 2, 3].map((row) => <div key={row}><i /><span /><span /><span /></div>)}</div></div> : null}
+              {spotlightLoading && !spotlight ? <div className="discovery-loading" role="status"><span className="loading-feedback"><Spinner />Loading current issuer listings…</span><div aria-hidden="true">{[0, 1, 2, 3].map((row) => <div key={row}><i /><span /><span /><span /></div>)}</div></div> : null}
               {spotlightError && !spotlight ? (
                 <div className="research-empty"><h3>Company listings unavailable</h3><p>We could not load the issuer feeds. Search and scan remain available.</p><button onClick={() => void loadSpotlight()} type="button">Retry listings</button></div>
               ) : null}

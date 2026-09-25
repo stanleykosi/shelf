@@ -23,7 +23,10 @@ import {
 } from "@/lib/api-client";
 import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
 import { ArrowRight, ArrowUpRight, Bookmark, ShieldCheck } from "@/components/studio-icons";
-import { ErrorMessage, ResultMessage } from "@/components/ui";
+import { ErrorMessage } from "@/components/ui";
+
+import { useNotification } from "@/components/notifications";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 
 function guestProducts(): string[] {
   const value: unknown = JSON.parse(
@@ -47,7 +50,7 @@ function SaveResearch({
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
+  const notify = useNotification();
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     let active = true;
@@ -115,17 +118,15 @@ function SaveResearch({
         );
       } else return;
       setSaved(!saved);
-      setNotice(
+      notify(
         saved
           ? `${kind} removed from Saved. Holdings are unchanged.`
           : `${kind} saved for research${
               member ? "." : " for this browser session."
-            }`
+            }`, "success"
       );
     } catch {
-      setError(
-        "This saved item could not be updated. Your research is still available; please retry."
-      );
+      notify("This saved item could not be updated. Your research is still available; please retry.", "error");
     } finally {
       setBusy(false);
     }
@@ -146,31 +147,30 @@ function SaveResearch({
             Sign in to save company
           </Link>
         ) : (
-          <button
+          <PendingButton
+            pending={busy}
+            pendingLabel="Updating Saved…"
             className="secondary"
-            disabled={member === null || busy}
+            disabled={member === null}
             onClick={toggle}
           >
-            {busy
-              ? "Updating Saved…"
-              : saved
+            {saved
               ? `Remove ${kind.toLowerCase()} from Saved`
               : `Save ${kind.toLowerCase()}`}
-          </button>
+          </PendingButton>
         )}
         <Link className="button ghost" href="/saved">
           View Saved
         </Link>
       </div>
       {member === null && !error ? (
-        <p role="status">Checking saved status…</p>
+        <LoadingStatus>Checking saved status…</LoadingStatus>
       ) : null}
       {member === false && kind === "Product" ? (
         <p className="muted">
           Guest saves last for this browser session. Sign in to keep them.
         </p>
       ) : null}
-      {notice ? <ResultMessage>{notice}</ResultMessage> : null}
       <ErrorMessage message={error} />
       {error && member === null ? (
         <button
@@ -251,25 +251,26 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
   const company = companyById(product.companyId);
   const brand = brands.find((item) => item.productIds.includes(product.id));
   const [report, setReport] = useState(false);
-  const [reportState, setReportState] = useState("");
+  const notify = useNotification();
+  const [reportSignIn, setReportSignIn] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   async function reportRelationship() {
     if (reportBusy) return;
     setReportBusy(true);
+    setReportSignIn(false);
     try {
       await postJson("catalog/reports", {
         productId: product.id,
         reasonCode: "relationship_review",
         note: "User requested review from Product research.",
       });
-      setReportState(
-        "Review requested. The current catalog relationship has not been changed."
-      );
+      notify("Review requested. The current catalog relationship has not been changed.", "success");
     } catch (error) {
-      setReportState(
+      setReportSignIn(authenticationIsRequired(error));
+      notify(
         authenticationIsRequired(error)
           ? "Sign in to submit a relationship report."
-          : "The review request could not be sent. Please try again."
+          : "The review request could not be sent. Please try again.", "error"
       );
     } finally {
       setReportBusy(false);
@@ -296,10 +297,6 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
           <p className="journey-source-note"><ShieldCheck size={16} aria-hidden="true" />Reviewed catalog relationship. Check the regional evidence below.</p>
         </div>
       </div>
-      <section className="research-section section">
-        <h2>Relationship explorer</h2>
-        <CapitalRelationship product={product} discloseEvidence studio />
-      </section>
       <div className="research-split">
         <section className="research-section">
           <h2>Behind this Product</h2>
@@ -321,15 +318,15 @@ export function ResearchProductScreen({ productId }: { productId: string }) {
               Request an evidence review. Do not include personal or payment
               information.
             </p>
-            <button
+            <PendingButton
+              pending={reportBusy}
+              pendingLabel="Submitting review request…"
               className="secondary"
-              disabled={reportBusy}
               onClick={reportRelationship}
             >
-              {reportBusy ? "Submitting…" : "Request review"}
-            </button>
-            <p role="status">{reportState}</p>
-            {reportState.startsWith("Sign in") ? (
+              Request review
+            </PendingButton>
+            {reportSignIn ? (
               <Link
                 href={
                   `/sign-in?returnTo=${encodeURIComponent(
@@ -481,7 +478,7 @@ export function ResearchCompanyScreen({ companyId }: { companyId: string }) {
           identity.
         </p>
         {!links && !error ? (
-          <p role="status">Checking current issuer listings…</p>
+          <LoadingStatus>Checking current issuer listings…</LoadingStatus>
         ) : null}
         {error || incomplete ? (
           <p className="notice">

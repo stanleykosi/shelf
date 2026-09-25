@@ -9,10 +9,13 @@ import type { Order } from "@/domain/types";
 import type { Company } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
-import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
+import { Card, EmptyState, ErrorMessage, Field, PageIntro } from "@/components/ui";
 import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
 import { ArrowRight, ArrowUpRight, Bookmark, ShieldCheck } from "@/components/studio-icons";
 import { IssuerLogo } from "@/components/issuer-logo";
+
+import { useNotification } from "@/components/notifications";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 
 type Source = "xstocks" | "prestocks";
 
@@ -60,10 +63,9 @@ function IssuerState({ title, children, retry = false }: { title: string; childr
 
 export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symbol: string }) {
   const { asset: listing, lifecycle, loading, error } = useIssuerAsset(provider, symbol);
-  const [saveMessage, setSaveMessage] = useState("");
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const notify = useNotification();
   const [saving, setSaving] = useState(false);
-  if (loading) return <IssuerState title="Loading issuer asset"><span role="status">Checking the current feed.</span></IssuerState>;
+  if (loading) return <ResearchJourney kind="issuer"><LoadingStatus page>Checking the current issuer feed…</LoadingStatus></ResearchJourney>;
   if (error) return <IssuerState title="Issuer information unavailable" retry>{error}. No current availability is inferred.</IssuerState>;
   if (!listing) return <IssuerState title="Asset unavailable">This token is not in the current issuer feed.</IssuerState>;
 
@@ -77,14 +79,14 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
   async function saveToWatchlist() {
     if (saving) return;
     setSaving(true);
-    setSaveError(null);
+
     try {
       await postJson("watchlist/items", { companyId: asset.companyId });
-      setSaveMessage("Added to Saved research. This is not a Holding.");
+      notify("Added to Saved research. This is not a Holding.", "success");
     } catch (reason) {
-      setSaveError(authenticationIsRequired(reason)
+      notify(authenticationIsRequired(reason)
         ? "Sign in to keep this asset in Saved research."
-        : reason instanceof Error ? reason.message : "Could not save this asset");
+        : reason instanceof Error ? reason.message : "Could not save this asset", "error");
     } finally {
       setSaving(false);
     }
@@ -145,8 +147,7 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
         <details><summary>Token identity</summary><p>Solana mint</p><code className="break-all">{asset.mint}</code></details>
         <p className="issuer-action-context">Explore the terms, then choose your next step. Saving adds research to your watchlist.</p>
         <Link className="button" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy` as Route}>Review a purchase <ArrowRight size={17} aria-hidden="true" /></Link>
-        <button className="secondary" disabled={saving} onClick={saveToWatchlist}><Bookmark size={16} aria-hidden="true" />{saving ? "Saving…" : "Save to watchlist"}</button>
-        {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}<ErrorMessage message={saveError} />
+        <PendingButton className="secondary" pending={saving} pendingLabel="Saving to watchlist…" onClick={saveToWatchlist}><Bookmark size={16} aria-hidden="true" />Save to watchlist</PendingButton>
         <a href={issuerUrl} target="_blank" rel="noreferrer">Read issuer information <ArrowUpRight size={14} aria-hidden="true" /></a>
       </aside>
     </div>
@@ -159,7 +160,7 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
   const [amount, setAmount] = useState("10");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  if (loading) return <IssuerState title="Loading issuer asset">Checking the current feed.</IssuerState>;
+  if (loading) return <ResearchJourney kind="purchase"><LoadingStatus page>Checking the current issuer feed…</LoadingStatus></ResearchJourney>;
   if (feedError) return <IssuerState title="Purchase information unavailable" retry>{feedError}. No purchase has been submitted.</IssuerState>;
   if (!listing) return <IssuerState title="Asset unavailable">The issuer no longer lists this token.</IssuerState>;
   const { asset } = listing;
@@ -206,9 +207,7 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
         </Field>
         {issuerUnavailable ? <p className="notice">This xStocks asset is not currently available for Shelf purchase.</p> : null}
         <div className="actions">
-          <button data-cta="C57" disabled={issuerUnavailable || submitting} onClick={createPurchase}>
-            {submitting ? "Preparing review…" : "Review purchase"}
-          </button>
+          <PendingButton data-cta="C57" disabled={issuerUnavailable} pending={submitting} pendingLabel="Preparing review…" onClick={createPurchase}>Review purchase</PendingButton>
           <Link className="button secondary" data-cta="C58" href="/account/wallet/deposit">Deposit USDC</Link>
           <Link className="button secondary" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>Return to instrument</Link>
         </div>

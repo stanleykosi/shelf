@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, X } from "@/components/studio-icons";
+import { useNotification } from "@/components/notifications";
+import { LoadingStatus } from "@/components/loading-feedback";
 import { brands, companyById, productById, sources } from "@/data/catalog";
 import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
 import { ProductArtwork } from "@/components/discovery-patterns";
@@ -19,7 +21,7 @@ export function ScanResultsScreen() {
   const session = useSyncExternalStore(subscribeScanSession, readScanSession, serverScanSession);
   const ready = useSyncExternalStore(subscribeHydration, clientReady, serverReady);
   const [index, setIndex] = useState(0);
-  const [notice, setNotice] = useState("");
+  const setNotice = useNotification();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const changeRef = useRef<HTMLButtonElement>(null);
   const candidateHeading = useRef<HTMLHeadingElement>(null);
@@ -28,7 +30,7 @@ export function ScanResultsScreen() {
     try { sessionStorage.removeItem("shelf:scan-results"); } catch { /* No storage required for results. */ }
   }, []);
 
-  if (!ready) return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan"><h1>Scan results</h1><p role="status">Loading this scan…</p></ResearchJourney>;
+  if (!ready) return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan"><h1>Scan results</h1><LoadingStatus page>Loading this scan…</LoadingStatus></ResearchJourney>;
   if (!session) return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan"><header className="scan-page-heading"><p className="scan-context">Scan results</p><h1>These scan results are no longer available.</h1><p>Results stay in this page session only. Start again or search the reviewed catalog.</p></header><div className="scan-actions"><Link className="scan-primary" href="/scan">Scan again <ArrowRight size={18} /></Link><Link className="scan-secondary" href="/scan?method=search">Search instead</Link></div></ResearchJourney>;
   const candidates = session.candidates;
   const active = candidates[Math.min(index, candidates.length - 1)];
@@ -53,8 +55,8 @@ export function ScanResultsScreen() {
       const combined = [...new Set([...existing, ...ids])];
       if (combined.length > 100) { setNotice("Your temporary Saved list is full. Remove some saved Products before adding more."); return; }
       sessionStorage.setItem("shelf:guest-items", JSON.stringify(combined));
-      setNotice("Confirmed Products saved on this device for this session. Sign in and merge to keep them.");
-    } catch { setNotice("Temporary saving is unavailable in this browser. You can still open the research."); }
+      setNotice("Confirmed Products saved on this device for this session. Sign in and merge to keep them.", "success");
+    } catch { setNotice("Temporary saving is unavailable in this browser. You can still open the research.", "error"); }
   }
 
   return <ResearchJourney kind="results" className="scan-page scan-results" backHref="/scan" backLabel="Back to Scan">
@@ -87,7 +89,6 @@ export function ScanResultsScreen() {
           </div>
           {active.decision === "proposed" && !product && active.alternatives.length > 1 ? <section className="scan-alternatives"><h3>More than one Product fits</h3><p>The brand alone does not identify a Product. Choose the one you saw; nothing is selected automatically.</p><div className="scan-actions">{active.alternatives.map((id) => { const alternative = productById(id); return alternative ? <button className="scan-secondary" key={id} onClick={() => { changeScanCandidate(active.id, { productId: id, decision: "proposed" }); setNotice("Product selected. Check the identity before confirming."); }}>{alternative.name}</button> : null; })}</div></section> : null}
           {active.decision === "confirmed" && product ? reviewed ? <section className="scan-resolved-relationship"><div className="scan-section-heading"><h3>Relationship explorer</h3><span className="scan-meta"><Check size={14} aria-hidden="true" /> Reviewed catalog</span></div><CapitalRelationship product={product} discloseEvidence studio /><div className="scan-actions scan-research-actions"><Link className="scan-primary" data-cta="C16" href={("/companies/" + company.slug) as Route}>View research <ArrowRight size={18} aria-hidden="true" /></Link></div></section> : <p className="scan-alert">Product confirmed, but Shelf cannot establish a reviewed Company relationship. You can change the match or continue searching.</p> : null}
-          <p className="scan-status" role="status">{notice}</p>
         </section>
       </div>
       <footer className="scan-results-completion"><div><h2>{pending ? `${pending} ${pending === 1 ? "Product needs" : "Products need"} your review` : confirmed.length ? "Your research is ready" : "No Products selected"}</h2><p>Confirm the Products you want to explore. Exclude the rest. Saving is research, not an investment.</p>{!pending && researchCompanies.length ? <div className="scan-actions scan-research-actions">{researchCompanies.map((item) => <Link key={item.id} className="scan-primary" href={("/companies/" + item.slug) as Route}>Explore {item.name}<ArrowRight size={16} aria-hidden="true" /></Link>)}</div> : null}</div><div className="scan-actions"><button className="scan-secondary" data-cta="C17" disabled={!confirmed.length} onClick={saveConfirmed}>Save confirmed Products</button><Link className="scan-text-action" href="/saved">View Saved <ArrowRight size={16} /></Link></div></footer>

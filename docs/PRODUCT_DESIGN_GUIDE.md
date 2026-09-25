@@ -3,6 +3,7 @@
 Status: Discover/Scan design extended to their connected research journey
 Last updated: 2026-09-25
 Current refactor phase: Raleway/Heroicons Discover and Scan styling extends to scan results/correction, Product, Brand, Company, issuer detail/purchase entry and contextual learning. See docs/DISCOVERY_JOURNEY_REDESIGN.md and artifacts/discovery-journey/README.md for validation and captures. Saved, Assistant and subsequent financial workspaces retain their existing treatment.
+Latest refinement: Product pages omit the relationship explorer and retain expandable source evidence. Discover/Scan action feedback uses timed Sonner toasts and shared loading indicators; see docs/FEEDBACK_REFINEMENT.md.
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 

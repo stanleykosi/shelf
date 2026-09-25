@@ -43,6 +43,8 @@
     "postgres": "3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "sonner": "2.0.8",
+    "torph": "0.1.3",
     "tweetnacl": "1.0.3",
     "zod": "4.6.5"
   },
