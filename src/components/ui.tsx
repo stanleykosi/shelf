@@ -45,6 +45,7 @@ export function CtaLink({
       className={`button ${secondary ? "secondary" : ""}`}
       data-cta={id}
       href={href as Route}
+      scroll={href === "/saved/share" || href.startsWith("/account/wallet/send") || /^\/portfolio\/[^/]+\/sell$/.test(href) ? false : undefined}
     >
       {children}
     </Link>

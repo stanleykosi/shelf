@@ -1,0 +1,83 @@
+/* Small tasks stay above the collection, holding or wallet that opened them. */
+.task-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgb(15 28 21 / 46%);
+  backdrop-filter: blur(5px);
+}
+.task-dialog.workspace-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  max-height: min(880px, calc(100dvh - 56px));
+  border: 1px solid rgb(255 254 250 / 70%);
+  border-radius: 22px;
+  background: #f7f8f2;
+  box-shadow: 0 28px 90px rgb(11 27 18 / 24%), 0 2px 8px rgb(11 27 18 / 8%);
+  overflow: hidden;
+  outline: none;
+}
+.task-dialog[data-task=share] { width: min(100%, 640px); }
+.task-dialog-grip { display: none; }
+.task-dialog-header { flex-shrink: 0; position: relative; padding: 30px 32px 24px; border-bottom: 1px solid #dce3d5; }
+.task-dialog-emblem { display: grid; place-items: center; width: 45px; height: 45px; border: 1px solid #bed9c6; border-radius: 13px; color: #2b4a36; background: #e5efdf; margin-bottom: 22px; }
+.task-dialog-eyebrow { margin: 0 0 10px; font-size: 10px; line-height: 1.5; letter-spacing: .09em; text-transform: uppercase; color: #5b705e; }
+.task-dialog-header h2 { margin: 0 0 12px; font-size: 34px; line-height: 1.1; letter-spacing: -.045em; font-weight: 450; outline: none; }
+.task-dialog-header > p:last-of-type { margin: 0; max-width: 440px; color: #5d6b5a; font-size: 13px; line-height: 1.7; }
+.task-dialog .task-dialog-close { position: absolute; top: 20px; right: 20px; display: grid; place-items: center; padding: 0; width: 44px; height: 44px; min-height: 44px; border: 1px solid #d7dfd0; border-radius: 50%; color: #3c503e; background: transparent; cursor: pointer; }
+.task-dialog .task-dialog-body { --ink: #202b26; --muted: #58674f; --line: #d5ddd0; --accent: #253e30; --surface: #fffefa; padding: 26px 32px 32px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.task-dialog-body > .hero { display: none; }
+.task-dialog .task-dialog-body > .card { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.task-dialog .task-dialog-body .research-section { padding: 24px 0; }
+.task-dialog .task-dialog-body h2 { font-size: 23px; }
+.task-dialog .task-dialog-body p { font-size: 13px; line-height: 1.7; }
+.task-dialog .task-dialog-body .field:last-of-type { margin-bottom: 14px; }
+.task-dialog .task-dialog-body .actions { gap: 10px; }
+.task-dialog .task-dialog-body .research-row { padding: 14px 0; }
+.task-dialog .task-dialog-body .research-row h3 { font-size: 17px; }
+.task-dialog .task-dialog-body .research-product-image { width: 62px; height: 62px; flex-basis: 62px; }
+.task-dialog .task-dialog-body .checkbox-row { font-size: 13px; line-height: 1.7; }
+.task-dialog .task-dialog-body input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; accent-color: #2b4a36; }
+.task-dialog .task-dialog-body :is(.notice, .result, .error) { font-size: 13px; padding: 15px 17px; }
+.task-dialog .task-dialog-body [data-testid=share-link] { overflow-wrap: anywhere; }
+@media (hover: hover) and (pointer: fine) {
+  .task-dialog .task-dialog-close:hover { background: #e6eddf; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .task-dialog-overlay[data-state=open] { animation: task-backdrop-in 220ms ease both; }
+  .task-dialog-overlay[data-state=closed] { animation: task-backdrop-out 140ms ease both; }
+  .task-dialog[data-state=open] { animation: task-panel-in 260ms cubic-bezier(.19, 1, .22, 1) both; }
+  .task-dialog[data-state=closed] { animation: task-panel-out 140ms cubic-bezier(.25, .46, .45, .94) both; }
+  @keyframes task-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes task-backdrop-out { to { opacity: 0; } }
+  @keyframes task-panel-in { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes task-panel-out { to { opacity: 0; transform: translateY(8px) scale(.985); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-dialog-overlay[data-state=open], .task-dialog[data-state=open] { animation: task-gentle-in 120ms ease both; }
+  .task-dialog-overlay[data-state=closed], .task-dialog[data-state=closed] { animation: task-gentle-out 100ms ease both; }
+  @keyframes task-gentle-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes task-gentle-out { to { opacity: 0; } }
+}
+@media (max-width: 639px) {
+  .task-dialog-overlay { padding: 0; place-items: end center; }
+  .task-dialog.workspace-shell { width: 100%; max-height: calc(100dvh - 24px); border-radius: 23px 23px 0 0; border-bottom: 0; }
+  .task-dialog-grip { display: block; width: 34px; height: 4px; border-radius: 4px; background: #c8d2c1; margin: 10px auto 0; flex-shrink: 0; }
+  .task-dialog-header { padding: 18px 23px 21px; }
+  .task-dialog-emblem { width: 39px; height: 39px; margin-bottom: 16px; border-radius: 11px; }
+  .task-dialog-header h2 { font-size: 30px; }
+  .task-dialog .task-dialog-close { top: 7px; right: 15px; }
+  .task-dialog .task-dialog-body { padding: 22px 23px calc(26px + env(safe-area-inset-bottom)); }
+  .task-dialog .task-dialog-body .actions > :is(button, .button) { flex: 1 1 auto; }
+  @media (prefers-reduced-motion: no-preference) {
+    .task-dialog[data-state=open] { animation-name: task-sheet-in; }
+    .task-dialog[data-state=closed] { animation-name: task-sheet-out; }
+    @keyframes task-sheet-in { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes task-sheet-out { to { transform: translateY(24px); opacity: 0; } }
+  }
+}

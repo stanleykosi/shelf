@@ -9,6 +9,11 @@ import "./discovery-studio.css";
 import "./research-journey.css";
 import "./feedback.css";
 import "./workspace-studio.css";
+import "./assistant-chat.css";
+import "./account-studio.css";
+import "./collection-studio.css";
+import "./portfolio-studio.css";
+import "./task-dialog.css";
 import { Notifications } from "@/components/notifications";
 import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";
@@ -22,7 +27,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children, modal }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   const sessionToken = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const signedIn = hasAuthenticatedSession(sessionToken);
 
@@ -32,6 +37,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <AppShell signedIn={signedIn} environment={env.APP_ENV}>
           {children}
         </AppShell>
+        {modal}
         <Notifications />
       </body>
     </html>

@@ -8,14 +8,14 @@ import { companyById, productById } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
 import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 import { useNotification } from "@/components/notifications";
-import { Bookmark, ArrowUpRight } from "@/components/studio-icons";
+import { ArrowUpRight } from "@/components/studio-icons";
+import { BookmarkIcon, LockClosedIcon, MagnifyingGlassIcon, ShareIcon, SparklesIcon, XMarkIcon, Squares2X2Icon, BuildingOffice2Icon } from "@heroicons/react/24/outline";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import {
   CtaLink,
   EmptyState,
   ErrorMessage,
   Field,
-  PageIntro,
 } from "@/components/ui";
 import {
   apiRequest,
@@ -59,6 +59,7 @@ export function ShelfScreen() {
   const [error, setError] = useState<string | null>(null);
   const setMessage = useNotification();
   const [name, setName] = useState("");
+  const [filter, setFilter] = useState("");
   const [summary, setSummary] = useState("");
   const [proposed, setProposed] = useState<string[]>([]);
   const [previousOrder, setPreviousOrder] = useState<string[]>([]);
@@ -218,14 +219,30 @@ export function ShelfScreen() {
   }
   const parentCount = new Set(collection.items.map((item) => item.companyId))
     .size;
+  const normalizedFilter = filter.trim().toLowerCase();
+  const visibleProducts = collection.items.filter((product) =>
+    `${product.name} ${product.brand} ${companyById(product.companyId)?.name ?? ""}`.toLowerCase().includes(normalizedFilter));
+  const visibleCompanies = companies.filter((company) => company.name.toLowerCase().includes(normalizedFilter));
   return (
-    <>
-      <PageIntro eyebrow="Private research collection" title="Saved research">
-        <p>
-          Keep Products and Companies to revisit. Saving is not ownership;
-          removing research never sells a Holding.
-        </p>
-      </PageIntro>
+    <div className="collection-studio">
+      <header className="collection-hero">
+        <div className="collection-hero-copy">
+          <p className="studio-eyebrow"><LockClosedIcon aria-hidden="true" /> Your private collection</p>
+          <h1>Saved research</h1>
+          <p>Good discoveries deserve a second look.</p>
+          <div className="collection-hero-actions">
+            <Link className="button" href="/scan"><BookmarkIcon aria-hidden="true" /> Find something new</Link>
+            <Link className="button secondary" href="/saved/share" scroll={false}><ShareIcon aria-hidden="true" /> Share research</Link>
+          </div>
+        </div>
+        <div className="collection-hero-art" aria-hidden="true">
+          <span className="collection-orbit" />
+          {collection.items.length ? collection.items.slice(0, 3).map((product, index) =>
+            <div className={`collection-cover collection-cover-${index}`} key={product.id}><ProductArtwork product={product} sizes="180px" /></div>)
+            : <div className="collection-empty-mark"><BookmarkIcon /></div>}
+          <span className="collection-art-caption">A little curiosity. A wider world.</span>
+        </div>
+      </header>
       {loading ? <LoadingStatus page>Loading your saved research…</LoadingStatus> : null}
       <ErrorMessage message={error} />
       {error ? (
@@ -256,24 +273,14 @@ export function ShelfScreen() {
               </button>
             </section>
           ) : null}
-          <section className="saved-overview" aria-label="Research collection overview">
-            <div><Bookmark size={28} aria-hidden="true" /><div><strong>{collection.items.length + companies.length + guestIssuers.length} saved</strong><span>A collection of things that caught your attention.</span></div></div>
-            <Link className="button secondary" href="/saved/share">Share research <ArrowUpRight size={16} aria-hidden="true" /></Link>
-          </section>
-          <nav className="research-tabs" aria-label="Saved research view">
-            <Link
-              href="/saved?view=products"
-              aria-current={view === "products" ? "page" : undefined}
-            >
-              Products ({collection.items.length})
-            </Link>
-            <Link
-              href="/saved?view=companies"
-              aria-current={view === "companies" ? "page" : undefined}
-            >
-              Companies ({companies.length})
-            </Link>
-          </nav>
+          <div className="collection-toolbar">
+            <nav className="research-tabs" aria-label="Saved research view">
+              <Link href="/saved?view=products" aria-current={view === "products" ? "page" : undefined}><Squares2X2Icon aria-hidden="true" />Products <span>{collection.items.length}</span></Link>
+              <Link href="/saved?view=companies" aria-current={view === "companies" ? "page" : undefined}><BuildingOffice2Icon aria-hidden="true" />Companies <span>{companies.length}</span></Link>
+            </nav>
+            <label className="collection-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="feedback-sr-only">Search saved research</span><input type="search" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find in your collection" /></label>
+          </div>
+          <div className="collection-layout"><div className="collection-content">
           {removed ? <div className="saved-tools"><p className="muted">Removed from research. Your holdings are unchanged.</p><PendingButton className="ghost" pending={busy} pendingLabel="Restoring…" onClick={() => action(undo)}>Undo removal</PendingButton></div> : null}
           {view === "products" ? (
             <section className="research-section">
@@ -286,7 +293,7 @@ export function ShelfScreen() {
                     Repeated Brands can lead to the same Company.
                   </p>
                   <div className="saved-product-grid">
-                    {collection.items.map((product) => (
+                    {visibleProducts.map((product) => (
                       <article className="research-row saved-product-card" key={product.id}>
                         <div className="research-identity">
                           <ProductArtwork product={product} sizes="(max-width: 819px) 45vw, 30vw" />
@@ -296,6 +303,7 @@ export function ShelfScreen() {
                                 {product.name}
                               </Link>
                             </h3>
+                            <span className="collection-category">{product.category}</span>
                             <p className="muted">
                               {product.brand} ·{" "}
                               {companyById(product.companyId)?.name ??
@@ -309,11 +317,12 @@ export function ShelfScreen() {
                           aria-label={`Remove ${product.name}`}
                           onClick={() => action(() => removeProduct(product))}
                         >
-                          Remove
+                          <XMarkIcon aria-hidden="true" />
                         </button>
                       </article>
                     ))}
                   </div>
+                  {!visibleProducts.length ? <div className="collection-no-results"><p>No discoveries match “{filter}”.</p><button className="ghost" onClick={() => setFilter("")}>Clear search</button></div> : null}
                 </>
               ) : (
                 <EmptyState
@@ -334,7 +343,7 @@ export function ShelfScreen() {
               <h2>Saved Companies</h2>
               {companies.length ? (
                 <div className="research-rows">
-                  {companies.map((company) => (
+                  {visibleCompanies.map((company) => (
                     <article className="research-row" key={company.id}>
                       <div>
                         <h3>
@@ -371,6 +380,7 @@ export function ShelfScreen() {
                       </button>
                     </article>
                   ))}
+                  {!visibleCompanies.length ? <div className="collection-no-results"><p>No companies match “{filter}”.</p><button className="ghost" onClick={() => setFilter("")}>Clear search</button></div> : null}
                 </div>
               ) : (
                 <EmptyState
@@ -393,7 +403,7 @@ export function ShelfScreen() {
                 These are instrument references, not confirmed Product
                 relationships or Holdings.
               </p>
-              {guestIssuers.map((id) => {
+              {guestIssuers.filter((id) => id.toLowerCase().includes(normalizedFilter)).map((id) => {
                 const [, provider, symbol] = id.split(":");
                 if (!symbol || !["xstocks", "prestocks"].includes(provider))
                   return null;
@@ -430,9 +440,14 @@ export function ShelfScreen() {
               })}
             </section>
           ) : null}
+          </div><aside className="collection-insights" aria-label="Collection context">
+            <div className="collection-note"><span className="studio-eyebrow">The bigger picture</span><h2>{parentCount ? <>{parentCount} {parentCount === 1 ? "company" : "companies"}.<br />More connections.</> : <>Start with<br />the everyday.</>}</h2><p>{collection.items.length ? `${collection.items.length} saved products connect to ${parentCount} reviewed parent ${parentCount === 1 ? "company" : "companies"}. Different brands can lead to the same owner.` : "Scan something you use. Discover the company behind it. Keep what interests you."}</p><Link href="/saved?view=companies">Explore your connections <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+            <div className="collection-assistant"><SparklesIcon aria-hidden="true" /><h3>Follow your curiosity.</h3><p>Understand the difference between a brand, a company, and an investment.</p><Link href="/assistant">Ask Shelf <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+            <p className="collection-private-note"><LockClosedIcon aria-hidden="true" />Saving is research, not ownership. Only the discoveries you select are shared.</p>
+          </aside></div>
           {member ? (
-            <section className="research-section">
-              <h2>Collection tools</h2>
+            <section className="research-section collection-tools">
+              <h2>Make it your own</h2>
               <div className="actions">
                 <CtaLink id="C29" href="/saved/share" secondary>
                   Share selected research
@@ -560,6 +575,6 @@ export function ShelfScreen() {
           ) : null}
         </>
       ) : null}
-    </>
+    </div>
   );
 }

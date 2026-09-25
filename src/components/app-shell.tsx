@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Bookmark, CircleUserRound, Compass, ScanLine, Search, WalletCards } from "@/components/studio-icons";
+import { useSearchParams, useSelectedLayoutSegments } from "next/navigation";
+import { Bookmark, CircleUserRound, Compass, ScanLine, Search, Sparkles, WalletCards } from "@/components/studio-icons";
 import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, Search as StudioSearch, WalletCards as StudioWallet } from "@/components/studio-icons";
 import { NavigationProgress } from "@/components/loading-feedback";
 import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
@@ -44,6 +44,7 @@ export function AppHeader({ activeSection, environment, signedIn, conceptTwo = f
         <div className="app-header-actions">
           <Link className="header-scan" href="/scan">{studioPage ? <StudioScan size={16} aria-hidden="true" /> : <ScanLine size={16} aria-hidden="true" />}<span>Scan</span></Link>
           <Link className="header-search" href={conceptTwo ? "/discover?concept=2&focus=search" : "/discover?focus=search"} aria-label="Search Shelf">{studioPage ? <StudioSearch size={18} aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}<span>Search</span><kbd>⌘K</kbd></Link>
+          <Link className="header-assistant" href="/assistant" aria-label="Ask Shelf"><Sparkles size={18} aria-hidden="true" /><span>Ask Shelf</span></Link>
           <span className="environment-status"><i aria-hidden="true" />{environment === "private-beta" ? "beta" : environment}</span>
           <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}>{studioPage ? <StudioAccount size={19} aria-hidden="true" /> : <CircleUserRound size={19} aria-hidden="true" />}<span>{signedIn ? "Account" : "Sign in"}</span></Link>
         </div>
@@ -64,7 +65,9 @@ export function MobileNavigation({ activeSection, conceptTwo = false, studioPage
 }
 
 export function AppShell({ children, signedIn, environment }: { children: React.ReactNode; signedIn: boolean; environment: "local" | "integration" | "private-beta" }) {
-  const pathname = usePathname();
+  const contentSegments = useSelectedLayoutSegments();
+  // An intercepted task changes the URL while the main workspace remains in place.
+  const pathname = `/${contentSegments.filter((segment) => !segment.startsWith("(")).join("/")}`;
   const searchParams = useSearchParams();
   const comparisonPage = pathname === "/" || pathname === "/discover";
   const conceptTwo = !comparisonPage || searchParams.get("concept") !== "1";
@@ -89,7 +92,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
         <a href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></a>
       </nav> : null}
       <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} studioPage={studioPage} />
-      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage ? <WorkspaceFooter /> : null}</main>
+      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage && pathname !== "/assistant" ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage && pathname !== "/assistant" ? <WorkspaceFooter /> : null}</main>
       <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} studioPage={studioPage} />
     </div>
   );

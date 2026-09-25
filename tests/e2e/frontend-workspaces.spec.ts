@@ -132,11 +132,11 @@ for (const width of [390, 430, 768, 1280, 1440]) {
         await page.locator("main img").evaluateAll((images) => images.forEach((image) => { (image as HTMLImageElement).loading = "eager"; }));
         await page.waitForFunction(() => Array.from(document.querySelectorAll<HTMLImageElement>("main img")).every((image) => image.complete), null, { timeout: 30_000 });
         await page.screenshot({
-          path: `artifacts/workspace-studio/${name}-${width}.png`,
+          path: `artifacts/interaction-studio/routes/${name}-${width}.png`,
           fullPage: true,
         });
         if (width === 390 && ["product", "company", "saved", "portfolio", "send", "order-review", "admin-operations"].includes(name)) {
-          await page.screenshot({ path: `artifacts/workspace-studio/${name}-390-viewport.png` });
+          await page.screenshot({ path: `artifacts/interaction-studio/routes/${name}-390-viewport.png` });
         }
       }
       if (width < 820) {
@@ -156,7 +156,7 @@ for (const width of [390, 430, 768, 1280, 1440]) {
             ).toBeLessThanOrEqual(nav.y + 1);
         }
         if (width === 390 && ["product", "company", "saved", "portfolio", "send", "order-review", "admin-operations"].includes(name)) {
-          await page.screenshot({ path: `artifacts/workspace-studio/${name}-390-bottom.png` });
+          await page.screenshot({ path: `artifacts/interaction-studio/routes/${name}-390-bottom.png` });
         }
       }
     }
@@ -238,7 +238,7 @@ test("public entries and honest empty states have review screenshots", async ({ 
       await expect(page.locator("main h1")).toBeVisible();
       if (name === "saved-empty") await expect(page.getByRole("heading", { name: "No saved Products" })).toBeVisible();
       if (name === "share-expired") await expect(page.locator("main").getByRole("alert")).toContainText("unavailable");
-      await page.screenshot({ path: `artifacts/workspace-studio/${name}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `artifacts/interaction-studio/routes/${name}-${width}.png`, fullPage: true });
     }
   }
 });

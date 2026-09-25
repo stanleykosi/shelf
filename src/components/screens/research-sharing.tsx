@@ -19,6 +19,7 @@ import {
   ResultMessage,
 } from "@/components/ui";
 import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
+import { CopyButton } from "@/components/copy-button";
 import { useNotification } from "@/components/notifications";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import {
@@ -350,26 +351,7 @@ export function ShareScreen({ token }: { token?: string }) {
                     /share/{created.token}
                   </Link>
                 </p>
-                <button
-                  className="secondary"
-                  data-cta="C91"
-                  onClick={() =>
-                    action(async () => {
-                      try {
-                        await navigator.clipboard.writeText(
-                          `${location.origin}/share/${created.token}`
-                        );
-                        setMessage("Link copied.");
-                      } catch {
-                        throw new Error(
-                          "CLIPBOARD_BLOCKED_SELECT_THE_LINK_AND_COPY_MANUALLY"
-                        );
-                      }
-                    })
-                  }
-                >
-                  Copy link
-                </button>
+                <CopyButton cta="C91" value={`${window.location.origin}/share/${created.token}`} label="Copy link" copiedLabel="Share link copied" showLabel />
               </ResultMessage>
             ) : null}
 
