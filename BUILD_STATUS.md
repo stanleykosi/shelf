@@ -2,6 +2,22 @@
 
 Updated: 2026-09-25
 
+## Focus color cleanup — local
+
+Replaced the yellow and brown focus outlines across the global, Home, Discover,
+Scan, research, workspace and asset detail styles with a shared green focus token.
+The dark header, Home hero, asset chart and mobile navigation use a lighter green
+focus token for contrast. Header and hero search wrappers now show a light green
+border while their inputs remain free of a second outline. Keyboard focus remains
+visible on dropdowns, inputs, buttons, links and disclosure summaries.
+
+`npm run lint`, `npm run typecheck`, `git diff --check` and the Next.js 16.3.5
+Webpack production build passed. Read-only local Chromium checks confirmed the
+computed focus styles on header and hero search, a Discover dropdown, the Scan
+barcode field and the sign-in email field. The build logged the existing nonfatal
+optional Magic SDK transport warnings and Magic API initialization error. No
+deployment or financial action occurred.
+
 ## Asset chart panning, mint copy, minimum purchase and Discover hover — local
 
 The xStocks detail chart now starts at the selected range and retains earlier observed

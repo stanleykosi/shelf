@@ -38,7 +38,7 @@
 .journey-page :is(.button:not(.secondary, .ghost), .scan-primary) { background: #253e30; color: #fffefa; border-color: #253e30; }
 .journey-shell .journey-page :is(.button, button).secondary, .journey-page .scan-secondary { background: #fffefa; color: #385339; border: 1px solid #cad6c2; }
 .journey-shell .journey-page :is(.button, button).ghost { color: #385339; background: transparent; }
-.journey-page :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid #8b6c31; outline-offset: 4px; }
+.journey-page :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 .journey-shell .journey-page details { border-color: var(--journey-line); }
 .journey-page summary { cursor: pointer; min-height: 44px; padding: 13px 0; font-size: 14px; }
 .journey-page .research-section { padding: 29px 0; border-color: var(--journey-line); }

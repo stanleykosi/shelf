@@ -318,7 +318,7 @@
 .discovery-studio .live-search-results, .scan-studio .scan-consent { animation: studio-fade 180ms ease both; }
 .discovery-studio .search-submit, .scan-studio .scan-primary { transition: transform 150ms var(--studio-ease), background-color 150ms ease; }
 .discovery-studio .search-submit:active:not(:disabled), .scan-studio .scan-primary:active:not(:disabled) { transform: scale(.98); }
-.discovery-studio :is(a, button, select):focus-visible, .scan-studio :is(a, button, input, summary):focus-visible { outline: 2px solid #8b6c31; outline-offset: 4px; }
+.discovery-studio :is(a, button, select):focus-visible, .scan-studio :is(a, button, input, summary):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 .discovery-theme:focus-visible .discovery-theme-footer > svg { transform: translate(2px, -2px); }
 .discovery-studio #spotlight-heading:focus { outline-offset: 6px; }
 

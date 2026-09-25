@@ -40,7 +40,7 @@
 .workspace-shell .research-workspace :is(button, .button).ghost { background: transparent; color: #385339; }
 .workspace-shell .research-workspace button:disabled { color: #65715f; background: #e9ede4; border-color: #d5ddd0; cursor: not-allowed; }
 .workspace-shell .research-workspace button[aria-busy=true] { color: #385339; background: #e9ede4; }
-.workspace-shell :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid #8b6c31; outline-offset: 4px; }
+.workspace-shell :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 .workspace-shell .research-workspace :is(input:not([type=checkbox], [type=radio]), select, textarea) { color: var(--workspace-ink); background: #fffefa; border: 1px solid #cad6c2; border-radius: 6px; padding: 13px 14px; font-size: 15px; min-height: 46px; max-width: 100%; }
 .workspace-shell .research-workspace :is(input, textarea)::placeholder { color: #69745f; }
 .workspace-shell .field > label { font-size: 13px; color: var(--workspace-ink); font-weight: 500; }

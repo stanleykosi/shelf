@@ -79,7 +79,7 @@
 .scan-search-list strong { font-size:17px; font-weight:500; }
 .scan-search-list small { display:block; font-size:14px; margin-top:5px; color:#65705f; }
 .scan-search-list button > svg { margin-left:auto; flex-shrink:0; }
-.scan-page :is(button,a,input,summary):focus-visible { outline:3px solid #a47c36; outline-offset:4px; }
+.scan-page :is(button,a,input,summary):focus-visible { outline:3px solid var(--focus-ring); outline-offset:4px; }
 .scan-mobile-shortcuts { display:none; }
 .scan-results-grid { display:grid; grid-template-columns:280px minmax(0,1fr); gap:48px; border-top:1px solid #bdc7bb; padding-top:26px; }
 .scan-candidate-nav { border-right:1px solid #cbd3c4; padding-right:26px; }
