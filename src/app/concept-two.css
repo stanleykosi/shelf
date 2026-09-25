@@ -173,21 +173,26 @@
 .c2-chapter-copy { display:block; min-height:0; max-width:370px; overflow:hidden; padding-top:13px; color:#a8b7a3; font-size:14px; line-height:1.7; }
 .c2-chapter-progress { position:absolute; right:0; bottom:-1px; left:0; height:2px; background:#b6efd2; transform-origin:left; animation:c2-chapter-fill 6500ms linear forwards; }
 @keyframes c2-chapter-fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-.c2-story-visual { position:relative; display:grid; place-items:center; min-height:500px; overflow:hidden; }
-.c2-orbit { position:absolute; inset:0; display:grid; place-items:center; }
-.c2-orbit span { position:absolute; width:90%; aspect-ratio:1; border:1px solid #3c513a; border-radius:50%; }
-.c2-orbit span:nth-child(2) { width:70%; }
-.c2-orbit span:nth-child(3) { width:48%; }
-.c2-story-slide { position:absolute; inset:0; z-index:1; display:grid; place-items:center; opacity:0; pointer-events:none; transform:translateY(12px) scale(.985); transition:opacity 300ms ease,transform 440ms cubic-bezier(.19,1,.22,1); }
-.c2-story-slide.active { opacity:1; pointer-events:auto; transform:none; }
-.c2-story-object { position:relative; display:flex; flex-direction:column; align-items:center; gap:20px; width:280px; min-height:330px; padding:30px 24px; border:1px solid #b5c7a4; background:#dce7cc; color:#243321; text-align:center; }
-.c2-story-object > span { font-size:13px; }
-.c2-story-object > strong { display:grid; place-items:center; min-height:145px; font-size:33px; font-weight:400; letter-spacing:-1.7px; }
-.c2-story-object .issuer-logo { flex:0 0 122px; width:122px; height:122px; border-radius:18px; }
-.c2-story-object .research-product-image { width:180px; height:145px; border:0; background:transparent; }
-.c2-story-object p { margin:0; font-size:14px; }
-.c2-story-object small { font-size:12px; line-height:1.6; }
-.c2-story-object a { display:flex; gap:12px; align-items:center; padding-top:14px; border-top:1px solid #b4c4a5; font-size:12px; }
+.c2-story-visual { position:relative; width:100%; max-width:560px; aspect-ratio:1; overflow:hidden; }
+.c2-coin-scene { position:absolute; inset:0; overflow:hidden; }
+.c2-silver-rail { position:absolute; inset:0; width:100%; height:100%; }
+.c2-silver-rail path { fill:none; stroke-linecap:round; }
+.c2-rail-shadow { stroke:#07100d; stroke-width:22; transform:translateY(7px); }
+.c2-rail-body { stroke:url(#c2-rail-metal); stroke-width:12; }
+.c2-rail-highlight { stroke:#e9f9f8; stroke-width:2.3; opacity:.92; }
+.c2-company-coin { position:absolute; z-index:1; top:14%; left:50%; width:64%; aspect-ratio:1; translate:-50% 0; transform-origin:center; pointer-events:none; }
+.c2-company-coin img { object-fit:contain; }
+.c2-coin-engraving { position:absolute; top:49%; left:49%; width:30%; height:30%; transform:translate(-50%,-50%); overflow:visible; mix-blend-mode:multiply; }
+.c2-coin-mark-shadow { fill:#405660; transform:translate(.3px,.4px); }
+.c2-coin-mark-highlight { fill:#f3fbfc; transform:translate(-.25px,-.3px); }
+.c2-coin-mark-face { fill:#82959d; }
+.c2-coin-caption { position:absolute; z-index:3; right:7%; bottom:5%; left:7%; color:#e5f5e8; }
+.c2-coin-caption-label { display:block; margin-bottom:8px; color:#b1d2bd; font-size:10px; font-weight:650; letter-spacing:.15em; text-transform:uppercase; }
+.c2-coin-caption-content { display:flex; align-items:center; justify-content:space-between; gap:15px; animation:c2-coin-caption-enter 480ms cubic-bezier(.16,1,.3,1) both; }
+.c2-coin-caption-content > span { display:flex; flex-direction:column; gap:3px; }
+.c2-coin-caption-content strong { font-size:27px; font-weight:500; letter-spacing:-.04em; }
+.c2-coin-caption-content small { color:#b2c9bc; font-size:12px; }
+@keyframes c2-coin-caption-enter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .c2-companies .research-table th { font-weight:400; font-size:13px; color:#6b7962; }
 .c2-companies .research-table td { padding-top:23px; padding-bottom:23px; font-size:14px; }
 .c2-companies .company-identity strong { font-weight:500; }
@@ -260,7 +265,8 @@ html:has(.c2-home[data-motion=enabled]) { scroll-behavior:smooth; scroll-padding
   .c2-home * { animation:none!important; }
   .c2-home [data-reveal],.c2-home .c2-research-board { opacity:1!important; transform:none!important; transition:none!important; }
   .c2-product:hover .research-product-photo { transform:none; }
-  .c2-home .c2-story-slide { transform:none!important; transition:opacity 160ms ease!important; }
+  .c2-home .c2-company-coin { transition:none!important; }
+  .c2-home .c2-coin-caption-content { animation:none!important; }
   .c2-home .c2-chapter-copy-wrap { transition:none!important; }
   html:has(.c2-home) { scroll-behavior:auto!important; }
 }
@@ -356,8 +362,10 @@ html:has(.c2-home[data-motion=enabled]) { scroll-behavior:smooth; scroll-padding
   .c2-chapters { margin-top:28px; }
   .c2-chapters strong { font-size:17px; }
   .c2-chapter-copy { font-size:14px; }
-  .c2-story-visual { min-height:365px; }
-  .c2-story-object { width:245px; padding:20px; }
+  .c2-story-visual { min-height:0; }
+  .c2-coin-engraving { width:31%; height:31%; }
+  .c2-coin-caption-content strong { font-size:23px; }
+  .c2-coin-caption-content small { font-size:11px; }
   .c2-companies .research-table td { padding:0; font-size:13px; }
   .c2-companies .research-table-wrap { max-width:100%; overflow-x:auto; }
   .c2-companies .research-table td::before { font-size:12px; }

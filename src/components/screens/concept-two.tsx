@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { siApple, siNvidia } from "simple-icons";
 import { ArrowDown, ArrowUpRight, Check, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
 import { ArrowDownRight, Minus } from "lucide-react";
 import { articles } from "@/data/catalog";
@@ -17,6 +20,34 @@ const chapters = [
   { title: "Understand the instrument.", body: "A token has its own terms and market risks. Research comes first; any investment is a separate decision.", label: "Exposure", detail: "A separate instrument, a separate decision" },
 ];
 
+const coinCompanies = [
+  { name: "Apple", mark: "AAPL", logoPath: siApple.path },
+  { name: "Microsoft", mark: "MSFT", logoPath: "M0 0h11v11H0z M13 0h11v11H13z M0 13h11v11H0z M13 13h11v11H13z" },
+  { name: "NVIDIA", mark: "NVDA", logoPath: siNvidia.path },
+];
+
+type RollContext = { direction: 1 | -1; quiet: boolean; paused: boolean };
+const settledCoin = "translate3d(0%, 0%, 0) rotate(0deg)";
+const rollingEase = [0.42, 0, 0.18, 1] as const;
+
+function rollTransition({ quiet, paused }: RollContext) {
+  return { duration: paused ? 0 : quiet ? 0.16 : 0.92, ease: rollingEase };
+}
+
+const coinVariants = {
+  enter: (context: RollContext) => ({
+    transform: context.quiet ? settledCoin : `translate3d(${context.direction * 145}%, ${context.direction === 1 ? "-26%" : "-19%"}, 0) rotate(${context.direction * 210}deg)`,
+    opacity: context.quiet ? 0 : 1,
+    transition: rollTransition(context),
+  }),
+  center: (context: RollContext) => ({ transform: settledCoin, opacity: 1, transition: rollTransition(context) }),
+  exit: (context: RollContext) => ({
+    transform: context.quiet ? settledCoin : `translate3d(${-context.direction * 145}%, ${context.direction === 1 ? "-19%" : "-26%"}, 0) rotate(${-context.direction * 210}deg)`,
+    opacity: context.quiet ? 0 : 1,
+    transition: rollTransition(context),
+  }),
+};
+
 function formatMarketPrice(value: string) {
   const price = Number(value);
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 4 : 2 }).format(price);
@@ -27,6 +58,7 @@ export function ConceptTwoHome() {
   const boardRef = useRef<HTMLDivElement>(null);
   const storyRef = useRef<HTMLElement>(null);
   const [chapter, setChapter] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
   const [cycle, setCycle] = useState(0);
   const [storyVisible, setStoryVisible] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -34,7 +66,15 @@ export function ConceptTwoHome() {
   const [highlights, setHighlights] = useState<HomeHighlights | null>(null);
   const [highlightsUnavailable, setHighlightsUnavailable] = useState(false);
   const [directoryPreview, setDirectoryPreview] = useState<DirectoryListing[]>([]);
-  const storyCompany = directoryPreview.find((listing) => listing.provider === "xstocks");
+  const selectedCoin = coinCompanies[chapter];
+
+  function chooseChapter(index: number) {
+    if (index !== chapter) {
+      setDirection((index - chapter + chapters.length) % chapters.length === 1 ? 1 : -1);
+      setChapter(index);
+    }
+    setCycle((value) => value + 1);
+  }
 
   useEffect(() => {
     let active = true;
@@ -48,7 +88,7 @@ export function ConceptTwoHome() {
         listing.sector !== "Funds & ETFs" &&
         !/\b(etf|fund|index|trust)\b|sp500/i.test(listing.asset.name),
       );
-      const preferred = ["AAPLX", "MSFTX", "OPENAI"];
+      const preferred = ["AAPLX", "MSFTX", "NVDAX"];
       const preview = companyListings.toSorted((left, right) => {
         const leftRank = preferred.indexOf(left.asset.symbol.toUpperCase());
         const rightRank = preferred.indexOf(right.asset.symbol.toUpperCase());
@@ -77,7 +117,10 @@ export function ConceptTwoHome() {
 
   useEffect(() => {
     if (!storyVisible || motionPaused || reducedMotion) return;
-    const timer = window.setTimeout(() => setChapter((current) => (current + 1) % chapters.length), 6500);
+    const timer = window.setTimeout(() => {
+      setDirection(1);
+      setChapter((current) => (current + 1) % chapters.length);
+    }, 6500);
     return () => window.clearTimeout(timer);
   }, [chapter, cycle, storyVisible, motionPaused, reducedMotion]);
 
@@ -201,18 +244,38 @@ export function ConceptTwoHome() {
       </section>
 
       <section className="c2-story" data-reveal ref={storyRef}>
-        <div className="c2-section c2-story-grid"><div><p className="c2-kicker">Understanding</p><h2>From a company<br />to the full picture.</h2><div className="c2-chapters" aria-label="Research journey">{chapters.map((item, index) => <button key={item.label} type="button" aria-pressed={chapter === index} onClick={() => { setChapter(index); setCycle((value) => value + 1); }}><span>0{index + 1}</span><span><strong>{item.title}</strong><span className="c2-chapter-copy-wrap"><span className="c2-chapter-copy">{item.body}</span></span></span><ArrowUpRight size={18} aria-hidden="true" />{chapter === index && storyVisible && !motionPaused && !reducedMotion ? <span className="c2-chapter-progress" key={`${chapter}-${cycle}`} aria-hidden="true" /> : null}</button>)}</div></div>
-          <div className="c2-story-visual"><div className="c2-orbit" aria-hidden="true"><span /><span /><span /></div>{chapters.map((item, index) => {
-            const href = storyCompany ? `/assets/xstocks/${encodeURIComponent(storyCompany.asset.symbol)}` as Route : "/discover";
-            return <div className={`c2-story-slide${chapter === index ? " active" : ""}`} aria-hidden={chapter !== index} key={item.label}>
-              <div className="c2-story-object"><span>{item.label}</span>
-                {index === 0 && storyCompany ? <IssuerLogo imageUrl={storyCompany.asset.logoUrl} name={storyCompany.asset.name} source="xstocks" large /> : <strong>{index === 0 ? "Discover" : index === 1 ? "Issuer record" : storyCompany?.asset.symbol ?? "xStocks"}</strong>}
-                <p>{index === 0 && storyCompany ? storyCompany.asset.name : item.detail}</p>
-                {index === 2 ? <small>Issuer-defined exposure.<br />Not an ordinary voting share.</small> : null}
-                <Link href={href} tabIndex={chapter === index ? 0 : -1}>Research current listings <ArrowUpRight size={16} aria-hidden="true" /></Link>
+        <div className="c2-section c2-story-grid"><div><p className="c2-kicker">Understanding</p><h2>From a company<br />to the full picture.</h2><div className="c2-chapters" aria-label="Research journey">{chapters.map((item, index) => <button key={item.label} type="button" aria-pressed={chapter === index} onClick={() => chooseChapter(index)}><span>0{index + 1}</span><span><strong>{item.title}</strong><span className="c2-chapter-copy-wrap"><span className="c2-chapter-copy">{item.body}</span></span></span><ArrowUpRight size={18} aria-hidden="true" />{chapter === index && storyVisible && !motionPaused && !reducedMotion ? <span className="c2-chapter-progress" key={`${chapter}-${cycle}`} aria-hidden="true" /> : null}</button>)}</div></div>
+          <div className="c2-story-visual">
+            <div className="c2-coin-scene" aria-hidden="true">
+              <svg className="c2-silver-rail" viewBox="0 0 560 560" preserveAspectRatio="none" aria-hidden="true">
+                <defs><linearGradient id="c2-rail-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f9ffff" /><stop offset=".27" stopColor="#b7c8ca" /><stop offset=".58" stopColor="#657e83" /><stop offset="1" stopColor="#243a3b" /></linearGradient></defs>
+                <path className="c2-rail-shadow" d="M-28 357 C92 345 171 387 280 391 S449 368 588 331" />
+                <path className="c2-rail-body" d="M-28 357 C92 345 171 387 280 391 S449 368 588 331" />
+                <path className="c2-rail-highlight" d="M-28 354 C92 342 171 384 280 388 S449 365 588 328" />
+              </svg>
+              <AnimatePresence initial={false} custom={{ direction, quiet: reducedMotion || motionPaused, paused: motionPaused }}>
+                <motion.div
+                  key={selectedCoin.mark}
+                  className="c2-company-coin"
+                  data-company={selectedCoin.mark}
+                  custom={{ direction, quiet: reducedMotion || motionPaused, paused: motionPaused }}
+                  variants={coinVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                >
+                  <Image src="/images/understanding/silver-coin.png" alt="" fill sizes="(max-width: 819px) 280px, 360px" />
+                  <svg className="c2-coin-engraving" viewBox="0 0 24 24" aria-hidden="true"><path className="c2-coin-mark-shadow" d={selectedCoin.logoPath} /><path className="c2-coin-mark-highlight" d={selectedCoin.logoPath} /><path className="c2-coin-mark-face" d={selectedCoin.logoPath} /></svg>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            <div className="c2-coin-caption" aria-live="polite">
+              <span className="c2-coin-caption-label">A familiar name, a closer look</span>
+              <div key={selectedCoin.mark} className="c2-coin-caption-content">
+                <span><strong>{selectedCoin.name}</strong><small>{chapters[chapter].detail}</small></span>
               </div>
-            </div>;
-          })}</div>
+            </div>
+          </div>
         </div>
       </section>
 

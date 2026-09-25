@@ -61,7 +61,9 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await page.getByRole("button", { name: "Enable motion" }).click();
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "enabled");
   await page.getByRole("button", { name: /Understand the instrument/ }).click();
-  await expect(page.locator(".c2-story-slide.active")).toContainText("Not an ordinary voting share");
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "NVDA");
+  expect(await page.locator(".c2-company-coin").last().evaluate((coin) => getComputedStyle(coin).transform)).toBe("matrix(1, 0, 0, 1, 0, 0)");
+  await expect(page.locator(".c2-coin-caption")).toContainText("NVIDIA");
 });
 
 test("the research journey advances while visible and the landing page scrolls smoothly", async ({ page }, info) => {
@@ -69,10 +71,25 @@ test("the research journey advances while visible and the landing page scrolls s
   await page.goto("/");
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("smooth");
   await page.locator(".c2-story").scrollIntoViewIfNeeded();
+  await expect(page.locator(".c2-story-visual a")).toHaveCount(0);
+  await expect(page.locator(".c2-silver-rail")).toBeVisible();
+  await expect.poll(() => page.locator(".c2-company-coin img").last().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(page.locator(".c2-chapters button").first()).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".c2-chapter-progress")).toBeVisible();
   await expect(page.locator(".c2-chapters button").nth(1)).toHaveAttribute("aria-pressed", "true", { timeout: 9_000 });
-  await expect(page.locator(".c2-story-slide.active")).toContainText("Issuer record");
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "MSFT");
+  await expect(page.locator(".c2-coin-caption")).toContainText("Microsoft");
+});
+
+test("the outgoing and incoming company coins roll at the same time", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium", "One rolling transition check");
+  await page.goto("/");
+  await page.locator(".c2-story").scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: /Check the evidence/ }).click();
+  await expect(page.locator(".c2-company-coin")).toHaveCount(2);
+  await expect(page.locator(".c2-company-coin").first()).toHaveAttribute("data-company", "AAPL");
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "MSFT");
+  await expect(page.locator(".c2-company-coin")).toHaveCount(1, { timeout: 3_000 });
 });
 
 test("mobile filters trap focus, dismiss with Escape, and preserve the selected market", async ({ page }, info) => {
