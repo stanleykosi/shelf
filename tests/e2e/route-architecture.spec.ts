@@ -57,9 +57,8 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   }
 });
 
-test("retired research and general chat routes return 404", async ({ request }) => {
+test("retired research routes return 404", async ({ request }) => {
   for (const path of [
-    "/assistant",
     "/companies/company-pepsico",
     "/companies/pepsico",
     "/invest/suggest",
@@ -71,7 +70,7 @@ test("retired research and general chat routes return 404", async ({ request }) 
   }
 });
 
-test("the Home product gallery still leads to a guest's saved product", async ({ page }) => {
+test("a guest can still save a product from its detail page", async ({ page }) => {
   await page.route("**/api/v1/shelf", (route) => route.fulfill({
     status: 401,
     contentType: "application/json",
@@ -83,12 +82,7 @@ test("the Home product gallery still leads to a guest's saved product", async ({
     body: JSON.stringify({ error: { code: "AUTH_REQUIRED" } }),
   }));
 
-  await page.goto("/");
-  for (const slug of ["pepsi-drink", "apple-iphone", "lays-snack", "tide-laundry"]) {
-    await expect(page.locator(`.c2-product-gallery .c2-product[href="/products/${slug}"]`)).toBeVisible();
-  }
-
-  await page.locator('.c2-product-gallery .c2-product[href="/products/apple-iphone"]').click();
+  await page.goto("/products/apple-iphone");
   await expect(page).toHaveURL(/\/products\/apple-iphone$/, { timeout: 30_000 });
   await expect(page.getByRole("button", { name: "Save product" })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();

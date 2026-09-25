@@ -6,7 +6,7 @@ Every listed screen requires loading, usable, empty, recoverable-error, permissi
 
 Audience: everyone, subject to content policy. Primary C01 **Scan a product** → /scan, without automatically requesting camera access. Secondary C02 **Search products** → /discover?focus=search. Home explains that issuer facts and AI chat live on an exact token detail page, and links to the current issuer directory.
 
-Show concise Scan/search guidance and token-page capabilities. Do not restore the product gallery, Product → Brand → Company relationship explorer, company research table, research coverage metrics or general assistant entry. Member header has cash/status only after authentication; never expose private server data in the guest HTML. If directory data is unavailable, typed search and Scan remain independently available.
+Show concise Scan/search guidance and token-page capabilities. The header links to the general assistant. Do not restore the product gallery, Product → Brand → Company relationship explorer, company research table or research coverage metrics. Member header has cash/status only after authentication; never expose private server data in the guest HTML. If directory data is unavailable, typed search and Scan remain independently available.
 
 ## S02 — Explore/search · /discover
 
@@ -48,9 +48,9 @@ C18 **Save to shelf** toggles to Saved; C19 **Remove from shelf** needs nonfinan
 
 This is the company and stock-token research destination for a current issuer listing. The former `/companies/[slug]` research URL is retired and returns 404. Show what the issuer instrument represents, source-linked company context where supplied, its limitations, and current provider observations. Separate issuer reference values from an amount-specific Jupiter quote; label timestamp/source/unit. Missing values are “Unavailable,” never zero.
 
-C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Chat with AI** opens S09 for this exact provider and symbol. C23 **View sources** links to issuer records and disclosures. C24's former separate company-to-token handoff is retired because this page is the token detail.
+C21 **Choose amount** starts in a purchase panel on this page and opens the separate order review after sign-in and eligibility checks; S15 remains a direct-link fallback. C22 **Chat with AI** opens the issuer-scoped assistant in the same page, with S09 available as a full conversation view. C23 **View sources** links to issuer records and disclosures. C24's former separate company-to-token handoff is retired because this page is the token detail.
 
-The token detail page shows **Chat with AI** beside purchase review and watchlist actions. It opens `/assets/[provider]/[symbol]/chat` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat. There is no standalone general `/assistant` route.
+The token detail page places issuer facts, purchase preparation and exact-issuer AI chat together. Opening chat fetches the current listing before the first question, and sends no AI request merely for opening it. The dedicated `/assets/[provider]/[symbol]/chat` route remains available for a larger conversation; `/assistant` handles general reviewed learning. Both chat views share layout and browser history. xStocks may show an interactive USD history of a qualifying Solana pool for the exact issuer mint, clearly separate from the underlying equity and from a Jupiter execution quote. If verified pool history is missing, show an unavailable state; do not fabricate a line. PreStocks reference values have no verified history in the public feed and are not plotted as a market chart.
 
 The token page now leads with what the instrument represents and the next actions. xStocks shows the underlying ticker/exchange, issuer-session state, security identifiers, Solana mint, current Solana multiplier, and a timestamped issuer reserve snapshot where available. PreStocks shows issuer token reference, mark, premium/discount, implied and mark company valuations, issuer supply, and the official product page. Explain that issuer sessions and references do not establish Jupiter liquidity or an executable price. Optional disclosure outages leave the core token page usable; a current issuer trading halt pauses Shelf purchase review. Do not fill gaps in the public PreStocks feed by scraping its website.
 
@@ -66,11 +66,15 @@ Guest banner explains temporary storage and C31 **Sign in to keep this shelf**. 
 
 ## S08 — Learning · /learn and /learn/[slug]
 
-Versioned editorial content, sources and last review date. C33 **Explore related brands** and optional **Back to Discover** remain. C34's general **Ask a question** action is retired; users open AI chat from an exact token detail page. No buy CTA disguised as a required next lesson. At minimum ship six explainers listed in document 11. Error preserves topic title and offers Retry.
+Versioned editorial content, sources and last review date. C33 **Explore related brands** and optional **Back to Discover** remain. General education questions can open `/assistant`; questions about a current token use its exact asset chat. No buy CTA disguised as a required next lesson. At minimum ship six explainers listed in document 11. Error preserves topic title and offers Retry.
 
 ## S09 — Issuer-scoped chat · /assets/[provider]/[symbol]/chat
 
-This page requires a valid xStocks or PreStocks provider and exact symbol. The issuer context card loads from the current feed. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** erases the page-memory transcript. A follow-up sends only six bounded prior turns; a route change or reload starts a new conversation until retention is decided separately.
+This page requires a valid xStocks or PreStocks provider and exact symbol. The issuer context card loads from the current feed. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** deletes the active local conversation. A follow-up sends only six bounded prior turns. Chat history is visible beside the conversation, shares its layout with `/assistant`, and links between general and asset conversations. Signed-in history is stored by account ID in this browser; guest history lasts only in the current tab. Users can delete individual chats; local data expires after 90 days and is never included in server usage logs.
+
+## S09a — General assistant · /assistant
+
+Use the same chat and history layout as S09. The API accepts explicit `scope:general` and grounds answers in versioned Shelf learning articles and reviewed product relationships. Current issuer terms, mints and prices are answered on a selected asset page. General chat cannot place orders or provide personal investment advice.
 
 Show the issuer source and response citations. Keep the typed question after an error so the user can retry deliberately; no duplicate automatic billable retries. A missing current listing blocks scoped chat rather than using stale browser-provided facts. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
 

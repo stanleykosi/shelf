@@ -2,7 +2,6 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { TextMorph } from "torph/react";
-import { useLinkStatus } from "next/link";
 
 /** A single motion treatment for real status changes, with Torph's reduced-motion support. */
 function FeedbackText({ children }: { children: string }) {
@@ -12,14 +11,6 @@ function FeedbackText({ children }: { children: string }) {
 
 export function Spinner() {
   return <span className="shelf-spinner" aria-hidden="true" />;
-}
-
-/** Keep route guards outside streaming boundaries so redirects retain their HTTP status. */
-export function NavigationProgress() {
-  const { pending } = useLinkStatus();
-  return <span className="navigation-progress" data-pending={pending}
-    aria-hidden={!pending} role={pending ? "status" : undefined}
-    aria-label={pending ? "Loading page" : undefined}><Spinner /></span>;
 }
 
 export function LoadingStatus({ children, page = false }: { children: string; page?: boolean }) {

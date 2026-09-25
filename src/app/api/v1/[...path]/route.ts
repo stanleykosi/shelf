@@ -42,6 +42,7 @@ import { productNameForApprovedUrl } from "@/lib/product-url";
 import { safeReturnTo } from "@/lib/routes";
 import { isValidGtin } from "@/domain/gtin";
 import { issuerChatFact, readChatHistory } from "@/domain/ai-chat";
+import { generalChatFacts } from "@/domain/general-chat";
 import type {
   AccountSummary,
   AuthenticationMethod,
@@ -52,6 +53,7 @@ import type {
   WalletSummary,
 } from "@/domain/identity";
 import type { MarketFeed } from "@/domain/market-data";
+import { selectHomeHighlights } from "@/domain/home-highlights";
 import { buildIssuerDirectory } from "@/domain/issuer-spotlight";
 import { readIssuerDirectory } from "@/db/issuer-directory";
 import type { RecognitionMatch } from "@/domain/types";
@@ -70,6 +72,9 @@ import { readMarketHistory, runWithRuntimeState } from "@/db/runtime-store";
 import { LivePreStocksProvider } from "@/providers/prestocks";
 import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
+import { LiveDexScreenerProvider } from "@/providers/dexscreener";
+import { fetchPoolCandles, marketRanges, type MarketRange } from "@/providers/geckoterminal";
+import type { IssuerMarketView } from "@/domain/issuer-market";
 import { lookupBarcodeProduct } from "@/providers/product-identity";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "@/providers/issuer-verification";
 import type { XStocksListing, XStocksMetadata } from "@/providers/xstocks";
@@ -105,6 +110,7 @@ const ai = env.OPENROUTER_API_KEY
   : undefined;
 const preStocks = new LivePreStocksProvider(env.PRESTOCKS_API_URL);
 const xStocks = new LiveXStocksProvider(env.XSTOCKS_API_BASE_URL);
+const dexMarkets = new LiveDexScreenerProvider();
 const magicIdentity = env.MAGIC_SECRET_KEY
   ? new MagicIdentityProvider({
         secretKey: env.MAGIC_SECRET_KEY!,
@@ -419,6 +425,7 @@ const statusByError: Record<string, number> = {
   SUBMISSIONS_PAUSED: 503,
   PRESTOCKS_UNAVAILABLE: 503,
   XSTOCKS_UNAVAILABLE: 503,
+  DEX_MARKET_UNAVAILABLE: 503,
   ISSUER_INSTRUMENT_UNAVAILABLE: 503,
   SIGNING_UNAVAILABLE: 503,
   TRADE_EXECUTION_DISABLED: 503,
@@ -1142,27 +1149,32 @@ async function answerResponse(request: NextRequest, body: Record<string, unknown
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > 2_000) throw new Error("INVALID_INPUT");
   const history = readChatHistory(body.history);
-  if (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer)) {
+  const general = body.scope === "general" && body.issuer === undefined;
+  if (!general && (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer))) {
     throw new Error("INVALID_INPUT");
   }
+  if (body.scope !== undefined && !general) throw new Error("INVALID_INPUT");
   if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-  const reference = body.issuer as Record<string, unknown>;
   const reservation = await reserveDiscoveryAiBudget(request, CHAT_REQUEST_RESERVE_MICROUSD);
-  let context: Awaited<ReturnType<typeof exactIssuerChatContext>>;
+  let context: Awaited<ReturnType<typeof exactIssuerChatContext>> | null = null;
   try {
-    context = await exactIssuerChatContext(reference.provider, reference.symbol);
+    if (!general) {
+      const reference = body.issuer as Record<string, unknown>;
+      context = await exactIssuerChatContext(reference.provider, reference.symbol);
+    }
   } catch (error) {
     await releaseDiscoveryAiBudget(reservation);
     throw error;
   }
 
-  const result = await ai.answer({ question, approvedFacts: [context.fact], history }, REQUIRED_AI_PRIVACY);
+  const approvedFacts = context ? [context.fact] : generalChatFacts();
+  const result = await ai.answer({ question, approvedFacts, history }, REQUIRED_AI_PRIVACY);
   await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
   return {
     answer: result.answer,
     sourceIds: result.sourceIds,
     uncertainty: result.uncertainty,
-    issuer: context.listing,
+    issuer: context?.listing ?? null,
   };
 }
 
@@ -1672,6 +1684,44 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
     const { path } = await context.params;
     if (pathIs(path, "ai", "session")) return guestAiSessionResponse(request);
     if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&
+      path[2] === "xstocks" && path[4] === "market") {
+      const requestedRange = request.nextUrl.searchParams.get("range") ?? "1D";
+      if (!marketRanges.includes(requestedRange as MarketRange)) throw new Error("INVALID_INPUT");
+      const range = requestedRange as MarketRange;
+      const { listing } = await exactIssuerAsset("xstocks", path[3]);
+      if (!listing || listing.provider !== "xstocks") throw new Error("NOT_FOUND");
+
+      const checkedAt = new Date().toISOString();
+      let poolLookupFailed = false;
+      const pool = await dexMarkets.markets([listing.asset.mint])
+        .then(({ markets }) => markets[0])
+        .catch(() => { poolLookupFailed = true; return undefined; });
+      let candles: IssuerMarketView["candles"] = [];
+      let historyState: IssuerMarketView["historyState"] = poolLookupFailed ? "error" : "empty";
+      if (pool) {
+        candles = await fetchPoolCandles(pool.pairAddress, listing.asset.mint, range)
+          .catch(() => { historyState = "error"; return []; });
+        if (historyState !== "error") historyState = candles.length > 1 ? "available" : "empty";
+      }
+      const marketView: IssuerMarketView = {
+        state: pool ? "available" : "unavailable",
+        historyState,
+        range,
+        checkedAt,
+        priceUsd: pool?.priceUsd,
+        change24hPct: pool?.change24hPct,
+        liquidityUsd: pool?.liquidityUsd,
+        venue: pool?.venue,
+        poolAddress: pool?.pairAddress,
+        candles,
+      };
+      const response = success(marketView);
+      response.headers.set("Cache-Control", historyState === "error"
+        ? "no-store"
+        : "public, max-age=30, s-maxage=180, stale-while-revalidate=300");
+      return response;
+    }
+    if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&
       path[2] === "xstocks" && path[4] === "disclosures") {
       const response = success(await xStocks.disclosures(path[3]));
       response.headers.set("Cache-Control", "public, max-age=15, s-maxage=60, stale-while-revalidate=30");
@@ -1684,6 +1734,18 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
       if (!directory.unavailable.length && !directory.stale.length) {
         response.headers.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=600");
       }
+      return response;
+    }
+    if (pathIs(path, "home", "highlights")) {
+      const feed = await xStocksListings();
+      if (feed.state !== "current") throw new Error("XSTOCKS_UNAVAILABLE");
+      const { markets, incomplete } = await dexMarkets.markets(feed.listings.map((listing) => listing.mint));
+      const response = success({
+        items: selectHomeHighlights(feed.listings, markets),
+        checkedAt: new Date().toISOString(),
+        incomplete,
+      });
+      response.headers.set("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=300");
       return response;
     }
     if (path[0] === "markets" && path[1] === "history" && path[2]) {

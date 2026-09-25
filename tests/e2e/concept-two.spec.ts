@@ -9,6 +9,9 @@ const spotlightListings = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/home/highlights", (route) => route.fulfill({
+    json: { data: { items: [{ name: "Apple", symbol: "AAPLx", priceUsd: "214.50", change24hPct: 1.25, liquidityUsd: 100_000, venue: "raydium" }], checkedAt: "2026-09-25T12:00:00.000Z", incomplete: false } },
+  }));
   await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({
     json: { data: { featured: spotlightListings, listings: spotlightListings, unavailable: [], stale: [] } },
   }));
@@ -20,15 +23,38 @@ test.beforeEach(async ({ page }) => {
 test("the canonical landing page leads into search without a design switcher", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("The things you know.");
-  await page.getByRole("navigation", { name: "Example product" }).getByRole("button", { name: "Apple" }).click();
-  await expect(page.getByRole("heading", { name: "Behind Apple." })).toBeVisible();
-  await expect(page.locator(".c2-entity-trail").getByRole("link", { name: /iPhone/ })).toHaveAttribute("href", "/products/apple-iphone");
+  await expect(page.getByLabel("Preview of the Discover page")).toContainText("Meet the companies.");
+  await expect(page.locator(".c2-market-card")).toHaveAttribute("href", "/assets/xstocks/AAPLx");
+  await expect(page.locator(".c2-market-card")).toContainText("$214.50");
+  await expect(page.locator(".c2-market-card")).toContainText("+1.25%");
+  await expect(page.locator(".c2-familiar .c2-section-heading")).not.toContainText("01 /");
+  await page.getByLabel("Search products, brands, or companies").focus();
+  expect(await page.locator("#c2-search").evaluate((input) => getComputedStyle(input).outlineStyle)).toBe("none");
   await page.getByLabel("Search products, brands, or companies").fill("Apple");
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect(page).toHaveURL(/\/discover\?q=Apple/);
-  await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: /View AAPLx issuer asset/ })).toHaveAttribute("href", "/assets/xstocks/AAPLx");
   await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+});
+
+test("company highlights show 24-hour change beside price without extra icons or market note", async ({ page }) => {
+  await page.goto("/");
+  const section = page.locator(".c2-familiar");
+  const priceRow = section.locator(".c2-market-card-price-row");
+  await expect(priceRow).toContainText("$214.50+1.25% 24h");
+  await expect(section.locator(".c2-market-card-top svg, .c2-market-card-change svg")).toHaveCount(0);
+  await expect(section).not.toContainText("The company selection is editorial");
+
+  for (const width of [390, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fitsOnOneLine = await priceRow.evaluate((row) => {
+      const price = row.querySelector("strong")!.getBoundingClientRect();
+      const change = row.querySelector(".c2-market-card-change")!.getBoundingClientRect();
+      return Math.abs(price.top - change.top) < 10 && row.scrollWidth <= row.clientWidth;
+    });
+    expect(fitsOnOneLine).toBe(true);
+  }
 });
 
 test("retired concept links cannot restore the old design", async ({ page }) => {
@@ -46,15 +72,43 @@ test("motion can be paused and reduced-motion preferences keep content visible",
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "The things you know.", exact: false })).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("auto");
   const animated = await page.locator(".c2-home").evaluate((root) => root.getAnimations({ subtree: true }).length);
   expect(animated).toBe(0);
   await page.getByRole("button", { name: "Pause motion" }).click();
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "paused");
   await page.getByRole("button", { name: "Enable motion" }).click();
   await expect(page.locator(".c2-home")).toHaveAttribute("data-motion", "enabled");
-  await page.getByRole("button", { name: /Understand the next layer/ }).click();
-  await expect(page.locator(".c2-story-object")).toContainText("PEPx");
-  await expect(page.locator(".c2-story-object")).toContainText("Not an ordinary voting share");
+  await page.getByRole("button", { name: /Understand the instrument/ }).click();
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "NVDA");
+  expect(await page.locator(".c2-company-coin").last().evaluate((coin) => getComputedStyle(coin).transform)).toBe("matrix(1, 0, 0, 1, 0, 0)");
+  await expect(page.locator(".c2-coin-caption")).toContainText("NVIDIA");
+});
+
+test("the research journey advances while visible and the landing page scrolls smoothly", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium", "One motion lifecycle check");
+  await page.goto("/");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe("smooth");
+  await page.locator(".c2-story").scrollIntoViewIfNeeded();
+  await expect(page.locator(".c2-story-visual a")).toHaveCount(0);
+  await expect(page.locator(".c2-silver-rail")).toBeVisible();
+  await expect.poll(() => page.locator(".c2-company-coin img").last().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(page.locator(".c2-chapters button").first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".c2-chapter-progress")).toBeVisible();
+  await expect(page.locator(".c2-chapters button").nth(1)).toHaveAttribute("aria-pressed", "true", { timeout: 9_000 });
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "MSFT");
+  await expect(page.locator(".c2-coin-caption")).toContainText("Microsoft");
+});
+
+test("the outgoing and incoming company coins roll at the same time", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium", "One rolling transition check");
+  await page.goto("/");
+  await page.locator(".c2-story").scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: /Check the evidence/ }).click();
+  await expect(page.locator(".c2-company-coin")).toHaveCount(2);
+  await expect(page.locator(".c2-company-coin").first()).toHaveAttribute("data-company", "AAPL");
+  await expect(page.locator(".c2-company-coin").last()).toHaveAttribute("data-company", "MSFT");
+  await expect(page.locator(".c2-company-coin")).toHaveCount(1, { timeout: 3_000 });
 });
 
 test("mobile filters trap focus, dismiss with Escape, and preserve the selected market", async ({ page }, info) => {

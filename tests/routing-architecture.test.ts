@@ -47,6 +47,7 @@ describe("frontend route architecture", () => {
       "portfolio/[instrumentId]/sell/page.tsx",
       "portfolio/activity/page.tsx",
       "portfolio/activity/[recordId]/page.tsx",
+      "assistant/page.tsx",
       "admin/page.tsx",
       "admin/catalog/page.tsx",
       "admin/access/page.tsx",
@@ -58,7 +59,6 @@ describe("frontend route architecture", () => {
       expect(existsSync(resolve("src/app", routeFile)), routeFile).toBe(true);
     }
     expect(existsSync(resolve("src/app/[[...path]]/page.tsx"))).toBe(false);
-    expect(existsSync(resolve("src/app/assistant/page.tsx"))).toBe(false);
     expect(existsSync(resolve("src/app/companies/[slug]/page.tsx"))).toBe(false);
     expect(existsSync(resolve("src/app/invest/suggest/page.tsx"))).toBe(false);
     expect(existsSync(resolve("src/app/markets/page.tsx"))).toBe(false);
@@ -77,6 +77,7 @@ describe("frontend route architecture", () => {
       "/share/token",
       "/assets/xstocks/PEPx",
       "/assets/xstocks/PEPx/chat",
+      "/assistant",
     ]) {
       expect(pageAccess(path)).toBe("public");
     }
@@ -164,7 +165,6 @@ describe("frontend route architecture", () => {
       "/assets/unknown/PEPx/buy",
       "/assets/prestocks/%2Faccount/buy",
       "/assets/prestocks/SPACEX/buy/extra",
-      "/assistant",
       "/companies/pepsico",
       "/invest/suggest",
       "/markets",
@@ -185,7 +185,7 @@ describe("frontend route architecture", () => {
   });
 
   it("derives mobile and desktop active state from the actual route", () => {
-    expect(activePrimarySection("/")).toBe("discover");
+    expect(activePrimarySection("/")).toBeNull();
     expect(activePrimarySection("/assets/xstocks/PEPx")).toBe("discover");
     expect(activePrimarySection("/scan/results")).toBe("scan");
     expect(activePrimarySection("/saved/share")).toBe("saved");

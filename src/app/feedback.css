@@ -46,9 +46,3 @@ body [data-sonner-toaster] { font-family: var(--font-raleway), sans-serif; }
 @media (max-width: 819px) {
   body [data-sonner-toaster][data-y-position=bottom] { bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
-
-:is(.app-primary-nav, .mobile-navigation) a { position: relative; }
-.navigation-progress { position: absolute; right: 6px; top: 8px; width: 12px; height: 12px; display: grid; place-items: center; opacity: 0; pointer-events: none; }
-.navigation-progress[data-pending=true] { opacity: 1; transition: opacity 80ms ease 120ms; }
-.navigation-progress .shelf-spinner { width: 12px; height: 12px; border-width: 1.5px; }
-.navigation-progress[data-pending=false] .shelf-spinner { animation: none; }

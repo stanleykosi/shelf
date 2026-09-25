@@ -260,14 +260,6 @@ export function DiscoverStudioScreen({ initialFeatured, initialMarket, initialPa
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("focus") === "search") searchRef.current?.focus();
-    function focusSearch(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
   useEffect(() => {

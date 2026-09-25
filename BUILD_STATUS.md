@@ -2,6 +2,23 @@
 
 Updated: 2026-09-25
 
+## Home company discovery: 24-hour cards — local
+
+Removed the long market note beneath the Home company cards, the top-right card arrow,
+and the direction icon beside each market change. The percentage now sits beside the
+pool price and explicitly says `24h`. DEX Screener parsing, card ranking, TypeScript
+contracts and fixtures all use the 24-hour field; pools missing it are excluded.
+A short status still appears if part of the market feed is unavailable.
+
+`npm run lint`, `npm run typecheck`, focused Vitest (2 tests), `git diff --check`,
+and the production build passed. Two focused Chromium tests against an isolated local
+production server passed: the landing-to-Discover journey and the company-card UI at
+390, 1280 and 1440 pixels. The existing development server became unreliable during
+the build and left a market request pending; the isolated production run confirmed the
+feature and journey. The build logged optional Magic transport-module warnings and
+its known nonfatal Magic API initialization error in this restricted environment.
+No deployment or live-money action occurred.
+
 ## UI-product-design-refractor merge with origin/main — local
 
 Merged the latest `origin/main` into `UI-product-design-refractor`. Preserved the branch's

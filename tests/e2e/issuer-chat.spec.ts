@@ -54,7 +54,47 @@ test("the answer API rejects questions without an issuer context", async ({ page
   expect(result.body).toMatchObject({ error: { code: "INVALID_INPUT" } });
 });
 
-test("xStocks details open a multi-turn AI chat with no request before the first question", async ({ page }) => {
+test("general and asset chats share a visible, scoped browser history", async ({ page }) => {
+  await page.route("**/api/v1/me", (route) => route.fulfill({
+    status: 401, json: { error: { code: "AUTH_REQUIRED" } },
+  }));
+  await page.route("**/api/v1/ai/session", (route) => route.fulfill({ json: { data: { ready: true } } }));
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
+    json: { data: { listing: metaListing } },
+  }));
+  await page.route("**/api/v1/ai/answer", (route) => {
+    const body = route.request().postDataJSON();
+    const general = body.scope === "general";
+    return route.fulfill({ json: { data: {
+      answer: general ? "A stock token follows issuer-defined terms." : "METAx is tied to Meta exposure.",
+      sourceIds: [general ? "learn:stock-tokens" : "issuer:xstocks:METAx"],
+      uncertainty: [], issuer: general ? null : metaListing,
+    } } });
+  });
+
+  await page.goto("/assistant");
+  await expect(page.getByRole("heading", { name: "Ask Shelf AI" })).toBeVisible();
+  await page.getByLabel("Your question").fill("How does a stock token work?");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("A stock token follows issuer-defined terms.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("A stock token follows issuer-defined terms.")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Chat history" }).getByText("How does a stock token work?")).toBeVisible();
+
+  await page.goto("/assets/xstocks/METAx");
+  await page.getByRole("button", { name: "Chat with AI" }).click();
+  await page.getByLabel("Your question").fill("What is METAx?");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("METAx is tied to Meta exposure.")).toBeVisible();
+  await page.getByRole("link", { name: "Open full conversation" }).click();
+  await expect(page.getByText("METAx is tied to Meta exposure.")).toBeVisible();
+  await page.getByRole("complementary", { name: "Chat history" }).getByRole("link", { name: /How does a stock token work/ }).click();
+  await expect(page).toHaveURL(/\/assistant\?thread=/);
+  await expect(page.getByText("A stock token follows issuer-defined terms.")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Chat history" }).getByRole("link", { name: /What is METAx/ })).toBeVisible();
+});
+
+test("xStocks details keep multi-turn AI chat in the action panel with no request before the first question", async ({ page }) => {
   const requests: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
     status: 200,
@@ -78,10 +118,10 @@ test("xStocks details open a multi-turn AI chat with no request before the first
   });
 
   await page.goto("/assets/xstocks/METAx");
-  await page.getByRole("link", { name: "Chat with AI" }).click();
-  await expect(page).toHaveURL(/\/assets\/xstocks\/METAx\/chat$/);
+  await page.getByRole("button", { name: "Chat with AI" }).click();
+  await expect(page).toHaveURL(/\/assets\/xstocks\/METAx$/);
   await expect(page.getByText("xStocks context loaded")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Chat about Meta Platforms" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ask about Meta Platforms." })).toBeVisible();
   expect(requests).toHaveLength(0);
 
   await page.getByLabel("Your question").fill("What does METAx represent?");
@@ -101,9 +141,15 @@ test("xStocks details open a multi-turn AI chat with no request before the first
     { role: "assistant", content: "METAx is an issuer token linked to Meta exposure." },
   ]);
 
+  await page.getByRole("button", { name: "Buy", exact: true }).click();
+  await expect(page.getByLabel("Amount in USDC")).toBeVisible();
+  await page.getByRole("button", { name: "Ask Shelf AI" }).click();
+  await expect(page.getByText("The issuer lists Nasdaq as the underlying exchange.")).toBeVisible();
+
   await page.getByRole("button", { name: "Clear chat" }).click();
   await expect(page.locator(".assistant-message")).toHaveCount(0);
   await page.reload();
+  await page.getByRole("button", { name: "Chat with AI" }).click();
   await expect(page.getByText("xStocks context loaded")).toBeVisible();
   await expect(page.locator(".assistant-message")).toHaveCount(0);
   expect(requests).toHaveLength(2);
@@ -131,7 +177,7 @@ test("PreStocks chat loads its own issuer and blocks questions when that feed is
   });
 
   await page.goto("/assets/prestocks/OPENAI");
-  await page.getByRole("link", { name: "Chat with AI" }).click();
+  await page.getByRole("button", { name: "Chat with AI" }).click();
   await expect(page.getByText("PreStocks context loaded")).toBeVisible();
   await page.getByLabel("Your question").fill("What does the valuation mean?");
   await page.getByRole("button", { name: "Send message" }).click();
