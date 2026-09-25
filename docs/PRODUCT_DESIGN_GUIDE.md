@@ -2977,7 +2977,7 @@ The implementation foundation is recorded in `docs/DESIGN_FOUNDATION.md`. Routes
 
 ## Concept #2 — accepted; final contract 2026-09-24
 
-The user selected Concept 2 — Capital Research Direction as the authoritative visual contract. Its approved Shell, Home, Discover, Scan and Scan Results are reused, not redesigned. The earlier comparison is historical; Concept 1 is available only through explicit `concept=1`. Default routes now use accepted Concept 2. Research/functional pages extend its light canvas, precise rules and shared entity patterns. See `docs/CONCEPT_2.md` and `docs/FRONTEND_WORKSTREAMS.md` for the coordinated implementation and verification record.
+The user selected Concept 2 — Capital Research Direction as the authoritative visual contract. Its approved Shell, Home, Discover, Scan and Scan Results are reused, not redesigned. The earlier comparison is historical and is no longer available in the application. Default routes use the accepted direction. Research/functional pages extend its light canvas, precise rules and shared entity patterns. See `docs/CONCEPT_2.md` and `docs/FRONTEND_WORKSTREAMS.md` for the coordinated implementation and verification record.
 
 | ID | Decision | Reason | Areas Affected | Status |
 |---|---|---|---|---|

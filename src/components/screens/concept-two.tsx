@@ -94,7 +94,6 @@ export function ConceptTwoHome() {
           <h1 id="c2-title">The things you know.<br /><span>The companies behind them.</span></h1>
           <p className="c2-intro">A new starting point for company research.<br className="c2-desktop-break" /> Connect everyday products to the businesses that make them.</p>
           <form action="/discover" className="c2-search" role="search">
-            <input name="concept" value="2" type="hidden" />
             <Search size={19} aria-hidden="true" />
             <label htmlFor="c2-search" className="sr-only">Search products, brands, or companies</label>
             <input id="c2-search" name="q" type="search" placeholder="Try Doritos, Apple, Tide…" />
@@ -108,7 +107,7 @@ export function ConceptTwoHome() {
           <div className="c2-research-board" ref={boardRef}>
             <header className="c2-board-header"><span className="c2-board-brand">Shelf<span>/ Research explorer</span></span><span className="c2-proof"><Check size={13} aria-hidden="true" /> Source-linked relationships</span></header>
             <div className="c2-board-body">
-              <nav className="c2-example-nav" aria-label="Example product"><span>Start with a product</span>{examples.map((item, index) => <button key={item.id} aria-pressed={exampleIndex === index} onClick={() => setExampleIndex(index)} type="button"><span>{item.brand}</span><ChevronRight size={15} aria-hidden="true" /></button>)}<Link href="/discover?concept=2&entity=product">All products <ArrowUpRight size={14} aria-hidden="true" /></Link></nav>
+              <nav className="c2-example-nav" aria-label="Example product"><span>Start with a product</span>{examples.map((item, index) => <button key={item.id} aria-pressed={exampleIndex === index} onClick={() => setExampleIndex(index)} type="button"><span>{item.brand}</span><ChevronRight size={15} aria-hidden="true" /></button>)}<Link href="/discover">All products <ArrowUpRight size={14} aria-hidden="true" /></Link></nav>
               <div className="c2-board-content" key={product.id}>
                 <div className="c2-board-title"><div><span>Relationship explorer</span><h2>Behind {product.brand}.</h2></div><span className="c2-board-index">0{exampleIndex + 1} / 03</span></div>
                 <CapitalRelationship product={product} />
@@ -120,7 +119,7 @@ export function ConceptTwoHome() {
       </section>
 
       <section className="c2-familiar c2-section" id="c2-familiar" data-reveal>
-        <header className="c2-section-heading"><div><p>01 / Recognition</p><h2>Begin with a Product,<br />not a ticker.</h2></div><div><p>Your next research question might<br />already be in your kitchen.</p><Link href="/discover?concept=2&entity=product">Discover all products <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
+        <header className="c2-section-heading"><div><p>01 / Recognition</p><h2>Begin with a Product,<br />not a ticker.</h2></div><div><p>Your next research question might<br />already be in your kitchen.</p><Link href="/discover">Discover all products <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
         <div className="c2-product-gallery">{gallery.map((item, index) => <Link href={("/products/" + item.slug) as Route} key={item.id} className="c2-product"><div className="c2-product-frame"><span className="c2-product-number">0{index + 1}</span><ProductArtwork product={item} sizes="(max-width: 819px) 72vw, 300px" /><span className="c2-product-arrow"><ArrowUpRight size={21} aria-hidden="true" /></span></div><div className="c2-product-caption"><strong>{item.name}</strong><span>{companyById(item.companyId)?.name}</span></div></Link>)}</div>
         <p className="c2-image-note">Reviewed product families. Imagery may show a representative product or brand identity.</p>
       </section>
@@ -131,12 +130,12 @@ export function ConceptTwoHome() {
         </div>
       </section>
 
-      <section className="c2-section c2-companies" data-reveal><header className="c2-section-heading"><div><p>03 / Company research</p><h2>Familiar names.<br />Clearer connections.</h2></div><Link href="/discover?concept=2&entity=company">Company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></header><ResearchTable companies={familiarCompanies} /></section>
+      <section className="c2-section c2-companies" data-reveal><header className="c2-section-heading"><div><p>03 / Company research</p><h2>Familiar names.<br />Clearer connections.</h2></div><Link href="/discover">Company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></header><ResearchTable companies={familiarCompanies} /></section>
 
       <section className="c2-method c2-section" data-reveal><div><p>Built on evidence</p><h2>Curiosity is the start.<br />Clarity is the point.</h2><p>Every relationship has a source. Every instrument has its own terms. Research is useful whether or not you invest.</p><Link href="/learn/brands-and-companies">How Shelf connects the dots <ArrowUpRight size={17} aria-hidden="true" /></Link></div><dl><div><dt>Reviewed companies</dt><dd>{companies.length.toString().padStart(2, "0")}</dd></div><div><dt>Product relationships</dt><dd>{products.length}</dd></div><div><dt>Companies with supported exposure</dt><dd>{companies.filter((item) => item.instrument).length}</dd></div></dl></section>
 
       <section className="c2-notes c2-section" data-reveal><header><h2>A little context goes a long way.</h2><Link href="/learn">All research notes <ArrowUpRight size={16} aria-hidden="true" /></Link></header>{articles.slice(0, 3).map((article, index) => <Link href={("/learn/" + article.slug) as Route} key={article.slug}><span>0{index + 1}</span><strong>{article.title}</strong><span>Explainer</span><ArrowUpRight size={19} aria-hidden="true" /></Link>)}</section>
-      <footer className="c2-close"><div><p>Your everyday. A new perspective.</p><h2>See what’s behind it.</h2><Link href="/discover?concept=2">Start exploring <ArrowUpRight size={20} aria-hidden="true" /></Link></div><div className="c2-footer-line"><span>Shelf</span><p>Recognition. Research. Your decision.</p><Link href="/learn">Research notes</Link></div></footer>
+      <footer className="c2-close"><div><p>Your everyday. A new perspective.</p><h2>See what’s behind it.</h2><Link href="/discover">Start exploring <ArrowUpRight size={20} aria-hidden="true" /></Link></div><div className="c2-footer-line"><span>Shelf</span><p>Recognition. Research. Your decision.</p><Link href="/learn">Research notes</Link></div></footer>
     </div>
   );
 }

@@ -1,18 +1,15 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
 import { preload } from "react-dom";
-import {
-  AssistantScreen,
-  LearnScreen,
-  ProductScreen,
-  ScanResultsScreen,
-  ScanScreen,
-  ShelfScreen,
-} from "@/components/screens/discovery";
-import {
-  ConceptDiscoverScreen,
-  ConceptHomeScreen,
-} from "@/components/screens/concept-discovery";
+import { AssistantScreen, LearnScreen } from "@/components/screens/research-learning";
+import { ShelfScreen } from "@/components/screens/research-saved";
+import { ShareScreen } from "@/components/screens/research-sharing";
+import { ResearchAdminScreen } from "@/components/screens/research-admin";
+import { ResearchProductScreen, ResearchBrandScreen, ResearchCompanyScreen } from "@/components/screens/research-entities";
+import { DiscoverStudioScreen } from "@/components/screens/discover-studio";
+import { ConceptTwoHome } from "@/components/screens/concept-two";
+import { ScanScreen } from "@/components/screens/scan";
+import { ScanResultsScreen } from "@/components/screens/scan-results";
 import {
   EligibilityScreen,
   MagicCallbackScreen,
@@ -32,7 +29,6 @@ import {
   SellScreen,
   TransferScreen,
 } from "@/components/screens/financial";
-import { AdminScreen, ShareScreen } from "@/components/screens/operations";
 import {
   articles,
   brandBySlug,
@@ -72,7 +68,7 @@ function withQuery(pathname: string, query: Query) {
 }
 
 export function HomePage() {
-  return <ConceptHomeScreen />;
+  return <ConceptTwoHome />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
@@ -100,7 +96,7 @@ export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery 
     }
   }
   return (
-    <ConceptDiscoverScreen
+    <DiscoverStudioScreen
       initialFeatured={initialFeatured}
       key={first(query.q) ?? ""}
       initialMarket={first(query.market)}
@@ -124,7 +120,7 @@ export function ScanResultsPage() {
 export async function ProductPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const product = productBySlug(slug);
-  if (product) return <ProductScreen productId={product.id} />;
+  if (product) return <ResearchProductScreen productId={product.id} />;
   const legacyProduct = productById(slug);
   if (legacyProduct) permanentRedirect(`/products/${legacyProduct.slug}`);
   notFound();
@@ -134,7 +130,7 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
+  return <ResearchBrandScreen slug={brand.slug} />;
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
@@ -145,7 +141,7 @@ export async function CompanyPage({ params }: { params: AsyncParams<{ slug: stri
     if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
     notFound();
   }
-  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
+  return <ResearchCompanyScreen companyId={company.id} />;
 }
 
 export function LearnPage() {
@@ -158,19 +154,8 @@ export async function LearningArticlePage({ params }: { params: AsyncParams<{ sl
   return <LearnScreen slug={slug} />;
 }
 
-export async function AssistantPage({ searchParams }: { searchParams: AsyncQuery }) {
-  const query = await searchParams;
-  const provider = first(query.provider);
-  const symbol = first(query.symbol);
-  if (!provider && !symbol) return <AssistantScreen key="general" />;
-  if (
-    (provider !== "xstocks" && provider !== "prestocks") ||
-    !symbol ||
-    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
-  ) {
-    notFound();
-  }
-  return <AssistantScreen key={`${provider}:${symbol}`} issuer={{ provider, symbol }} />;
+export function AssistantPage() {
+  return <AssistantScreen />;
 }
 
 export function SavedPage() {
@@ -303,27 +288,27 @@ export async function ActivityRecordPage({ params }: { params: AsyncParams<{ rec
 
 export async function AdminPage() {
   await requirePageUser("/admin", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="overview" />;
 }
 
 export async function AdminCatalogPage() {
   await requirePageUser("/admin/catalog", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="catalog" />;
 }
 
 export async function AdminAccessPage() {
   await requirePageUser("/admin/access", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="access" />;
 }
 
 export async function AdminOperationsPage() {
   await requirePageUser("/admin/operations", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="operations" />;
 }
 
 export async function AdminAuditPage() {
   await requirePageUser("/admin/audit", true);
-  return <AdminScreen />;
+  return <ResearchAdminScreen area="audit" />;
 }
 
 export async function LegacyRedirectPage({

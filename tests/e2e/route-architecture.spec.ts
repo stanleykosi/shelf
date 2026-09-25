@@ -75,17 +75,17 @@ test("the Home product gallery still leads to a guest's saved product", async ({
   }));
 
   await page.goto("/");
-  for (const product of ["Doritos snack", "Olay skincare", "iPhone", "Nike apparel", "Tide laundry"]) {
-    await expect(page.locator(".home-product-gallery .product-tile").filter({ hasText: product })).toBeVisible();
+  for (const slug of ["pepsi-drink", "apple-iphone", "lays-snack", "tide-laundry"]) {
+    await expect(page.locator(`.c2-product-gallery .c2-product[href="/products/${slug}"]`)).toBeVisible();
   }
 
-  await page.locator(".home-product-gallery .product-tile").filter({ hasText: "Doritos snack" }).click();
-  await expect(page).toHaveURL(/\/products\/doritos-snack$/);
-  await expect(page.getByRole("button", { name: "Save to shelf" })).toBeEnabled();
+  await page.locator('.c2-product-gallery .c2-product[href="/products/apple-iphone"]').click();
+  await expect(page).toHaveURL(/\/products\/apple-iphone$/, { timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Save product" })).toBeEnabled();
   const productName = await page.getByRole("heading", { level: 1 }).textContent();
-  await page.getByRole("button", { name: "Save to shelf" }).click();
-  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
-  await page.getByRole("link", { name: "View shelf" }).click();
+  await page.getByRole("button", { name: "Save product" }).click();
+  await expect(page.getByRole("button", { name: "Remove product from Saved" })).toBeVisible();
+  await page.getByRole("link", { name: "View Saved" }).click();
   await expect(page.getByRole("heading", { name: productName ?? "" })).toBeVisible();
 });
 
@@ -106,7 +106,7 @@ test("a member product save reaches the shelf items endpoint", async ({ page }) 
   });
 
   await page.goto("/products/doritos-snack");
-  await page.getByRole("button", { name: "Save to shelf" }).click();
-  await expect(page.getByRole("button", { name: "Remove from shelf" })).toBeVisible();
+  await page.getByRole("button", { name: "Save product" }).click();
+  await expect(page.getByRole("button", { name: "Remove product from Saved" })).toBeVisible();
   expect(savedIds).toEqual(["product-doritos-snack"]);
 });

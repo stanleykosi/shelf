@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useSearchParams, useSelectedLayoutSegments } from "next/navigation";
-import { Bookmark, CircleUserRound, Compass, ScanLine, Search, Sparkles, WalletCards } from "@/components/studio-icons";
+import { useSelectedLayoutSegments } from "next/navigation";
+import { Sparkles } from "@/components/studio-icons";
 import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, Search as StudioSearch, WalletCards as StudioWallet } from "@/components/studio-icons";
 import { NavigationProgress } from "@/components/loading-feedback";
 import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
 import { activePrimarySection, type PrimarySection } from "@/lib/routes";
 
-const primaryNavigation: Array<{ href: string; label: string; section: PrimarySection; icon: typeof Compass }> = [
-  { href: "/discover", label: "Discover", section: "discover", icon: Compass },
-  { href: "/saved", label: "Saved", section: "saved", icon: Bookmark },
-  { href: "/portfolio", label: "Portfolio", section: "portfolio", icon: WalletCards },
+const primaryNavigation: Array<{ href: string; label: string; section: PrimarySection }> = [
+  { href: "/discover", label: "Discover", section: "discover" },
+  { href: "/saved", label: "Saved", section: "saved" },
+  { href: "/portfolio", label: "Portfolio", section: "portfolio" },
 ];
 
 const mobileNavigation = [
   primaryNavigation[0],
-  { href: "/scan", label: "Scan", section: "scan" as const, icon: ScanLine },
+  { href: "/scan", label: "Scan", section: "scan" as const },
   primaryNavigation[1],
   primaryNavigation[2],
 ];
@@ -33,32 +33,32 @@ function ShelfMark() {
   return <span className="shelf-mark" aria-hidden="true"><span /><span /><span /></span>;
 }
 
-export function AppHeader({ activeSection, environment, signedIn, conceptTwo = false, studioPage = false }: { activeSection: PrimarySection | null; environment: "local" | "integration" | "private-beta"; signedIn: boolean; conceptTwo?: boolean; studioPage?: boolean }) {
+export function AppHeader({ activeSection, environment, signedIn }: { activeSection: PrimarySection | null; environment: "local" | "integration" | "private-beta"; signedIn: boolean }) {
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <Link className="shelf-wordmark" href={conceptTwo ? "/?concept=2" : "/"} aria-label="Shelf home"><ShelfMark /><span>Shelf</span></Link>
+        <Link className="shelf-wordmark" href="/" aria-label="Shelf home"><ShelfMark /><span>Shelf</span></Link>
         <nav className="app-primary-nav" aria-label="Primary navigation">
-          {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}>{label}<NavigationProgress /></Link>)}
+          {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={href as Route} key={href}>{label}<NavigationProgress /></Link>)}
         </nav>
         <div className="app-header-actions">
-          <Link className="header-scan" href="/scan">{studioPage ? <StudioScan size={16} aria-hidden="true" /> : <ScanLine size={16} aria-hidden="true" />}<span>Scan</span></Link>
-          <Link className="header-search" href={conceptTwo ? "/discover?concept=2&focus=search" : "/discover?focus=search"} aria-label="Search Shelf">{studioPage ? <StudioSearch size={18} aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}<span>Search</span><kbd>⌘K</kbd></Link>
+          <Link className="header-scan" href="/scan"><StudioScan size={16} aria-hidden="true" /><span>Scan</span></Link>
+          <Link className="header-search" href="/discover?focus=search" aria-label="Search Shelf"><StudioSearch size={18} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd></Link>
           <Link className="header-assistant" href="/assistant" aria-label="Ask Shelf"><Sparkles size={18} aria-hidden="true" /><span>Ask Shelf</span></Link>
           <span className="environment-status"><i aria-hidden="true" />{environment === "private-beta" ? "beta" : environment}</span>
-          <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}>{studioPage ? <StudioAccount size={19} aria-hidden="true" /> : <CircleUserRound size={19} aria-hidden="true" />}<span>{signedIn ? "Account" : "Sign in"}</span></Link>
+          <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}><StudioAccount size={19} aria-hidden="true" /><span>{signedIn ? "Account" : "Sign in"}</span></Link>
         </div>
       </div>
     </header>
   );
 }
 
-export function MobileNavigation({ activeSection, conceptTwo = false, studioPage = false }: { activeSection: PrimarySection | null; conceptTwo?: boolean; studioPage?: boolean }) {
+export function MobileNavigation({ activeSection }: { activeSection: PrimarySection | null }) {
   return (
     <nav className="mobile-navigation" aria-label="Mobile navigation">
-      {mobileNavigation.map(({ href, label, section, icon: Icon }) => {
-        const NavigationIcon = studioPage ? studioNavigationIcons[section] : Icon;
-        return <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}><NavigationIcon size={19} aria-hidden="true" /><span>{label}</span><NavigationProgress /></Link>;
+      {mobileNavigation.map(({ href, label, section }) => {
+        const NavigationIcon = studioNavigationIcons[section];
+        return <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={href as Route} key={href}><NavigationIcon size={19} aria-hidden="true" /><span>{label}</span><NavigationProgress /></Link>;
       })}
     </nav>
   );
@@ -68,32 +68,17 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const contentSegments = useSelectedLayoutSegments();
   // An intercepted task changes the URL while the main workspace remains in place.
   const pathname = `/${contentSegments.filter((segment) => !segment.startsWith("(")).join("/")}`;
-  const searchParams = useSearchParams();
-  const comparisonPage = pathname === "/" || pathname === "/discover";
-  const conceptTwo = !comparisonPage || searchParams.get("concept") !== "1";
-  const researchWorkspace = !comparisonPage && !pathname.startsWith("/scan");
+  const landingOrDiscover = pathname === "/" || pathname === "/discover";
+  const researchWorkspace = !landingOrDiscover && !pathname.startsWith("/scan");
   const activeSection = activePrimarySection(pathname);
   const researchJourney = pathname === "/scan/results" || pathname === "/learn" ||
     ["/products/", "/brands/", "/companies/", "/assets/", "/learn/"].some((prefix) => pathname.startsWith(prefix));
-  const workspacePage = !comparisonPage && pathname !== "/scan" && !researchJourney;
-  const studioPage = true;
-  function comparisonHref(concept: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (concept === "2") params.set("concept", "2");
-    else params.set("concept", "1");
-    return (pathname + (params.size ? "?" + params.toString() : "")) as Route;
-  }
+  const workspacePage = !landingOrDiscover && pathname !== "/scan" && !researchJourney;
   return (
-    <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "") + (researchJourney ? " journey-shell" : "") + (workspacePage ? " workspace-shell" : "")}>
-      {comparisonPage && searchParams.has("concept") ? <nav className="concept-comparison" aria-label="Design comparison">
-        <span>Design study</span>
-        {/* A full navigation isolates the historical studies from pending Discover URL updates. */}
-        <a href={comparisonHref("1")} aria-current={!conceptTwo ? "page" : undefined}>01 <span>Concept 1</span></a>
-        <a href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></a>
-      </nav> : null}
-      <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} studioPage={studioPage} />
+    <div className={"application-shell concept-two-shell" + (researchJourney ? " journey-shell" : "") + (workspacePage ? " workspace-shell" : "")}>
+      <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} />
       <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage && pathname !== "/assistant" ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage && pathname !== "/assistant" ? <WorkspaceFooter /> : null}</main>
-      <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} studioPage={studioPage} />
+      <MobileNavigation activeSection={activeSection} />
     </div>
   );
 }
