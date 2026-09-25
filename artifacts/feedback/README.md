@@ -7,11 +7,12 @@ browser fixtures. They do not represent an actual member save, provider availabi
 | --- | --- | --- |
 | Product without relationship explorer | [Desktop](product-chromium.png) | [Mobile](product-mobile.png) |
 | Save button pending | [Desktop](pending-chromium.png) | [Mobile](pending-mobile.png) |
+| Success toast | [Desktop](success-chromium.png) | [Mobile](success-mobile.png) |
 | Dismissible action-error toast | [Desktop](toast-chromium.png) | [Mobile](toast-mobile.png) |
 | Loading with reduced motion | [Desktop](loading-chromium.png) | [Mobile](loading-mobile.png) |
 
-Pending buttons preserve their width and disable repeat submissions. Toasts use Raleway,
-Heroicons and the existing palette; they expire, support manual dismissal and clear mobile
+Pending buttons morph action text into loading labels with Torph, preserve their width and disable repeat submissions. Toasts use Raleway,
+Heroicons, graphite surfaces and mint accents; they expire, support manual dismissal and clear mobile
 navigation. The loading capture uses the reduced-motion variant: a static dotted indicator
 with readable status text. Ordinary motion uses a small rotating ring.
 
@@ -22,7 +23,9 @@ viewport clearance at phone/tablet sizes, accessibility and reduced motion. Repr
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3101 npm run test:browser -- tests/e2e/feedback.spec.ts
 ```
 
-The broader 66-case Discover/Scan/research suite passed 64 with two intentional viewport skips.
+The Torph refinement verifies 34 distinct browser cases across the broad run and final rerun,
+with two intentional viewport skips. The final feedback/Discover/Scan rerun passes 17 and skips
+one duplicate mobile matrix. Lint, TypeScript, production build and 120 unit tests pass.
 No paid inference, real-money interaction or external deployment was used. Initial provider,
 validation and financial context remain inline where a disappearing notification would lose
 information needed to recover or make a decision.

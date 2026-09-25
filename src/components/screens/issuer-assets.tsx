@@ -147,7 +147,7 @@ export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symb
         <details><summary>Token identity</summary><p>Solana mint</p><code className="break-all">{asset.mint}</code></details>
         <p className="issuer-action-context">Explore the terms, then choose your next step. Saving adds research to your watchlist.</p>
         <Link className="button" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy` as Route}>Review a purchase <ArrowRight size={17} aria-hidden="true" /></Link>
-        <PendingButton className="secondary" pending={saving} pendingLabel="Saving to watchlist…" onClick={saveToWatchlist}><Bookmark size={16} aria-hidden="true" />Save to watchlist</PendingButton>
+        <PendingButton className="secondary" pending={saving} pendingLabel="Saving…" icon={<Bookmark size={16} aria-hidden="true" />} onClick={saveToWatchlist}>Save to watchlist</PendingButton>
         <a href={issuerUrl} target="_blank" rel="noreferrer">Read issuer information <ArrowUpRight size={14} aria-hidden="true" /></a>
       </aside>
     </div>

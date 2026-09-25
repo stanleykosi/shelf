@@ -10,7 +10,8 @@ export function useNotification() {
   const id = useId();
   return useCallback((message: string, kind: "success" | "error" | "info" = "info") => {
     if (!message) { toast.dismiss(id); return; }
-    toast[kind](message, { id, duration: kind === "error" ? 7000 : 4500 });
+    const title = kind === "success" ? "All set" : kind === "error" ? "Needs attention" : "Shelf update";
+    toast[kind](title, { id, description: message, duration: kind === "error" ? 7000 : 4500 });
   }, [id]);
 }
 

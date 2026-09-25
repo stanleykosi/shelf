@@ -477,7 +477,7 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
               <h2 id="spotlight-heading" ref={directoryRef} tabIndex={-1}>Companies to explore<span className="discovery-count">{spotlight?.listings.length ?? "—"}</span></h2>
               <p>A rotating spotlight from xStocks and PreStocks. An invitation to research, not a performance ranking.</p>
             </div>
-            <PendingButton pending={spotlightLoading} pendingLabel="Refreshing company mix…" onClick={() => void loadSpotlight()} type="button"><RefreshCw size={14} aria-hidden="true" />Refresh mix</PendingButton>
+            <PendingButton pending={spotlightLoading} pendingLabel="Refreshing…" icon={<RefreshCw size={14} aria-hidden="true" />} onClick={() => void loadSpotlight()} type="button">Refresh mix</PendingButton>
           </div>
           {spotlight?.unavailable.length ? <p className="live-search-caution">{spotlight.unavailable.join(" and ")} feed unavailable. This selection may be incomplete.</p> : null}
           {spotlight?.stale.length ? <p className="live-search-caution">{spotlight.stale.join(" and ")} feed is stale. Asset details will be rechecked.</p> : null}

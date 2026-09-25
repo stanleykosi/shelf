@@ -30,12 +30,23 @@ test("save feedback is transient, pending actions cannot repeat, and toast dismi
   await expect(busy).toBeDisabled();
   await expect(busy).toHaveAttribute("aria-busy", "true");
   await expect(busy.locator(".shelf-spinner")).toBeVisible();
+  // Torph keeps a full-text accessibility node beside its animated character spans.
+  await expect(busy.locator(".feedback-morph [torph-sr]")).toHaveText("Updating Saved…");
+  await busy.evaluate(async (element) => {
+    await Promise.all(element.getAnimations({ subtree: true }).filter((animation) => animation.effect?.getTiming().iterations !== Infinity).map((animation) => animation.finished.catch(() => {})));
+  });
   expect((await busy.boundingBox())!.width).toBeCloseTo(width, 0);
   expect(writes).toBe(1);
   await page.screenshot({ path: `artifacts/feedback/pending-${testInfo.project.name}.png`, scale: "css" });
   release();
   const toast = page.locator("[data-sonner-toast]");
   await expect(toast).toContainText("Product saved for research");
+  await expect(toast).toHaveCSS("background-color", "rgb(23, 37, 30)");
+  await expect(toast).toHaveAttribute("data-mounted", "true");
+  await toast.evaluate(async (element) => {
+    await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => {})));
+  });
+  await page.screenshot({ path: `artifacts/feedback/success-${testInfo.project.name}.png`, scale: "css" });
   await expect(page.locator("main .result")).toHaveCount(0);
   await page.mouse.move(0, 0);
   await expect(toast).toHaveCount(0, { timeout: 9000 });
@@ -80,4 +91,23 @@ test("loading communicates progress and respects reduced motion", async ({ page 
   release();
   await expect(page.getByRole("heading", { name: "Asset unavailable", exact: true })).toBeVisible();
   await expect(progress).toHaveCount(0);
+});
+
+test("button labels remain readable without morph motion when reduced motion is requested", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/shelf", (route) => route.fulfill({ json: { data: { items: [] } } }));
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/v1/shelf/items", async (route) => {
+    await pending;
+    await route.fulfill({ json: { data: {} } });
+  });
+  await page.goto("/products/doritos-snack");
+  await page.getByRole("button", { name: "Save product", exact: true }).click();
+  const busy = page.getByRole("button", { name: "Updating Saved…", exact: true });
+  await expect(busy.locator(".feedback-morph")).toHaveText("Updating Saved…");
+  await expect(busy.locator(".shelf-spinner")).toHaveCSS("animation-name", "none");
+  expect(await busy.locator(".feedback-morph").evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
+  release();
+  await expect(page.getByRole("button", { name: "Remove product from Saved", exact: true })).toBeEnabled();
 });
