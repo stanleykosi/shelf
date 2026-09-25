@@ -14,10 +14,6 @@ import {
   productById,
   productBySlug,
 } from "@/data/catalog";
-import {
-  AI_PROCESSING_CONSENT_VERSION,
-  hasCurrentAiProcessingConsent,
-} from "@/lib/ai-consent";
 
 describe("frontend route architecture", () => {
   it("owns canonical routes with explicit App Router pages", () => {
@@ -202,19 +198,4 @@ describe("frontend route architecture", () => {
     expect(activePrimarySection("/account")).toBeNull();
   });
 
-  it("requires the current explicit AI-processing consent contract", () => {
-    expect(
-      hasCurrentAiProcessingConsent({
-        aiProcessingConsentAccepted: true,
-        aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
-      }),
-    ).toBe(true);
-    expect(hasCurrentAiProcessingConsent({ aiProcessingConsentAccepted: true })).toBe(false);
-    expect(
-      hasCurrentAiProcessingConsent({
-        aiProcessingConsentAccepted: false,
-        aiProcessingConsentVersion: AI_PROCESSING_CONSENT_VERSION,
-      }),
-    ).toBe(false);
-  });
 });

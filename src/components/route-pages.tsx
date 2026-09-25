@@ -1,17 +1,18 @@
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
-import { AssistantScreen, LearnScreen } from "@/components/screens/research-learning";
-import { ShelfScreen } from "@/components/screens/research-saved";
-import { ShareScreen } from "@/components/screens/research-sharing";
-import { ResearchAdminScreen } from "@/components/screens/research-admin";
-import { ResearchProductScreen, ResearchBrandScreen, ResearchCompanyScreen } from "@/components/screens/research-entities";
+import { preload } from "react-dom";
+import {
+  AssistantScreen,
+  LearnScreen,
+  ProductScreen,
+  ScanResultsScreen,
+  ScanScreen,
+  ShelfScreen,
+} from "@/components/screens/discovery";
 import {
   ConceptDiscoverScreen,
   ConceptHomeScreen,
 } from "@/components/screens/concept-discovery";
-import { ConceptTwoHome } from "@/components/screens/concept-two";
-import { ScanScreen } from "@/components/screens/scan";
-import { ScanResultsScreen } from "@/components/screens/scan-results";
 import {
   EligibilityScreen,
   MagicCallbackScreen,
@@ -30,8 +31,8 @@ import {
   RecordScreen,
   SellScreen,
   TransferScreen,
-  InvestmentScreen,
 } from "@/components/screens/financial";
+import { AdminScreen, ShareScreen } from "@/components/screens/operations";
 import {
   articles,
   brandBySlug,
@@ -41,6 +42,8 @@ import {
   productById,
   productBySlug,
 } from "@/data/catalog";
+import { readIssuerDirectory } from "@/db/issuer-directory";
+import { selectFeaturedCompanies, type DirectoryListing } from "@/domain/issuer-spotlight";
 import { state } from "@/domain/store";
 import { env } from "@/lib/env";
 import { requirePageUser } from "@/lib/page-auth";
@@ -68,9 +71,8 @@ function withQuery(pathname: string, query: Query) {
   return params ? `${pathname}?${params}` : pathname;
 }
 
-export async function HomePage({ searchParams }: { searchParams: AsyncQuery }) {
-  const query = await searchParams;
-  return first(query.concept) === "1" ? <ConceptHomeScreen /> : <ConceptTwoHome />;
+export function HomePage() {
+  return <ConceptHomeScreen />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
@@ -80,13 +82,33 @@ export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery 
     delete currentQuery.source;
     permanentRedirect(withQuery("/discover", { ...currentQuery, focus: "search" }) as Route);
   }
+  if (!first(query.q)) {
+    preload("/api/v1/issuer/directory", { as: "fetch", crossOrigin: "anonymous" });
+  }
+  const startsWithFeatured = !first(query.q) && first(query.view) !== "all" &&
+    !first(query.sector) && !first(query.market) && !first(query.sort) &&
+    Number(first(query.page) ?? 1) === 1;
+  let initialFeatured: DirectoryListing[] = [];
+  if (startsWithFeatured) {
+    try {
+      const directory = await readIssuerDirectory();
+      if (directory && !directory.stale.length && !directory.unavailable.length) {
+        initialFeatured = selectFeaturedCompanies(directory.listings);
+      }
+    } catch {
+      // The browser can still load the public directory endpoint when PostgreSQL is unavailable.
+    }
+  }
   return (
     <ConceptDiscoverScreen
+      initialFeatured={initialFeatured}
       key={first(query.q) ?? ""}
       initialMarket={first(query.market)}
+      initialPage={first(query.page)}
       initialQuery={first(query.q)}
       initialSector={first(query.sector)}
       initialSort={first(query.sort)}
+      initialView={first(query.view)}
     />
   );
 }
@@ -102,7 +124,7 @@ export function ScanResultsPage() {
 export async function ProductPage({ params }: { params: AsyncParams<{ slug: string }> }) {
   const { slug } = await params;
   const product = productBySlug(slug);
-  if (product) return <ResearchProductScreen productId={product.id} />;
+  if (product) return <ProductScreen productId={product.id} />;
   const legacyProduct = productById(slug);
   if (legacyProduct) permanentRedirect(`/products/${legacyProduct.slug}`);
   notFound();
@@ -112,7 +134,7 @@ export async function BrandPage({ params }: { params: AsyncParams<{ slug: string
   const { slug } = await params;
   const brand = brandBySlug(slug);
   if (!brand) notFound();
-  return <ResearchBrandScreen slug={brand.slug} />;
+  permanentRedirect(`/discover?q=${encodeURIComponent(brand.name)}`);
 }
 
 export async function CompanyPage({ params }: { params: AsyncParams<{ slug: string }> }) {
@@ -123,7 +145,7 @@ export async function CompanyPage({ params }: { params: AsyncParams<{ slug: stri
     if (legacyCompany) permanentRedirect(`/companies/${legacyCompany.slug}`);
     notFound();
   }
-  return <ResearchCompanyScreen companyId={company.id} />;
+  permanentRedirect(`/discover?q=${encodeURIComponent(company.name)}`);
 }
 
 export function LearnPage() {
@@ -136,8 +158,19 @@ export async function LearningArticlePage({ params }: { params: AsyncParams<{ sl
   return <LearnScreen slug={slug} />;
 }
 
-export function AssistantPage() {
-  return <AssistantScreen />;
+export async function AssistantPage({ searchParams }: { searchParams: AsyncQuery }) {
+  const query = await searchParams;
+  const provider = first(query.provider);
+  const symbol = first(query.symbol);
+  if (!provider && !symbol) return <AssistantScreen key="general" />;
+  if (
+    (provider !== "xstocks" && provider !== "prestocks") ||
+    !symbol ||
+    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
+  ) {
+    notFound();
+  }
+  return <AssistantScreen key={`${provider}:${symbol}`} issuer={{ provider, symbol }} />;
 }
 
 export function SavedPage() {
@@ -210,8 +243,10 @@ export async function InvestmentPage({ params }: { params: AsyncParams<{ company
     if (legacyCompany) permanentRedirect(`/invest/${legacyCompany.slug}`);
     notFound();
   }
-  await requirePageUser(`/invest/${company.slug}`);
-  return <InvestmentScreen companySlug={company.slug} />;
+  if (company.instrument) {
+    redirect(`/assets/${company.instrument.provider}/${encodeURIComponent(company.instrument.symbol)}/buy` as Route);
+  }
+  notFound();
 }
 
 export async function BasketPage({ searchParams }: { searchParams: AsyncQuery }) {
@@ -268,27 +303,27 @@ export async function ActivityRecordPage({ params }: { params: AsyncParams<{ rec
 
 export async function AdminPage() {
   await requirePageUser("/admin", true);
-  return <ResearchAdminScreen area="overview" />;
+  return <AdminScreen />;
 }
 
 export async function AdminCatalogPage() {
   await requirePageUser("/admin/catalog", true);
-  return <ResearchAdminScreen area="catalog" />;
+  return <AdminScreen />;
 }
 
 export async function AdminAccessPage() {
   await requirePageUser("/admin/access", true);
-  return <ResearchAdminScreen area="access" />;
+  return <AdminScreen />;
 }
 
 export async function AdminOperationsPage() {
   await requirePageUser("/admin/operations", true);
-  return <ResearchAdminScreen area="operations" />;
+  return <AdminScreen />;
 }
 
 export async function AdminAuditPage() {
   await requirePageUser("/admin/audit", true);
-  return <ResearchAdminScreen area="audit" />;
+  return <AdminScreen />;
 }
 
 export async function LegacyRedirectPage({

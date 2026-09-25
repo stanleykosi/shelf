@@ -161,7 +161,13 @@ export type StoreState = {
   }>;
   pauses: { buys: boolean; submissions: boolean; suggestions: boolean };
   audits: AuditEvent[];
-  aiUsage: Array<{ id?: string; at: string; costMicrousd: number; subjectHash?: string }>;
+  aiUsage: Array<{
+    id?: string;
+    at: string;
+    costMicrousd: number;
+    subjectHash?: string;
+    networkHash?: string;
+  }>;
 };
 
 export type ExecutionPreparation = {

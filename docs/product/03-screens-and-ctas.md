@@ -12,23 +12,23 @@ Show concise product explanation, curated catalog items and “How it works.” 
 
 Active U30 flow: one search field checks the full current xStocks and PreStocks feeds first, then automatically asks OpenRouter for a likely product owner if no company matches. Search results replace the browse table while active. AI ownership is labelled unverified and only current issuer listings supply symbols and mints. Clearing search returns to the company spotlight.
 
-The browse area is a rotating selection from current issuer listings, with recognizable public companies and about two PreStocks listings. Show provider logos prominently in one company table, with editorial sector chips, a public/private market filter, name ordering and a refresh action. It is not a performance ranking or the whole issuer universe. A missing sector remains Other; an unavailable feed cannot create a fallback asset. C03 **View company details** opens the current issuer asset page. C04 **Clear filters** restores the featured mix. Empty filters, stale feeds and provider errors have distinct, recoverable states. The older product and brand browse tables are retired.
+The browse area first shows ten rotating assets from current issuer listings, with recognizable public companies and about two PreStocks listings. An All listings tab exposes every current xStocks and PreStocks asset in pages of ten; page changes do not refetch provider feeds. Show validated provider logos, editorial sector chips, a public/private market filter, and name ordering. The selection is not a performance ranking. Unknown sectors remain Other; an unavailable feed cannot create a fallback asset. C03 **View company details** opens the current issuer asset page. C04 **Clear filters** restores the featured mix. Empty filters, stale feeds and provider errors have distinct, recoverable states. The older product and brand browse tables and the manual refresh control are retired.
 
 ## S03 — Scan/input chooser · /scan
 
 Modes: Camera, Barcode, Upload, Receipt, Product link, Search. Screenshots use Upload and are labeled in help, not a distinct technical channel.
 
-C05 **Open camera** requests video permission after explanation. C06 **Capture photo** freezes frame; C07 **Retake** discards bytes; C08 **Use photo** shows processing consent then uploads. Switch camera shown only if supported. Stop camera tracks on navigation/background/close.
+C05 **Open camera** requests browser video permission. C06 **Capture photo** freezes frame; C07 **Retake** discards bytes; C08 **Use photo** sends the captured image for recognition without an extra consent step. Switch camera shown only if supported. Stop camera tracks on navigation/background/close.
 
 Barcode mode reads camera frames locally; C09 **Enter barcode** fallback accepts digits, validates supported GTIN checksum, preserves leading zeros. Unsupported hardware/library → ordinary camera or manual entry.
 
 C10 **Choose image** uses file input. Accept JPEG/PNG/WebP; enforce document 00 limits. HEIC/HEIF: convert only if a tested client decoder is provided; otherwise tell user to upload JPEG or take an in-app photo. PDFs/video/animated images are rejected.
 
-Receipt: crop guidance “Include product lines, exclude names/payment details.” Before C11 **Read receipt**, show local preview and retake/crop controls. Do not upload automatically on file selection.
+Receipt: guide the user toward a clear image of the product lines. Before C11 **Read receipt**, show a local preview and retake/crop controls. Do not upload automatically on file selection.
 
 Link: URL field, approved-host explanation, C12 **Find products**. Unsupported domain offers “Upload a screenshot instead”; no silent arbitrary fetch.
 
-Typed input invokes S02. Camera denied: **Use an image** and **Search instead**, plus browser permission instructions. Upload too large: **Choose another image**. Consent declined: return to preview without sending.
+Typed input invokes S02. Camera denied: **Use an image** and **Search instead**, plus browser permission instructions. Upload too large: **Choose another image**.
 
 ## S04 — Scan results · /scan/results
 
@@ -50,6 +50,10 @@ Show company description, verified brands, listed ticker/exchange, issuer instru
 
 C21 **Choose amount** → S15 after sign-in/eligibility if required. C22 **Ask about this company** → assistant context. C23 **View sources** expands citations. C24 **View token details** displays exact mint/program/issuer, not just ticker.
 
+Current `/assets/[provider]/[symbol]` token details show **Chat with AI** beside purchase review and watchlist actions. It opens `/assistant?provider=&symbol=` with the exact current issuer listing loaded before the first question. No AI request happens merely by opening chat.
+
+The token page now leads with what the instrument represents and the next actions. xStocks shows the underlying ticker/exchange, issuer-session state, security identifiers, Solana mint, current Solana multiplier, and a timestamped issuer reserve snapshot where available. PreStocks shows issuer token reference, mark, premium/discount, implied and mark company valuations, issuer supply, and the official product page. Explain that issuer sessions and references do not establish Jupiter liquidity or an executable price. Optional disclosure outages leave the core token page usable; a current issuer trading halt pauses Shelf purchase review. Do not fill gaps in the public PreStocks feed by scraping its website.
+
 Supported-but-paused: explain pause with no active purchase CTA. Discovery-only company: “Not available to buy on Shelf.” Closed underlying market: show warning and actual policy/routing state, not invented market reopening countdown.
 
 ## S07 — My shelf · /shelf
@@ -66,9 +70,9 @@ Versioned editorial content, sources and last review date. C33 **Explore related
 
 ## S09 — Assistant · /assistant
 
-Header “AI assistant”; scoped company/shelf context pill, removable. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send question**; C36 **Stop response** cancels stream best-effort; C37 **Clear conversation** erases session-local transcript.
+Header “AI assistant”; exact issuer context card when opened from a token detail page. Intro says AI may be wrong and cannot place orders. Prompt input max 2,000 characters; C35 **Send message**; C36 **Stop response** aborts the browser wait (provider cancellation is best effort); C37 **Clear chat** erases the page-memory transcript. A follow-up sends only six bounded prior turns; a route change or reload starts a new conversation until retention is decided separately.
 
-Show sources as verified links. Retry after error is explicit; no duplicate endless billable retries. Rate-limit state includes next allowance time. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
+Show the issuer source and response citations. Keep the typed question after an error so the user can retry deliberately; no duplicate automatic billable retries. A missing current listing blocks scoped chat rather than using stale browser-provided facts. Privacy-routing failure: “Private AI processing is unavailable. Try again later or browse verified information.”
 
 C38 **Suggest an allocation** opens S10; C39 **Use this draft** appears only on a validated allocation object and opens editable basket, never wallet signing. No markdown raw HTML, arbitrary embedded image or clickable transaction payload from model text.
 

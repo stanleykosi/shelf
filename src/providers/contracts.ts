@@ -1,3 +1,5 @@
+import type { ChatTurn } from "@/domain/ai-chat";
+
 export type PrivacyPolicy = { dataCollection: "deny"; zdr: true; requireParameters: true };
 export const REQUIRED_AI_PRIVACY: PrivacyPolicy = {
   dataCollection: "deny",
@@ -36,6 +38,7 @@ export interface EducationProvider {
     input: {
       question: string;
       approvedFacts: Array<{ id: string; title: string; claim: string }>;
+      history?: ChatTurn[];
     },
     policy: PrivacyPolicy,
   ): Promise<{

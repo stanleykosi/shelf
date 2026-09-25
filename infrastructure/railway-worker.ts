@@ -145,6 +145,33 @@ async function verifyXStocksAssets(): Promise<number> {
   return verified.length;
 }
 
+async function refreshIssuerDirectorySnapshots(): Promise<number> {
+  if (!appOrigin || !workerSharedSecret) throw new Error("DIRECTORY_REFRESH_CONFIGURATION_REQUIRED");
+  const endpoint = new URL("/api/internal/issuer-directory-refresh", appOrigin);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${workerSharedSecret}` },
+    signal: AbortSignal.timeout(70_000),
+  });
+  if (!response.ok) throw new Error(`DIRECTORY_REFRESH_HTTP_${response.status}`);
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || !isRecord(payload.data) || typeof payload.data.refreshed !== "number") {
+    throw new Error("DIRECTORY_REFRESH_RESPONSE_INVALID");
+  }
+  return payload.data.refreshed;
+}
+
+async function warmDiscover(): Promise<void> {
+  if (!appOrigin) throw new Error("DISCOVER_WARMUP_CONFIGURATION_REQUIRED");
+  const [page, directory] = await Promise.all([
+    fetch(new URL("/discover", appOrigin), { signal: AbortSignal.timeout(15_000) }),
+    fetch(new URL("/api/v1/issuer/directory", appOrigin), { signal: AbortSignal.timeout(15_000) }),
+  ]);
+  if (!page.ok) throw new Error(`DISCOVER_WARMUP_HTTP_${page.status}`);
+  if (!directory.ok) throw new Error(`DIRECTORY_WARMUP_HTTP_${directory.status}`);
+  await Promise.all([page.arrayBuffer(), directory.arrayBuffer()]);
+}
+
 async function reconcileTransactions(heartbeat: () => Promise<void>): Promise<string> {
   if (!appOrigin || !workerSharedSecret) throw new Error("RECONCILIATION_CONFIGURATION_REQUIRED");
   const endpoint = new URL("/api/internal/reconcile", appOrigin);
@@ -178,10 +205,10 @@ async function reconcileTransactions(heartbeat: () => Promise<void>): Promise<st
   return `checked:${checked},finalized:${finalized},errors:${errors},remaining:${remaining},execution:${execution}`;
 }
 
-async function renewJobLease(jobId: string): Promise<void> {
+async function renewJobLease(jobId: string, seconds = 40): Promise<void> {
   const renewed = await database<{ id: string }[]>`
     update jobs
-    set lease_until = now() + interval '40 seconds',
+    set lease_until = now() + ${seconds} * interval '1 second',
         updated_at = now()
     where id = ${jobId}
       and state = 'running'
@@ -261,9 +288,12 @@ try {
       await renewJobLease(claimed[0].id);
       if (kind === "refresh_issuer_context") {
         const snapshots = await refreshPreStocksMarketData(() => renewJobLease(claimed[0].id));
-        await renewJobLease(claimed[0].id);
+        await renewJobLease(claimed[0].id, 120);
+        const directoryFeeds = await refreshIssuerDirectorySnapshots();
+        await renewJobLease(claimed[0].id, 80);
+        await warmDiscover();
         const xStocksAssets = await verifyXStocksAssets();
-        result = `prestocks_snapshots:${snapshots},xstocks_assets:${xStocksAssets}`;
+        result = `prestocks_snapshots:${snapshots},directory_feeds:${directoryFeeds},discover_warmed:2,xstocks_assets:${xStocksAssets}`;
       } else {
         result = await reconcileTransactions(() => renewJobLease(claimed[0].id));
       }

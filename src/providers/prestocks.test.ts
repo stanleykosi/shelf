@@ -44,6 +44,9 @@ describe("PreStocks providers", () => {
     });
     expect(listings[1].companyId).toBe("issuer:prestocks:UNREVIEWED");
     expect(listings[1].logoUrl).toBeUndefined();
+    const detail = await provider.detail("OPENAI");
+    expect(detail?.listing.mint).toBe(validRow.contract_address);
+    expect(detail?.sourceData).toEqual(validRow);
   });
 
   it("rejects a configured endpoint outside the issuer host", () => {

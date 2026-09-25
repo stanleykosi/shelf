@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
 import type { IssuerListing } from "./issuer-assets";
-import { buildIssuerSpotlight } from "./issuer-spotlight";
+import { buildIssuerDirectory, selectFeaturedCompanies } from "./issuer-spotlight";
 
-it("rotates only current company tokens and keeps two PreStocks listings in the spotlight", () => {
+it("includes every live listing while rotating ten featured assets", () => {
   const publicSymbols = [
     ["AAPLx", "Apple"], ["MSFTx", "Microsoft"], ["NVDAx", "NVIDIA"],
     ["GOOGLx", "Alphabet"], ["AMZNx", "Amazon"], ["METAx", "Meta"],
@@ -20,15 +20,18 @@ it("rotates only current company tokens and keeps two PreStocks listings in the 
   })) as IssuerListing[];
   const feeds = { listings: [...publicListings, ...privateListings], unavailable: [], stale: [] };
 
-  const first = buildIssuerSpotlight(feeds, () => 0);
-  const second = buildIssuerSpotlight(feeds, () => 0.9);
+  const directory = buildIssuerDirectory(feeds);
+  const first = selectFeaturedCompanies(directory.listings, () => 0);
+  const second = selectFeaturedCompanies(directory.listings, () => 0.9);
   const liveIds = new Set(feeds.listings.map((listing) => listing.asset.companyId));
 
-  expect(first.featured).toHaveLength(12);
-  expect(first.featured.filter((listing) => listing.provider === "prestocks")).toHaveLength(2);
-  expect(first.listings.find((listing) => listing.asset.symbol === "PEPx")?.sector).toBe("Food & drink");
-  expect(first.listings.some((listing) => listing.asset.symbol === "SPYx")).toBe(false);
-  expect(first.featured.every((listing) => liveIds.has(listing.asset.companyId))).toBe(true);
-  expect(first.featured.map((listing) => listing.asset.symbol))
-    .not.toEqual(second.featured.map((listing) => listing.asset.symbol));
+  expect(directory.listings).toHaveLength(feeds.listings.length);
+  expect(directory.listings.find((listing) => listing.asset.symbol === "PEPx")?.sector).toBe("Food & drink");
+  expect(directory.listings.find((listing) => listing.asset.symbol === "SPYx")?.sector).toBe("Other");
+  expect(directory.listings[0].asset).not.toHaveProperty("mint");
+  expect(first).toHaveLength(10);
+  expect(first.filter((listing) => listing.provider === "prestocks")).toHaveLength(2);
+  expect(first.every((listing) => liveIds.has(listing.asset.companyId))).toBe(true);
+  expect(first.map((listing) => listing.asset.symbol))
+    .not.toEqual(second.map((listing) => listing.asset.symbol));
 });

@@ -59,7 +59,7 @@ No guaranteed returns, implied professional endorsement, “best investment for 
 ## Privacy requirements
 
 - Process images/OCR in transient memory only; release buffers on all paths and never persist them in DB, logs, caches, queues, object storage or crash traces.
-- Deleting Shelf images does not prevent processing by OpenRouter/model providers; obtain informed processing consent and enforce documented ZDR/no-training routes.
+- Shelf does not retain submitted scan images. Describe external image processing in the privacy policy and enforce documented ZDR/no-training routes server-side; the Scan UI does not require a repeated consent checkbox.
 - Store confirmed catalog selections, required account records and minimal operations metadata, not shopping receipts or behavioral profiles.
 - No session replay, advertising trackers, automatic screenshot capture, geolocation precision, contact uploads or wallet/email disclosure to AI.
 - Product URLs may contain personal query tokens: strip known tracking fields, reject credential-bearing/private URLs, do not log query strings.

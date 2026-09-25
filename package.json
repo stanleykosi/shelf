@@ -24,6 +24,7 @@
     "verify:market-providers": "tsx scripts/verify-market-providers.ts",
     "verify:jupiter-build": "tsx scripts/verify-jupiter-build.ts",
     "worker": "tsx infrastructure/railway-worker.ts",
+    "prepare:railway-function": "node scripts/prepare-railway-function.mjs",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

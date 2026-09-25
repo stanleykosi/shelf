@@ -25,7 +25,7 @@ Each route defines metadata, loading boundary, error boundary and unavailable/no
 | Component | Owns | Must not own |
 |---|---|---|
 | AppShell | Responsive navigation, status banner, account menu | Secrets or inferred financial eligibility |
-| CapturePanel | Permission, camera lifecycle, retake, crop, downsampling | Upload before consent, background recording |
+| CapturePanel | Permission, camera lifecycle, retake, crop, downsampling | Upload without a user scan action, background recording |
 | BarcodeReader | Local decode, checksum, manual fallback | Arbitrary QR execution |
 | RecognitionResults | Candidate correction, selection, confidence wording | Generating executable token identities |
 | RelationshipCard | Evidence links, region/relationship labels | Claiming all brand ties are outright ownership |

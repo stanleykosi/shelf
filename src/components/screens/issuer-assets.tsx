@@ -8,32 +8,35 @@ import { parseUsdc } from "@/domain/money";
 import type { Order } from "@/domain/types";
 import type { Company } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
+import type { XStocksDisclosures, XStocksMetadata } from "@/providers/xstocks";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
-import { Card, EmptyState, ErrorMessage, Field, PageIntro } from "@/components/ui";
-import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
-import { ArrowRight, ArrowUpRight, Bookmark, ShieldCheck } from "@/components/studio-icons";
+import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
 import { IssuerLogo } from "@/components/issuer-logo";
-
-import { useNotification } from "@/components/notifications";
-import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 
 type Source = "xstocks" | "prestocks";
 
 function useIssuerAsset(provider: Source, symbol: string) {
   const [asset, setAsset] = useState<IssuerListing | null>(null);
+  const [metadata, setMetadata] = useState<XStocksMetadata | undefined>();
   const [lifecycle, setLifecycle] = useState<NonNullable<Company["instrument"]>["lifecycle"]>();
   const [loadedKey, setLoadedKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const assetKey = `${provider}:${symbol}`;
 
   useEffect(() => {
     let active = true;
-    apiRequest<{ listing: IssuerListing | null; lifecycle?: NonNullable<Company["instrument"]>["lifecycle"] }>(
+    apiRequest<{
+      listing: IssuerListing | null;
+      metadata?: XStocksMetadata;
+      lifecycle?: NonNullable<Company["instrument"]>["lifecycle"];
+    }>(
       `issuer/asset/${provider}/${encodeURIComponent(symbol)}`,
     )
-      .then(({ listing, lifecycle: currentLifecycle }) => {
+      .then(({ listing, metadata: currentMetadata, lifecycle: currentLifecycle }) => {
         if (!active) return;
         setAsset(listing);
+        setMetadata(currentMetadata);
         setLifecycle(currentLifecycle);
         setError(null);
       })
@@ -44,114 +47,264 @@ function useIssuerAsset(provider: Source, symbol: string) {
         if (active) setLoadedKey(assetKey);
       });
     return () => { active = false; };
-  }, [provider, symbol, assetKey]);
+  }, [provider, symbol, assetKey, attempt]);
 
-  return { asset, lifecycle, loading: loadedKey !== assetKey, error };
+  return {
+    asset,
+    metadata,
+    lifecycle,
+    loading: loadedKey !== assetKey,
+    error,
+    retry: () => { setLoadedKey(""); setAttempt((value) => value + 1); },
+  };
 }
 
 function issuerName(provider: Source) {
   return provider === "xstocks" ? "xStocks" : "PreStocks";
 }
 
-function IssuerState({ title, children, retry = false }: { title: string; children: React.ReactNode; retry?: boolean }) {
-  return <ResearchJourney kind="issuer">
-    <div className="journey-state"><ShieldCheck size={32} aria-hidden="true" />
-      <EmptyState title={title} action={retry ? <button onClick={() => window.location.reload()}>Try again</button> : <Link className="button secondary" href="/discover">Return to Discover</Link>}>{children}</EmptyState>
+function formatUsd(value: string, compact = false) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: compact ? "compact" : "standard",
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+}
+
+function formatQuantity(value: string) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(Number(value));
+}
+
+function DetailMetric({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="issuer-detail-metric">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+      {note ? <p className="muted">{note}</p> : null}
     </div>
-  </ResearchJourney>;
+  );
+}
+
+function XStocksDisclosureCard({ symbol }: { symbol: string }) {
+  const [data, setData] = useState<XStocksDisclosures | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    apiRequest<XStocksDisclosures>(
+      `issuer/asset/xstocks/${encodeURIComponent(symbol)}/disclosures`,
+      { signal: controller.signal },
+    )
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setData(null); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [symbol, attempt]);
+
+  const reservesUrl = `https://api.xstocks.fi/api/v2/public/proof-of-reserves/${encodeURIComponent(symbol)}`;
+  return (
+    <Card className="stack">
+      <div>
+        <h2>Backing and corporate actions</h2>
+        <p className="muted">Issuer-reported figures across all chains, separate from the price of a Shelf purchase.</p>
+      </div>
+      {loading ? <p role="status">Loading xStocks disclosures…</p> : null}
+      {!loading && data?.reserves ? (
+        <>
+          <dl className="issuer-detail-metrics">
+            <DetailMetric label="Underlying shares held" value={formatQuantity(data.reserves.sharesHeld)} />
+            <DetailMetric label="xStock supply" value={formatQuantity(data.reserves.circulatingSupply)}
+              note="Circulating tokens across all chains" />
+          </dl>
+          <p className="muted">Reserve snapshot: {new Date(data.reserves.timestamp).toLocaleString()}</p>
+        </>
+      ) : !loading ? <p className="muted">The issuer’s reserve snapshot is unavailable right now.</p> : null}
+      {!loading && data?.multiplier ? (
+        <div className="issuer-detail-multiplier">
+          <p><strong>Solana balance multiplier:</strong> {formatQuantity(data.multiplier.current)}×</p>
+          <p className="muted">This adjusts displayed token units for dividends and splits; it is not a price or a promised return.</p>
+          {data.multiplier.pending ? <p className="notice">
+            Scheduled multiplier: {formatQuantity(data.multiplier.pending.value)}× from {new Date(data.multiplier.pending.activatesAt).toLocaleString()}
+            {data.multiplier.pending.reason ? ` · ${data.multiplier.pending.reason}` : ""}.
+          </p> : null}
+          <p className="muted">Multiplier checked {new Date(data.checkedAt).toLocaleString()}.</p>
+        </div>
+      ) : !loading ? <p className="muted">The current Solana multiplier is unavailable.</p> : null}
+      <div className="actions">
+        <a href={reservesUrl} target="_blank" rel="noreferrer">View issuer reserve data</a>
+        {!loading && !data?.reserves && !data?.multiplier ? (
+          <button className="ghost" onClick={() => { setLoading(true); setAttempt((value) => value + 1); }}>Retry disclosures</button>
+        ) : null}
+      </div>
+    </Card>
+  );
 }
 
 export function IssuerAssetScreen({ provider, symbol }: { provider: Source; symbol: string }) {
-  const { asset: listing, lifecycle, loading, error } = useIssuerAsset(provider, symbol);
-  const notify = useNotification();
+  const { asset: listing, metadata, lifecycle, loading, error, retry } = useIssuerAsset(provider, symbol);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  if (loading) return <ResearchJourney kind="issuer"><LoadingStatus page>Checking the current issuer feed…</LoadingStatus></ResearchJourney>;
-  if (error) return <IssuerState title="Issuer information unavailable" retry>{error}. No current availability is inferred.</IssuerState>;
-  if (!listing) return <IssuerState title="Asset unavailable">This token is not in the current issuer feed.</IssuerState>;
+  const [copyMessage, setCopyMessage] = useState("");
+  if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
+  if (error) return <EmptyState title="Issuer details unavailable">
+    <ErrorMessage message={error} />
+    <button className="secondary" onClick={retry}>Try again</button>
+  </EmptyState>;
+  if (!listing) return <EmptyState title="Asset unavailable">This token is not in the current issuer feed.</EmptyState>;
 
   const { asset } = listing;
   const publicAsset = listing.provider === "xstocks" ? listing.asset : null;
   const privateAsset = listing.provider === "prestocks" ? listing.asset : null;
-  const issuerUrl = privateAsset?.issuerUrl ?? "https://xstocks.fi/";
-  const observed = new Date(asset.observedAt);
-  const observedLabel = Number.isNaN(observed.getTime()) ? "Observation time unavailable" : observed.toLocaleString();
+  const summary = asset.description.split(/\n\s*\n/)[0];
+  const showSummary = summary && summary.toLowerCase() !== `${asset.name} xstock`.toLowerCase();
 
   async function saveToWatchlist() {
     if (saving) return;
     setSaving(true);
-
     try {
       await postJson("watchlist/items", { companyId: asset.companyId });
-      notify("Added to Saved research. This is not a Holding.", "success");
+      setSaveMessage("Saved to your private watchlist.");
+      setSaveError(null);
     } catch (reason) {
-      notify(authenticationIsRequired(reason)
-        ? "Sign in to keep this asset in Saved research."
-        : reason instanceof Error ? reason.message : "Could not save this asset", "error");
+      setSaveError(authenticationIsRequired(reason)
+        ? "Sign in to save this asset to your private watchlist."
+        : reason instanceof Error ? reason.message : "Could not save this asset");
     } finally {
       setSaving(false);
     }
   }
 
-  return <ResearchJourney kind="issuer">
-    <header className="issuer-research-hero">
-      <div className="issuer-research-identity">
-        <IssuerLogo imageUrl={asset.logoUrl} large name={asset.name} source={provider} />
-        <JourneyHeading eyebrow={provider === "xstocks" ? "Public equity tracker / xStocks" : "Private company exposure / PreStocks"} title={asset.name}>
-          <p>{asset.symbol} <span>·</span> Issuer-defined investment exposure</p>
-        </JourneyHeading>
-      </div>
-      <a className="journey-source-link" href={issuerUrl} target="_blank" rel="noreferrer">Issuer information <ArrowUpRight size={16} aria-hidden="true" /></a>
-    </header>
-    <div className="issuer-source-strip"><span><ShieldCheck size={16} aria-hidden="true" />Sourced from {issuerName(provider)}</span><span>Observed {observedLabel}</span></div>
-    {lifecycle ? <section className="issuer-lifecycle" aria-label="Issuer lifecycle notice">
-      <p className="studio-eyebrow">Issuer notice</p><h2>{lifecycle.title}</h2><p>{lifecycle.description}</p>
-      {lifecycle.deadline ? <p>Deadline: {new Date(lifecycle.deadline).toLocaleString()}</p> : null}
-      {lifecycle.successorSymbol ? <p>Successor symbol: {lifecycle.successorSymbol}</p> : null}
-      <a href={lifecycle.sourceUrl} target="_blank" rel="noreferrer">Read issuer notice <ArrowUpRight size={15} aria-hidden="true" /></a>
-    </section> : null}
-    <div className="issuer-research-layout">
-      <div className="issuer-research-main">
-        <section className="research-section issuer-overview"><p className="studio-eyebrow">The wider picture</p><h2>About this exposure</h2><p>{asset.description || "Issuer description unavailable."}</p></section>
-        <section className="research-section">
-          <div className="journey-section-heading"><h2>{publicAsset ? "Public market" : "Private market"}</h2><span>Issuer reference</span></div>
-          <dl className="journey-facts issuer-market-facts">
-            {publicAsset ? <>
-              <div><dt>Underlying</dt><dd>{publicAsset.underlyingSymbol || "Unavailable"}</dd></div>
-              <div><dt>Exchange</dt><dd>{publicAsset.exchange}</dd></div>
-              <div><dt>Session</dt><dd>{publicAsset.marketOpen ? "Open" : publicAsset.marketPeriod}</dd></div>
-              <div><dt>Trading status</dt><dd>{publicAsset.tradingHalted ? "Halted" : "No issuer halt reported"}</dd></div>
-              {publicAsset.nextChangeAt ? <div><dt>Next session change</dt><dd>{new Date(publicAsset.nextChangeAt).toLocaleString()}</dd></div> : null}
-            </> : privateAsset ? <>
-              <div><dt>Issuer mark</dt><dd>${privateAsset.markPriceUsd}</dd></div>
-              <div><dt>Token reference</dt><dd>${privateAsset.tokenPriceUsd}</dd></div>
-              <div><dt>Mark valuation</dt><dd>${privateAsset.markValuationUsd}</dd></div>
-              <div><dt>Implied token valuation</dt><dd>${privateAsset.impliedValuationUsd}</dd></div>
-              <div><dt>Issuer supply</dt><dd>{privateAsset.supplyUi} tokens</dd></div>
-              <div><dt>Market signal</dt><dd>{privateAsset.premiumLabel}</dd></div>
-            </> : null}
-          </dl>
-          {publicAsset?.tradingHalted ? <p className="notice">Issuer trading is halted.</p> : null}
-          <p className="journey-source-note">Jupiter provides the executable USDC route only after a fresh quote. The displayed issuer values are references.</p>
-        </section>
-        <section className="research-section issuer-rights">
-          <ShieldCheck size={24} aria-hidden="true" /><div><h2>Understand what you’re exploring</h2>
-            <p>{publicAsset ? "Tracks a public security under the issuer’s terms; this token is not an ordinary voting share." : "Private company exposure under PreStocks terms, not ordinary shares. Liquidity and exit are not guaranteed."}</p>
-            <Link href="/learn/stock-tokens">Understand instrument rights <ArrowUpRight size={16} aria-hidden="true" /></Link>
+  async function copyMint() {
+    try {
+      await navigator.clipboard.writeText(asset.mint);
+      setCopyMessage("Mint copied.");
+    } catch {
+      setCopyMessage("Copy unavailable. Select the mint to copy it.");
+    }
+  }
+
+  return (
+    <>
+      <PageIntro
+        eyebrow={provider === "xstocks" ? "xStocks · Public equity tracker" : "PreStocks · Private-company exposure"}
+        title={asset.name}
+      >
+        <div className="issuer-detail-intro">
+          <IssuerLogo imageUrl={asset.logoUrl} large name={asset.name} source={provider} />
+          <div>
+            <p className="issuer-detail-symbol">{asset.symbol}</p>
+            {showSummary ? <p>{summary}</p> : null}
+            <p className="muted">{issuerName(provider)} feed checked {new Date(asset.observedAt).toLocaleString()}.</p>
           </div>
-        </section>
+        </div>
+      </PageIntro>
+      {lifecycle ? <Card className="stack issuer-detail-notice">
+          <h2>{lifecycle.title}</h2>
+          <p>{lifecycle.description}</p>
+          {lifecycle.deadline ? <p>Deadline: {new Date(lifecycle.deadline).toLocaleString()}</p> : null}
+          {lifecycle.successorSymbol ? <p>Successor symbol: {lifecycle.successorSymbol}</p> : null}
+          <a href={lifecycle.sourceUrl} target="_blank" rel="noreferrer">Read issuer notice</a>
+        </Card> : null}
+      <div className="issuer-detail-layout">
+        <Card className="stack">
+          <h2>What this token represents</h2>
+          <p>
+            {provider === "xstocks"
+              ? `An xStocks tracker certificate linked to ${publicAsset?.underlyingSymbol || "an underlying public security"}. It gives economic exposure, not ordinary shares or voting rights.`
+              : `A PreStocks token linked to SPV exposure to ${asset.name}. It is not a share in the company and does not grant voting or dividend rights.`}
+          </p>
+          {publicAsset ? <p className="muted">The underlying exchange and the token’s secondary market have different hours and prices.</p> :
+            <p className="muted">Private-company valuations are estimates. Liquidity and exit are not guaranteed.</p>}
+        </Card>
+        <Card className="stack">
+          <h2>Explore this token</h2>
+          <p className="muted">A purchase review requests a fresh Jupiter route for your amount. No order is placed from this page.</p>
+          {publicAsset?.tradingHalted ? <p className="notice">Shelf purchase review is paused while xStocks reports a trading halt.</p> :
+            <Link className="button" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy` as Route}>
+              Review a purchase
+            </Link>}
+          <Link
+            className="button secondary"
+            href={`/assistant?provider=${provider}&symbol=${encodeURIComponent(asset.symbol)}` as Route}
+          >
+            Chat with AI
+          </Link>
+          <button className="secondary" disabled={saving} onClick={saveToWatchlist}>
+            {saving ? "Saving…" : "Save to watchlist"}
+          </button>
+          {saveMessage ? <ResultMessage>{saveMessage}</ResultMessage> : null}
+          <ErrorMessage message={saveError} />
+        </Card>
       </div>
-      <aside className="issuer-instrument-panel" aria-label="Issuer token and next steps">
-        <p className="studio-eyebrow">A separate instrument</p><h2>Issuer token</h2>
-        <strong className="issuer-symbol-display">{asset.symbol}</strong>
-        <p>{issuerName(provider)} · Solana</p>
-        <details><summary>Token identity</summary><p>Solana mint</p><code className="break-all">{asset.mint}</code></details>
-        <p className="issuer-action-context">Explore the terms, then choose your next step. Saving adds research to your watchlist.</p>
-        <Link className="button" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}/buy` as Route}>Review a purchase <ArrowRight size={17} aria-hidden="true" /></Link>
-        <PendingButton className="secondary" pending={saving} pendingLabel="Saving…" icon={<Bookmark size={16} aria-hidden="true" />} onClick={saveToWatchlist}>Save to watchlist</PendingButton>
-        <a href={issuerUrl} target="_blank" rel="noreferrer">Read issuer information <ArrowUpRight size={14} aria-hidden="true" /></a>
-      </aside>
-    </div>
-  </ResearchJourney>;
+      {publicAsset ? (
+        <div className="issuer-detail-layout">
+          <Card className="stack">
+            <div>
+              <h2>Underlying and issuer session</h2>
+              <p className="muted">The xStocks issuer schedule does not establish Jupiter liquidity.</p>
+            </div>
+            <dl className="issuer-detail-facts">
+              <div><dt>Underlying ticker</dt><dd>{publicAsset.underlyingSymbol || "Not supplied"}</dd></div>
+              <div><dt>Exchange</dt><dd>{publicAsset.exchange}</dd></div>
+              {metadata?.underlyingType ? <div><dt>Security type</dt><dd>{metadata.underlyingType}</dd></div> : null}
+              {metadata?.listingCountry ? <div><dt>Listing country</dt><dd>{metadata.listingCountry}</dd></div> : null}
+              {metadata?.underlyingCurrency ? <div><dt>Trading currency</dt><dd>{metadata.underlyingCurrency}</dd></div> : null}
+              <div><dt>Issuer session</dt><dd>{metadata?.issuerTradingAvailable
+                ? `${publicAsset.marketOpen ? "Open" : "Closed"} · ${publicAsset.marketPeriod}`
+                : "Not available from issuer"}</dd></div>
+              {publicAsset.nextChangeAt ? <div><dt>Next session change</dt>
+                <dd>{new Date(publicAsset.nextChangeAt).toLocaleString()}</dd></div> : null}
+            </dl>
+            {publicAsset.tradingHalted ? <p className="notice">xStocks reports a trading halt for this token.</p> : null}
+          </Card>
+          <XStocksDisclosureCard symbol={asset.symbol} />
+        </div>
+      ) : privateAsset ? (
+        <Card className="stack">
+          <div>
+            <h2>PreStocks reference values</h2>
+            <p className="muted">These are issuer figures, not a live Jupiter execution price. PreStocks does not provide a per-value update time in this feed.</p>
+          </div>
+          <dl className="issuer-detail-metrics">
+            <DetailMetric label="Token reference" value={formatUsd(privateAsset.tokenPriceUsd)} />
+            <DetailMetric label="Issuer mark" value={formatUsd(privateAsset.markPriceUsd)} />
+            <DetailMetric label="Difference from mark" value={privateAsset.premiumLabel} />
+            <DetailMetric label="Implied company valuation" value={formatUsd(privateAsset.impliedValuationUsd, true)} />
+            <DetailMetric label="Mark company valuation" value={formatUsd(privateAsset.markValuationUsd, true)} />
+          </dl>
+          <p className="muted">Feed checked {new Date(asset.observedAt).toLocaleString()}. The issuer page has further company material that is not in the public token feed.</p>
+        </Card>
+      ) : null}
+      <Card className="stack">
+        <h2>Token identity and sources</h2>
+        <div className="issuer-detail-mint">
+          <div><span className="muted">Solana token mint</span><code className="break-all">{asset.mint}</code></div>
+          <button className="secondary" onClick={copyMint}>Copy mint</button>
+        </div>
+        {copyMessage ? <ResultMessage>{copyMessage}</ResultMessage> : null}
+        {privateAsset ? <p><strong>Issuer-reported supply:</strong> {formatQuantity(privateAsset.supplyUi)} tokens</p> : null}
+        {publicAsset && (metadata?.tokenIsin || metadata?.underlyingIsin) ? (
+          <details>
+            <summary>Security identifiers</summary>
+            {metadata.tokenIsin ? <p><strong>xStock ISIN:</strong> {metadata.tokenIsin}</p> : null}
+            {metadata.underlyingIsin ? <p><strong>Underlying ISIN:</strong> {metadata.underlyingIsin}</p> : null}
+          </details>
+        ) : null}
+        <div className="actions">
+          <a href={privateAsset?.issuerUrl ?? "https://xstocks.fi/products"} target="_blank" rel="noreferrer">
+            View {issuerName(provider)} information
+          </a>
+          {publicAsset ? <a href="https://assets.backed.fi/legal-documentation" target="_blank" rel="noreferrer">
+            Issuer terms and fees
+          </a> : null}
+          <a href={`https://solscan.io/token/${asset.mint}`} target="_blank" rel="noreferrer">View on Solscan</a>
+        </div>
+      </Card>
+    </>
+  );
 }
 
 export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol: string }) {
@@ -160,15 +313,14 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
   const [amount, setAmount] = useState("10");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  if (loading) return <ResearchJourney kind="purchase"><LoadingStatus page>Checking the current issuer feed…</LoadingStatus></ResearchJourney>;
-  if (feedError) return <IssuerState title="Purchase information unavailable" retry>{feedError}. No purchase has been submitted.</IssuerState>;
-  if (!listing) return <IssuerState title="Asset unavailable">The issuer no longer lists this token.</IssuerState>;
+  if (loading) return <EmptyState title="Loading issuer asset">Checking the current feed.</EmptyState>;
+  if (feedError) return <ErrorMessage message={feedError} />;
+  if (!listing) return <EmptyState title="Asset unavailable">The issuer no longer lists this token.</EmptyState>;
   const { asset } = listing;
   const issuerUnavailable = listing.provider === "xstocks" &&
     listing.asset.tradingHalted;
 
   async function createPurchase() {
-    if (submitting || issuerUnavailable) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -187,32 +339,31 @@ export function IssuerBuyScreen({ provider, symbol }: { provider: Source; symbol
   }
 
   return (
-    <ResearchJourney kind="purchase" backHref={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route} backLabel="Back to instrument">
+    <>
       <PageIntro eyebrow={`Buy ${asset.symbol} · ${issuerName(provider)}`} title={`Choose an amount for ${asset.name}`}>
         <p>The issuer supplied the token mint. Shelf checks that mint on chain and rechecks the issuer feed before requesting a Jupiter route. Nothing moves until a separate review and wallet approval.</p>
       </PageIntro>
-      <ol className="purchase-steps" aria-label="Purchase steps"><li aria-current="step"><span>01</span>Choose amount</li><li><span>02</span>Review quote</li><li><span>03</span>Approve in wallet</li></ol>
-      <Card className="stack purchase-amount-panel">
+      <Card className="stack">
         {lifecycle ? <p className="notice"><strong>{lifecycle.title}</strong><br />{lifecycle.description}{lifecycle.deadline ? ` Deadline: ${new Date(lifecycle.deadline).toLocaleString()}.` : ""}</p> : null}
         <p className="notice">
           {provider === "prestocks"
             ? "This is private company exposure, not ordinary stock. Liquidity, redemption and valuation may differ."
             : "This is a public equity tracker certificate, not an ordinary voting share."}
         </p>
-        <h2>{asset.name}</h2><p>{asset.symbol} · {issuerName(provider)} instrument</p>
-        <details><summary>Issuer token identity</summary><p><strong>Issuer mint:</strong> <code className="break-all">{asset.mint}</code></p></details>
+        <p><strong>Issuer mint:</strong> <code className="break-all">{asset.mint}</code></p>
         <Field label="Amount in USDC" htmlFor="issuer-buy-amount" hint="Minimum 5 USDC · beta maximum 100 USDC">
           <input id="issuer-buy-amount" inputMode="decimal" value={amount}
             onChange={(event) => setAmount(event.target.value)} />
         </Field>
         {issuerUnavailable ? <p className="notice">This xStocks asset is not currently available for Shelf purchase.</p> : null}
         <div className="actions">
-          <PendingButton data-cta="C57" disabled={issuerUnavailable} pending={submitting} pendingLabel="Preparing review…" onClick={createPurchase}>Review purchase</PendingButton>
+          <button data-cta="C57" disabled={issuerUnavailable || submitting} onClick={createPurchase}>
+            {submitting ? "Preparing review…" : "Review purchase"}
+          </button>
           <Link className="button secondary" data-cta="C58" href="/account/wallet/deposit">Deposit USDC</Link>
-          <Link className="button secondary" href={`/assets/${provider}/${encodeURIComponent(asset.symbol)}` as Route}>Return to instrument</Link>
         </div>
         <ErrorMessage message={error} />
       </Card>
-    </ResearchJourney>
+    </>
   );
 }

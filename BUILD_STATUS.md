@@ -2,149 +2,185 @@
 
 Updated: 2026-09-25
 
-## Remaining workspaces — implemented and verified locally
+## U35 issuer token detail restructuring — production, uncommitted
 
-The user authorized extending the accepted Discover/Scan design to the remaining pages.
-Added route-scoped Raleway/Heroicons paper/graphite/mint styling and context navigation, visual
-Saved collections, calmer Portfolio rows and wallet summary, Account controls, Assistant,
-sharing, onboarding, financial forms and owner workspaces. Shared Torph loading feedback and
-transient confirmations now cover these flows. Financial outcomes, share URLs and review gates
-persist. Home retains its composition with the shared type and icon family.
+Compared the current Shelf detail page against xStocks' public asset, multiplier,
+price-data and proof-of-reserves endpoints and PreStocks' public feed/product page. The
+xStocks asset response contains issuer/underlying identifiers and issuer-session context;
+the separate Solana multiplier and reserve snapshot supply useful exposure/backing facts.
+The public xStocks price response has a number but no source timestamp, so it is not shown
+as a current executable or valuation price. PreStocks' public feed supplies token/mark
+references, valuation references and supply, but not the extra company facts on its website.
+The Backed product page also publishes issuer-specific fees, service providers and legal
+documents outside the public xStocks asset response. Shelf links the official legal document
+library instead of treating those external page values as live feed fields.
 
-Checklist: `docs/WORKSPACE_STUDIO_REDESIGN.md`. Main files: `src/app/workspace-studio.css`,
-`src/components/workspace-navigation.tsx` and the affected screens. Captures and visual review:
-`artifacts/workspace-studio/README.md`. The isolated QA database on port 55439 uses synthetic
-records; no real accounts or money were used.
+The page now separates what the token represents, purchase/chat/watchlist actions,
+issuer-specific market/reference facts, and exact Solana mint/sources. Optional xStocks
+disclosures load after the core listing and fail independently. The issuer product/legal
+sources and Solscan are linked; source-specific values are labeled with their available
+observation or snapshot time. The exact issuer endpoint returns xStocks security identifiers
+and underlying/session metadata, while a separate cached public endpoint reads proof of
+reserves and the current Solana multiplier. PreStocks details format the feed's reference
+price, mark, premium, valuations and supply without presenting them as a Jupiter quote.
 
-Lint, strict TypeScript, production build and all 120 unit tests pass. Browser API shims let
-jsdom test existing guards with reduced motion. The broad browser run passed 33 tests, skipped
-seven redundant matrices, and found two redirect-status failures caused by the existing global
-streaming loader. Removing that boundary and using Link pending indicators restores exact
-redirect/404 responses while retaining page-level loaders. Both desktop/mobile route contract
-rechecks pass. The final targeted run passed 25 tests with three intentional skips and no
-failures, covering navigation progress, feedback, Home, Account, Assistant, HTTP contracts and
-the full accessibility sweep. Responsive verification covers 27 routes at five widths (135 route views), with
-54 automated WCAG audits and reviewed desktop/mobile captures. Saved image sizing and Assistant
-prompt contrast were corrected during review. Existing optional Magic native-module build
-warnings remain nonfatal.
+ESLint, strict TypeScript, 101 Vitest tests in 17 files, the Next.js 16.3.5 production build
+and `git diff --check` passed. Local Chromium passed 12/12 desktop and mobile token-detail/
+chat journeys, including disclosure outage isolation and simultaneous chat sessions. Vercel
+deployment `dpl_96woNHaBSTd7CEMSfeBK3huHYQnB` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. Production read-only exact issuer requests returned METAx
+and OPENAI with current Solana mints; the new disclosure endpoint returned both reserves and
+multiplier. Production `/readyz` returned ready with PostgreSQL and configured providers and
+`realTrading: false`. Four focused desktop/mobile production Chromium checks passed with API
+responses intercepted, and separate unmocked production Chromium visits rendered the live
+METAx and OPENAI detail sections. No paid AI call, Jupiter quote, funding or live-money action
+occurred. Next task: keep financial activation gated for the separately approved funded run;
+decide AI chat retention only if the owner wants history beyond the current page session.
 
-The final preview is `http://127.0.0.1:3102` with paid provider credentials and money flags disabled.
-No paid inference, external deployment, provider activation or real-money action was performed.
-Exact next task: user review of the remaining workspace design and screenshot gallery.
+## U34 issuer-scoped AI chat — production, uncommitted
 
-## Connected Discover and Scan pages — implemented and verified locally
+Each current xStocks and PreStocks token detail page links to an issuer-scoped AI chat. The
+assistant waits for the user's first question, then the server refetches the exact public
+issuer record and sends its complete bounded response, normalized listing, source URL,
+observation time and reviewed lifecycle notice to OpenRouter. Follow-up turns carry only the
+last six bounded messages. The browser keeps up to 40 displayed messages in page memory;
+there is no server transcript or chat-history database. The assistant handles loading,
+unavailable feeds, draft restoration after errors or cancellation, suggested questions,
+source/uncertainty display and explicit clearing.
 
-The latest request extends the accepted Discover/Scan treatment to scan results and correction,
-Product, Brand, Company, issuer details, issuer purchase entry, and contextual learning pages.
-Implemented route-scoped Raleway/Heroicons styling, review progress and candidate navigation,
-identity-led research, clearer issuer facts/rights/actions, readable articles and reduced-motion
-variants. Existing confirmation, consent, evidence, storage, authentication and financial guards
-remain authoritative. Seven existing reviewed product images are bundled locally (632KB total),
-with original-source attribution, to eliminate upstream image timeouts in the demo. The already-sized
-files are served directly after screenshot checks also exposed a stalled optimizer thumbnail request.
+The AI call runs outside the PostgreSQL state transaction. A short shared reservation before
+feed loading enforces spend and per-user limits across concurrent Vercel requests; a failed
+feed lookup releases it. Signed HttpOnly guest quota cookies keep browsers behind one network
+separate, with a secondary network cap. Provider privacy routing, validated source IDs and
+trade controls remain in force. xStocks and PreStocks adapters retain the complete raw public
+issuer response for chat while separately validating the token listing.
 
-Files: `src/app/research-journey.css`, `src/components/research-journey.tsx`, connected screens,
-`public/images/reviewed-products/`, `tests/e2e/discovery-journey.spec.ts`.
-Checklist: `docs/DISCOVERY_JOURNEY_REDESIGN.md`. Captures: `artifacts/discovery-journey/README.md`.
+ESLint, strict TypeScript, 100 Vitest tests in 17 files, the Next.js 16.3.5 production build
+and `git diff --check` passed. The built local app passed all eight desktop/mobile Chromium
+journeys in `tests/e2e/issuer-chat.spec.ts`: xStocks and PreStocks entry points, no paid AI
+request before a question, follow-up history, feed outage, simultaneous browser isolation,
+separate signed guest cookies and retry after a failed answer. The browser intercepted answer
+responses, so no paid OpenRouter request was made.
 
-Lint, strict TypeScript, production build and `git diff --check` pass. All 120 unit/contract tests
-pass. The broad 72-case production browser run passed 68, skipped two redundant mobile matrices,
-and found one issuer error-message contrast issue in both projects. After the route-scoped fix,
-the final build and all four targeted issuer/result rechecks pass: 70 distinct browser cases verified,
-two intentional skips, no unresolved failures. After the direct-image fix, the final journey/entity
-rerun passes 17 with one redundant mobile-matrix skip; screenshots now await visible artwork.
-The six-page 360/390/430/768/1280/1440 matrix, source facts,
-private issuer/unavailable states, guest saving, scan correction/consent/camera/privacy and existing
-Discover regressions passed. Existing optional Magic native-module build warnings remain nonfatal.
+Vercel deployment `dpl_EFZQg227SU74jZnyXaUBmyRYK3Db` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. Production `/assistant?provider=xstocks&symbol=METAx`,
+`/api/v1/ai/session` and `/readyz` returned 200; readiness reported PostgreSQL, Magic,
+OpenRouter, Jupiter and Helius configured while real trading remained disabled. The guest
+cookie was Secure, HttpOnly and SameSite=Lax. Four focused desktop/mobile production Chromium
+checks passed with AI answers intercepted. A production request with a forged `system` chat
+history role returned `INVALID_INPUT` 422 before any provider call. Read-only production exact
+issuer lookups returned METAx from xStocks and OPENAI from PreStocks with current provider
+symbols and mints. No paid AI request or
+live-money operation occurred. Chat retention beyond page memory remains a separate product
+decision; the next task is to decide whether any transcript should survive navigation or a
+time limit, then implement only that chosen policy.
 
-Authenticated purchase-entry presentation is type/build checked; this pass verifies the guest
-sign-in redirect but does not claim an authenticated visual review or transaction execution.
-No paid inference, external deployment, provider activation or real-money activity was performed.
-Sixteen desktop/mobile captures are recorded and visually reviewed in the gallery. The final local
-preview runs at `http://127.0.0.1:3101` with paid provider credentials and money flags disabled.
-Exact next task: user review of the connected discovery journey. No deployment or further
-workspace redesign is implied by this handoff.
+## U33 direct Scan submissions — production, uncommitted
 
-## Discover and Scan — redesigned and verified locally
+The Scan page no longer displays a repeated OpenRouter processing checkbox or requires its
+consent fields for camera, barcode, upload, screenshot, receipt or approved-link scans. The
+six modes send their actual input directly after the user selects **Use photo**, **Enter
+barcode**, **Use this image**, **Read receipt** or **Find products**. Buttons wait for required
+input and show a busy state while a request runs. The obsolete scan-only consent helper and
+test were removed. Server-side OpenRouter no-data-collection/ZDR/required-parameters policy,
+AI budgets, image validation, transient image handling and issuer-feed verification remain.
+The affected product decisions, flow, CTA, API, AI and privacy documents now describe this
+behavior.
 
-The latest user request authorizes a fresh design of Discover and Scan for the hackathon,
-using Simply Wall St and Quartr as references. This supersedes the previous review stop for
-these two pages. Other screens retain their existing work.
+ESLint, strict TypeScript, 14 focused route/OpenRouter tests and the Next.js 16.3.5 production
+build passed. The built app passed all ten desktop/mobile Chromium checks in
+`tests/e2e/live-discovery.spec.ts`, including direct submission from all Scan modes and the
+upload-to-issuer-result journey. Tests intercepted discovery responses; no paid provider call
+or money movement occurred. A first browser attempt inside the local filesystem sandbox could
+not launch Chromium; the rerun with local browser permission passed.
 
-Implemented an editorial Discover masthead, scoped visual themes with real sector/market
-filter actions, a denser issuer directory, deliberate search suggestions and clearer status
-surfaces. Scan now has a capture/review/identify sequence, a focused media stage, original
-vector artwork, drag/drop feedback, direct upload alternative and contextual input choices.
-Existing camera cleanup, input validation, explicit per-input consent and issuer contracts
-are retained. Motion is limited to bounded entrance, hover and press feedback with reduced
-motion variants; no extra dependency or simulated market data is added to the application.
+Vercel deployment `dpl_CC7cFS8ywQWkGqkHxGUmSiAJxMSB` built Ready and was promoted to
+`https://shelf-one-phi.vercel.app`. The public `/scan` page returns 200 with the new copy and
+without the old consent notice. `/readyz` reports PostgreSQL and configured providers ready,
+with real trading disabled. Focused production Chromium checks passed for the five other Scan
+inputs and for upload through the matched issuer result, with API responses intercepted. The
+live image and link endpoints returned `INVALID_INPUT` and `UNSUPPORTED_PRODUCT_URL` for
+deliberately invalid requests without consent fields, before any provider call. The
+first cold production browser navigation to the result page timed out once; a retry passed in
+14.6 seconds, and a direct `/scan/results` request returned 200 in 2.0 seconds. The broader
+production browser run stopped after an unrelated Discover search timeout, so it is not
+reported as passing. The owner asked to keep implementation changes uncommitted. Next task:
+monitor cold browser navigation separately if it repeats; financial live-money activation
+remains gated by its existing approval and funding requirements.
 
-Files: `src/app/discovery-studio.css`, `src/components/discovery-editorial.tsx`,
-`src/components/screens/concept-discovery.tsx`, `src/components/screens/scan.tsx`,
-`tests/e2e/discover-scan-studio.spec.ts`. Checklist: `docs/DISCOVER_SCAN_REDESIGN.md`.
-Final checks: lint, strict TypeScript and production build pass. All 120 unit/contract tests
-across 21 files pass. The final production-browser run passes 49 checks with three intentional
-project-specific skips and no failures. It includes automated WCAG checks, keyboard focus,
-360/390/430/768/1280/1440px layouts, reduced motion, real filter actions, issuer navigation,
-preview consent and the existing Scan camera/recovery/cancellation regressions. Initial contrast
-and mobile text-size findings were corrected. Development chunk-loading failures did not recur
-against the production build. `git diff --check` passes.
+## U32 Discover cold-load reduction — production, uncommitted
 
-Eight refreshed desktop/mobile screenshots and limitations are recorded in
-`artifacts/discover-scan/README.md`; screenshot company data is synthetic localhost test data.
-The final production preview is available at `http://127.0.0.1:3101/discover` and `/scan` while
-the local server remains running. Paid provider credentials and real-money flags are disabled
-for this preview. No deployment, provider activation, paid calls or live money.
+Discover now preloads the public issuer directory from its server response, before browser
+hydration. A direct product/company search skips that unused preload. On the default browse
+route, the server also selects ten featured rows from the fresh PostgreSQL issuer snapshot and
+renders them into HTML. The client then loads the complete directory for filters and pagination
+without changing those ten rows when the feed still contains them. If the snapshot is missing,
+stale or unavailable, the existing browser directory path remains available. The Railway
+Function reads the Discover page and directory endpoint after each five-minute feed refresh;
+its 15:05 UTC job recorded `directory_feeds:2,discover_warmed:2`, and subsequent 15:55 and
+16:00 UTC scheduled runs completed with zero failures.
 
-Exact next task: user review of Discover and Scan. Continue refinement from this implementation
-if requested; do not propagate this design to other screens or activate live services automatically.
+The final code passed ESLint, strict TypeScript and the Next.js 16.3.5 production build. Testing
+focused on browser behavior: 19 desktop/mobile Chromium Discover and search checks passed with
+five project-specific skips. A separate local Chromium visit with JavaScript disabled displayed
+all ten featured rows from the disposable PostgreSQL snapshot in 657 ms. The local HTML contained
+ten rows and one preload hint; search-result HTML contained no directory preload. A browser trace
+showed the directory request beginning at 132 ms, before `DOMContentLoaded` at 551 ms, with one
+request total. No additional unit tests were run for this performance change.
 
-## Platform art-direction reset — five screens ready for review
+Vercel deployment `dpl_k6QCs2y42VkTT8nQJFKXwj26XG1m` is Ready on the production alias.
+Production HTML contains ten featured rows, and Chromium opened All listings at 1–10 of 1,132
+then moved to 11–20 with ten rows. The preload-only deployment put seven of eight initial fresh
+browser visits under three seconds, but its first CDN miss took 7.1 seconds; a later ten-visit
+sample had six under three seconds. After server rendering, four of five fresh visits displayed
+rows in 1.4–2.1 seconds, while one took 4.2 seconds. A later full production browser visit took
+8.5 seconds. **The requested three-second cold-visit ceiling is therefore not proven or
+guaranteed**; variable HTML/CDN and script delivery still dominate outliers. These are observed
+times from this machine, not a global latency benchmark. No paid provider call, signing,
+broadcast, wallet funding or money movement occurred. The owner asked to leave this work
+uncommitted; the working tree contains U32 changes and was deployed directly.
 
-The latest review rejects the prior internal visual execution. Home alone is accepted. Company,
-Scan, Assistant, Portfolio and Account are recomposed sequentially; all other routes remain
-unchanged. See `docs/PLATFORM_ART_DIRECTION.md` and `artifacts/platform-art-direction/README.md`
-for composition decisions, visual review and 20 desktop/mobile screenshots. Backend, routing,
-security, consent and financial contracts are preserved. Account now presents one category at
-a time; Company imagery/evidence, Scan media, Assistant response and Portfolio holdings are
-the respective dominant objects.
+## U31 complete issuer directory — production
 
-Final checks: lint, TypeScript, production build and 120 unit/contract tests pass. Relevant browser
-suites pass 90 checks with 12 intentional skips. The five-screen 390/430/768/1280/1440 matrix,
-automated WCAG checks, Account categories and full Scan regression suite pass. One old Scan
-pixel-height assertion now verifies actual padded-stage bounds; no-upscaling and aspect-ratio
-assertions remain. Disk-full packaging was resolved by clearing reproducible production cache;
-the existing dev server was not stopped. No paid providers, live money, deployment or push.
+Discover now loads every current Solana xStocks and PreStocks listing from a lightweight issuer
+directory. The Featured tab rotates ten names on each visit, including up to two PreStocks
+listings. All listings paginates the complete set at ten rows per page, with market and editorial
+sector filters, name ordering, page selection, and shareable page/view parameters. The old
+27-company cap and manual mix-refresh action are gone. Search still checks the full current
+issuer feeds before its automatic product-owner AI fallback; an asset detail page rechecks its
+exact issuer symbol and mint before a purchase draft.
 
-Exact next task: user review and approval of these five screens. STOP; no propagation to Product,
-Brand, Learn, Discover, Scan Results, other financial routes or Admin. Prior completion below is
-functional evidence, not acceptance of the rejected visual execution.
+Migration `drizzle/0003_nervous_captain_stacy.sql` adds provider snapshots in PostgreSQL. The
+five-minute Railway Function calls the shared-secret refresh endpoint, which validates both
+complete feeds before saving lightweight company rows. The directory route reads the snapshot
+and uses a five-minute Vercel CDN cache only while both feeds are fresh. Missing or stale feeds
+remain labeled; a new deployment can fall back to live provider reads before its first snapshot.
+The Railway Function artifact is generated from the repository source with the exact pinned
+`postgres@3.4.9` dependency. Its 13:40, 13:45, and 13:50 UTC production runs completed with
+`directory_feeds:2`, two checked jobs, and zero failures.
 
-## Remaining frontend — Concept 2 complete locally
+`npm run check` passed ESLint, strict TypeScript, 100 Vitest tests in 16 files, and the Next.js
+16.3.5 production build. Focused desktop/mobile Chromium checks passed 17 cases with five
+intentional project-specific skips after selector corrections; they cover 10-row pagination,
+market filters, featured rotation and the anonymous refresh-endpoint denial. The earlier full
+browser run also passed all eight direct-first/AI-fallback search checks. An isolated PostgreSQL
+16 database accepted all migrations; an authenticated local refresh stored 1,124 xStocks and
+eight PreStocks listings in 6.256 seconds while an anonymous request returned 404. Local warm
+Chromium page visits displayed the first rows in 885, 880 and 818 ms.
 
-Latest user brief supersedes page-by-page approval gates and authorizes parallel completion.
-Concept 2 is FINAL. Approved compositions are retained; default Home now selects the accepted
-existing Concept 2 instead of the archived comparison. Brand and Company canonical research
-pages are restored alongside the newer issuer backend, as explicitly requested.
-
-Implemented workstreams A–F: new research entity/Saved/sharing/learning/Admin modules,
-account and financial refinements, and scoped `src/app/research-workspace.css`. See
-`docs/FRONTEND_WORKSTREAMS.md` for ownership and the actionable completion checklist.
-Final verification: ESLint and strict TypeScript passed; 120 unit/contract tests across 21 files
-passed; production build passed. The consolidated browser run passed 90 tests with 14 intentional
-project-specific skips and zero failures. Four additional desktop/mobile guest/member/owner checks
-passed after the final investment-page auth guard. Responsive checks cover 390/430/768/1280/1440;
-the automated desktop/mobile WCAG sweep passes. 76 screenshot links are verified.
-
-See `docs/FRONTEND_COMPLETION_REPORT.md` and `artifacts/frontend-refactor/README.md`.
-Private financial/account screenshots use explicitly synthetic isolated localhost fixtures,
-not real assets or balances. Paid providers and live-money controls stayed disabled. The guide,
-decision log and workstream checklist match the completed frontend. Backend/service limitations,
-including Assistant server-consent enforcement and unavailable valuation/reconciliation data,
-remain explicit in the report. No deployment, public launch or live activation was performed.
-
-Exact next task: user review of the completed frontend and screenshots. Do not automatically
-begin deployment, provider activation, real-money testing or another design phase.
+The additive migration is applied to Railway PostgreSQL, and Vercel deployment
+`dpl_G3EnqdJrcYXAzGZRCGo1cPuCGN7V` is Ready on the production alias. `/readyz` confirms
+PostgreSQL and configured providers while trade execution remains disabled. Production directory
+data shows 1,132 listings
+(1,124 public and eight private), no stale or unavailable feed warnings. A cold CDN read took
+3,244 ms and a repeat hit took 408 ms. Production Chromium showed ten Featured rows, then ten
+of 1,132 rows on All listings, then rows 11–20 without a new feed read. Its first cold-browser
+visit took 7,797 ms; a repeat visit took 834 ms. A later cold-browser profile measured 2,579 ms
+to first rows, including 1,852 ms to DOM ready and 2,289 ms to the directory response. The final
+pagination hover uses dark text on a light background in computed production styles. The
+one-second target is met on these warm visits, but is **not guaranteed on a cold browser or CDN
+miss**. No paid AI call, wallet funding,
+quote, trade, signing, broadcast or money movement was performed for U31.
 
 ## U30 live company spotlight — production
 
@@ -190,7 +226,8 @@ search action. The server checks current xStocks and PreStocks issuer listings f
 company or symbol result returns without an AI request. Only an unmatched term goes to OpenRouter
 under the existing no-data-collection/ZDR policy and quota limits. AI suggests an owner; the
 issuer feed alone supplies the linked asset, symbol and mint. The unused consent-gated
-`/discovery/search` endpoint was removed; scan image, barcode and URL consent flows are unchanged.
+`/discovery/search` endpoint was removed; Scan's consent flows remained at that milestone and
+were later removed by U33.
 Home and Discover explain the automatic routing, and Discover shows a clear provider or quota
 failure instead of a consent-required state.
 
@@ -482,12 +519,13 @@ Operational launch decisions still remain outside application implementation: ap
 
 ## Next task
 
-Preserve U29 in remote Git before a future automatic Git deployment can replace the direct
-Vercel release; remote push still needs the owner's approval under AGENTS.md. Do not create
-another guest identity to evade the AI quota. If an HTTP 500 appears, use its request ID and
-fresh Vercel runtime logs. Paid Jupiter build compatibility and funded execution remain separate
-approval gates. Only after separate owner approval for funding and live-money testing, execute
-the activation checklist without widening its limits.
+Keep U32 uncommitted as requested and monitor the five-minute worker and stale-feed warnings.
+If a hard three-second worldwide ceiling is required, evaluate static/edge delivery of the guest
+Discover shell with a separate authentication review before changing the currently safe
+cookie-aware layout. Do not create another guest identity to evade the AI quota. Paid
+Jupiter build compatibility and funded execution remain separate approval gates. Only after
+separate owner approval for funding and live-money testing, execute the activation checklist
+without widening its limits.
 
 ## Recent maintenance
 

@@ -52,15 +52,18 @@ Status: 200 read/update; 201 new resource; 202 operation accepted/pending; 204 l
 | Method/path | Access / input | Output / behavior |
 |---|---|---|
 | GET /issuer/search?q=&provider=&offset= | guest/member | xStocks and PreStocks Solana listings; 50 per page, total, unavailable and stale feed names; query max 120 chars; provider xstocks/prestocks |
-| GET /issuer/spotlight | guest/member | no-store rotating discovery selection drawn from current xStocks and PreStocks feeds; returns `featured` (up to ten public and two PreStocks), `listings` (the editorial spotlight pool), sector labels, unavailable and stale feed names; not a performance ranking or the full searchable universe |
+| GET /issuer/directory | guest/member | cacheable lightweight list of every current xStocks and PreStocks asset from validated Railway/PostgreSQL snapshots, with direct-feed fallback until snapshots exist; returns `listings`, editorial sectors, unavailable and stale feed names. Browser paginates ten per page and chooses featured names per visit. Exact asset and trading checks bypass this display cache. |
+| POST /api/internal/issuer-directory-refresh | Railway worker only, shared-secret bearer | reads both public issuer feeds through the validated adapters and atomically replaces each successful provider snapshot; reports incomplete refresh if either provider fails |
 | GET /issuer/reviewed | guest/member | reviewed company IDs mapped only to current issuer listings; configured symbols also require the reviewed Solana mint to match; unavailable/stale feed names returned |
+| GET /issuer/asset/{provider}/{symbol} | guest/member | exact current Solana issuer listing and reviewed lifecycle; xStocks also returns validated underlying/security metadata; no client-provided mint or directory snapshot |
+| GET /issuer/asset/xstocks/{symbol}/disclosures | guest/member | independent optional public Solana multiplier and timestamped issuer proof-of-reserves figures; one failed upstream source returns null for only that section; public 60-second CDN cache; never an execution price |
 | GET /products/{id} | guest/member | public product/relations + private saved flag only for member, no-store when personalized |
 | GET /companies/{id} | guest/member | CompanyCard, jurisdiction-aware promotion policy |
 | GET /learn and /learn/{slug} | guest/member | approved editorial content, sources and version |
 | POST /discovery/query | guest/member; {query} | search both issuer feeds first; return matching company assets without AI, or automatically ask OpenRouter to suggest an owner for an unmatched term and join it to the same feed snapshot; enforce AI privacy and spend limits; never accept a model-supplied mint |
-| POST /discovery/image | guest/member+AI consent; {imageDataUrl,mode,consent fields} | temporary product and likely-owner candidates joined to current issuer listings; no retained image/OCR |
-| POST /discovery/barcode | guest/member+AI consent; {gtin,consent fields} | public Open Food/Beauty/Products Facts product-name lookup → AI likely owner → issuer feed; unresolved if no name; never GTIN→mint |
-| POST /discovery/link | guest/member+AI consent; {url,consent fields} | approved URL yields a product name for AI ownership resolution; unsupported site → 422 |
+| POST /discovery/image | guest/member; {imageDataUrl,mode} | temporary product and likely-owner candidates joined to current issuer listings; no retained image/OCR; OpenRouter privacy and budget controls enforced server-side |
+| POST /discovery/barcode | guest/member; {gtin} | public Open Food/Beauty/Products Facts product-name lookup → AI likely owner → issuer feed; unresolved if no name; never GTIN→mint |
+| POST /discovery/link | guest/member; {url} | approved URL yields a product name for AI ownership resolution; unsupported site → 422 |
 | POST /catalog/reports | guest/member; {productId?,relationshipId?,reasonCode,note?} | reportId; sanitize note; no attachment |
 | GET /shelf | member | shelf id/name/version, items with grouped company summary |
 | PATCH /shelf | member; {name?,itemOrderIds?[],expectedVersion}; at least one changed field | updated shelf; name length, exact current-item permutation for ordering, optimistic concurrency; Undo sends prior order with new expectedVersion |
@@ -119,12 +122,13 @@ Same submit retried returns original submission. Changing signed bytes under sam
 
 ## AI endpoints
 
-- POST /ai/answer: {question,companyId?,sourceContextIds?,includeShelf:false|true}. Member or limited guest, explicit scope consent. Streaming answer events: started, text_delta, sources, warning, completed, error. Server chooses retrievable sources; sourceContextIds cannot access private other-user data.
+- GET /ai/session: sets a signed, HttpOnly guest quota cookie when server signing is configured. The cookie contains a random quota ID, never chat content or a member identity. Guests behind one network receive separate daily quotas; a secondary network cap and the shared AI spending budget still limit abuse.
+- POST /ai/answer: {question,issuer?:{provider:xstocks|prestocks,symbol},history?:[{role:user|assistant,content}]}. Member or limited guest. For scoped chat the server refetches the exact current issuer record, including its full public provider response, and ignores client-supplied facts. History is at most six prior turns of 1,000 characters each and is not persisted. Returns {answer,sourceIds,uncertainty,issuer}; issuer is the current normalized listing or null for general chat. Every request enforces OpenRouter privacy routing and shared spend limits. The current transport returns one bounded JSON answer, with browser abort as best-effort cancellation.
 - POST /ai/shelf-summary: member {shelfVersion}; returns summary, duplicateParents[], categoryCounts, proposedSortIds[] and sourceIds. No automatic mutation.
 - POST /ai/allocation-drafts: eligible member {budgetUsdcRaw,companyIds?[],categories?[],includeShelf:boolean}; returns validated AllocationDraft, never an order/preparation.
 - GET /ai/allocation-drafts/{id}: owner, until expiry.
 
-Streaming metadata never includes hidden reasoning, raw provider payload, email, wallet or full receipt. If token transport needs AI SDK protocol, define an adapter preserving these semantic events and contract-test it against the pinned SDK. The domain response schema remains authoritative.
+Answer responses never include hidden reasoning, the raw provider payload, email, wallet or full receipt. The domain response schema remains authoritative.
 
 ## Owner endpoints
 

@@ -825,6 +825,11 @@ export const runtimeStates = pgTable("runtime_states", {
   payload: jsonb("payload").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+export const issuerFeedSnapshots = pgTable("issuer_feed_snapshots", {
+  provider: text("provider").primaryKey(),
+  listings: jsonb("listings").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
 export const auditEvents = pgTable("audit_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").references(() => users.id),
