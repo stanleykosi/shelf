@@ -10,6 +10,13 @@ References: [Simply Wall St investing ideas](https://simplywall.st/discover/glob
 and contextual discovery as inspiration, with Shelf's graphite, paper and mint identity.
 Source data remains explicit; no fabricated prices or performance.
 
+Typography follow-up: Discover and Scan now use a self hosted Raleway variable font, with
+the [Open Font License](../src/app/fonts/OFL.txt) stored alongside it. Their interface icons
+use the pinned [Heroicons React outline set](https://github.com/tailwindlabs/heroicons/blob/master/react/README.md).
+The shared header and mobile navigation select those icons only on the two reviewed routes.
+Raleway is not preloaded on unrelated pages. Mobile headline and search hint copy were
+shortened to accommodate its wider letterforms without losing meaning.
+
 ## Checklist
 
 - [x] Inspect current implementation, product contracts, installed Next.js and motion guidance.

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Barcode, Camera, CameraOff, Check, Link as LinkIcon, LockKeyhole, ReceiptText, Search, ShieldCheck, SwitchCamera, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Barcode, Camera, CameraOff, Check, LinkSymbol as LinkIcon, LockKeyhole, ReceiptText, Search, ShieldCheck, SwitchCamera, Upload } from "@/components/studio-icons";
 import type { RecognitionMatch } from "@/domain/types";
 import { apiRequest } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";

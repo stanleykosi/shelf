@@ -57,7 +57,7 @@ test("one search checks live companies first, then resolves an unmatched product
   await page.getByLabel("Search products, brands, or companies").fill("Disney");
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect(page).toHaveURL(/\/discover\?.*q=Disney/);
-  const search = page.getByPlaceholder("Search a company or product");
+  const search = page.getByRole("searchbox", { name: "Search a company or product" });
   await expect(page.getByRole("heading", { name: "The Walt Disney" })).toBeVisible();
   await expect(page.locator(".live-issuer-card .issuer-logo img"))
     .toHaveAttribute("src", /xstocks-metadata\.backed\.fi/);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUpRight, Layers3, ScanLine, ShieldCheck } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Layers3, ScanLine, ShieldCheck } from "@/components/studio-icons";
 import type { IssuerSpotlight } from "@/domain/issuer-spotlight";
 
 /** Editorial illustrations describe a theme; they never represent market data. */
@@ -70,7 +70,7 @@ export function DiscoveryThemes({ spotlight, onSelect }: {
 
 export function DiscoveryScanLink() {
   return <Link className="discovery-scan-link" href="/scan" data-cta="C01">
-    <span className="discovery-scan-icon"><ScanLine size={24} strokeWidth={1.4} /></span>
+    <span className="discovery-scan-icon"><ScanLine size={24} /></span>
     <span><strong>Start with what’s around you.</strong><span>Scan a product. Find its company.</span></span>
     <ArrowUpRight size={19} />
   </Link>;

@@ -4,6 +4,9 @@ Captured September 25, 2026 from the local production build. Company listings in
 screenshots are synthetic, intercepted browser fixtures; they are not evidence of current
 issuer availability. The application itself continues to use its existing issuer feeds.
 
+This revision uses self hosted Raleway and Heroicons outline icons across Discover and Scan,
+including the navigation shown with those pages.
+
 Local preview while the server is running:
 [Discover](http://127.0.0.1:3101/discover) · [Scan](http://127.0.0.1:3101/scan).
 
@@ -11,6 +14,12 @@ Local preview while the server is running:
 | --- | --- | --- |
 | Discover | [Full page](discover-1440.png) · [First viewport](discover-1440-viewport.png) | [Full page](discover-390.png) · [First viewport](discover-390-viewport.png) |
 | Scan | [Full page](scan-1440.png) · [First viewport](scan-1440-viewport.png) | [Full page](scan-390.png) · [First viewport](scan-390-viewport.png) |
+
+For a quick type and icon comparison, the preceding Arial/Lucide capture is saved for
+[Discover desktop](before-font/discover-1440-viewport.png),
+[Discover mobile](before-font/discover-390-viewport.png),
+[Scan desktop](before-font/scan-1440-viewport.png) and
+[Scan mobile](before-font/scan-390-viewport.png).
 
 Discover puts search, illustrated themes and an issuer directory in one research workspace.
 Themes apply real filters, suggestions prepare an editable query, and company rows retain

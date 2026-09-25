@@ -98,7 +98,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   }));
   await page.goto("/discover");
 
-  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("A world of companies.");
   await expect(page.getByRole("heading", { name: "Companies to explore" })).toBeVisible();
   await expect(page.getByText("Reviewed product references")).toHaveCount(0);
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(4);
@@ -109,7 +109,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await expect(page.getByRole("link", { name: "View SpaceX details" }).locator(".issuer-logo"))
     .toHaveText("S");
 
-  await page.getByRole("button", { name: "Food & drink" }).click();
+  await page.locator(".issuer-sector-tabs").getByRole("button", { name: "Food & drink" }).click();
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "View PepsiCo details" })).toBeVisible();
   await page.getByRole("button", { name: "All sectors" }).click();
@@ -123,7 +123,7 @@ test("Discover shows live company logos, sector filters, search, and issuer deta
   await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "View SpaceX details" })).toBeVisible();
 
-  await page.getByPlaceholder("Search a company or product").fill("OpenAI");
+  await page.getByRole("searchbox", { name: "Search a company or product" }).fill("OpenAI");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=OpenAI/);
   await expect(page.getByRole("link", { name: /View OPENAI issuer asset/ })).toBeVisible();
@@ -176,8 +176,8 @@ test("mobile Discover exposes sectors and market filters without hiding company 
   test.skip(testInfo.project.name !== "mobile", "Mobile-only filter assertion");
   await page.goto("/discover");
 
-  await expect(page.getByRole("button", { name: "Technology" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Food & drink" })).toBeVisible();
+  await expect(page.locator(".issuer-sector-tabs").getByRole("button", { name: "Technology" })).toBeVisible();
+  await expect(page.locator(".issuer-sector-tabs").getByRole("button", { name: "Food & drink" })).toBeVisible();
   await expect(page.getByRole("link", { name: "View OpenAI details" }).locator("img")).toBeVisible();
   await expect(page.getByLabel("Market")).not.toBeVisible();
 

@@ -211,6 +211,7 @@ export function RelationshipExplorer({ product, company }: { product: Product; c
 }
 
 export function SearchCommand({
+  icon,
   inputRef,
   onChange,
   onClear,
@@ -218,6 +219,7 @@ export function SearchCommand({
   searching = false,
   value,
 }: {
+  icon?: React.ReactNode;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   onChange: (value: string) => void;
   onClear: () => void;
@@ -230,9 +232,9 @@ export function SearchCommand({
       event.preventDefault();
       onSubmit();
     }}>
-      <Search size={20} aria-hidden="true" />
+      {icon ?? <Search size={20} aria-hidden="true" />}
       <label className="sr-only" htmlFor="catalog-search">Search a company or product</label>
-      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Search a company or product" ref={inputRef} type="search" value={value} />
+      <input id="catalog-search" maxLength={120} onChange={(event) => onChange(event.target.value)} placeholder="Company or product" ref={inputRef} type="search" value={value} />
       {value ? <button onClick={onClear} type="button">Clear</button> : <kbd>⌘ K</kbd>}
       <button className="search-submit" disabled={!value.trim() || searching} type="submit">
         {searching ? "Searching…" : "Search"}

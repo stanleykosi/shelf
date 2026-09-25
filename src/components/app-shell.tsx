@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bookmark, CircleUserRound, Compass, ScanLine, Search, WalletCards } from "lucide-react";
+import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, Search as StudioSearch, WalletCards as StudioWallet } from "@/components/studio-icons";
 import { activePrimarySection, type PrimarySection } from "@/lib/routes";
 
 const primaryNavigation: Array<{ href: string; label: string; section: PrimarySection; icon: typeof Compass }> = [
@@ -19,11 +20,18 @@ const mobileNavigation = [
   primaryNavigation[2],
 ];
 
+const studioNavigationIcons = {
+  discover: StudioCompass,
+  scan: StudioScan,
+  saved: StudioBookmark,
+  portfolio: StudioWallet,
+};
+
 function ShelfMark() {
   return <span className="shelf-mark" aria-hidden="true"><span /><span /><span /></span>;
 }
 
-export function AppHeader({ activeSection, environment, signedIn, conceptTwo = false }: { activeSection: PrimarySection | null; environment: "local" | "integration" | "private-beta"; signedIn: boolean; conceptTwo?: boolean }) {
+export function AppHeader({ activeSection, environment, signedIn, conceptTwo = false, studioPage = false }: { activeSection: PrimarySection | null; environment: "local" | "integration" | "private-beta"; signedIn: boolean; conceptTwo?: boolean; studioPage?: boolean }) {
   return (
     <header className="app-header">
       <div className="app-header-inner">
@@ -32,20 +40,23 @@ export function AppHeader({ activeSection, environment, signedIn, conceptTwo = f
           {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}>{label}</Link>)}
         </nav>
         <div className="app-header-actions">
-          <Link className="header-scan" href="/scan"><ScanLine size={16} aria-hidden="true" /><span>Scan</span></Link>
-          <Link className="header-search" href={conceptTwo ? "/discover?concept=2&focus=search" : "/discover?focus=search"} aria-label="Search Shelf"><Search size={18} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd></Link>
+          <Link className="header-scan" href="/scan">{studioPage ? <StudioScan size={16} aria-hidden="true" /> : <ScanLine size={16} aria-hidden="true" />}<span>Scan</span></Link>
+          <Link className="header-search" href={conceptTwo ? "/discover?concept=2&focus=search" : "/discover?focus=search"} aria-label="Search Shelf">{studioPage ? <StudioSearch size={18} aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}<span>Search</span><kbd>⌘K</kbd></Link>
           <span className="environment-status"><i aria-hidden="true" />{environment === "private-beta" ? "beta" : environment}</span>
-          <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}><CircleUserRound size={19} aria-hidden="true" /><span>{signedIn ? "Account" : "Sign in"}</span></Link>
+          <Link className="header-account" href={signedIn ? "/account" : "/sign-in"} aria-label={signedIn ? "Account" : "Sign in"}>{studioPage ? <StudioAccount size={19} aria-hidden="true" /> : <CircleUserRound size={19} aria-hidden="true" />}<span>{signedIn ? "Account" : "Sign in"}</span></Link>
         </div>
       </div>
     </header>
   );
 }
 
-export function MobileNavigation({ activeSection, conceptTwo = false }: { activeSection: PrimarySection | null; conceptTwo?: boolean }) {
+export function MobileNavigation({ activeSection, conceptTwo = false, studioPage = false }: { activeSection: PrimarySection | null; conceptTwo?: boolean; studioPage?: boolean }) {
   return (
     <nav className="mobile-navigation" aria-label="Mobile navigation">
-      {mobileNavigation.map(({ href, label, section, icon: Icon }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}><Icon size={19} aria-hidden="true" /><span>{label}</span></Link>)}
+      {mobileNavigation.map(({ href, label, section, icon: Icon }) => {
+        const NavigationIcon = studioPage ? studioNavigationIcons[section] : Icon;
+        return <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}><NavigationIcon size={19} aria-hidden="true" /><span>{label}</span></Link>;
+      })}
     </nav>
   );
 }
@@ -57,6 +68,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const conceptTwo = !comparisonPage || searchParams.get("concept") !== "1";
   const researchWorkspace = !comparisonPage && !pathname.startsWith("/scan");
   const activeSection = activePrimarySection(pathname);
+  const studioPage = pathname === "/discover" || pathname === "/scan";
   function comparisonHref(concept: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (concept === "2") params.set("concept", "2");
@@ -71,9 +83,9 @@ export function AppShell({ children, signedIn, environment }: { children: React.
         <a href={comparisonHref("1")} aria-current={!conceptTwo ? "page" : undefined}>01 <span>Concept 1</span></a>
         <a href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></a>
       </nav> : null}
-      <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} />
+      <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} studioPage={studioPage} />
       <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")}>{children}</main>
-      <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} />
+      <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} studioPage={studioPage} />
     </div>
   );
 }

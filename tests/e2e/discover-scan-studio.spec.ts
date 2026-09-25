@@ -117,7 +117,9 @@ test("responsive composition, automated accessibility, reduced motion and naviga
     await page.setViewportSize({ width, height: width < 820 ? 844 : 1000 });
     for (const path of ["discover", "scan"]) {
       await page.goto(`/${path}`);
+      await page.evaluate(async () => { await document.fonts.ready; });
       await expect(page.locator("main h1")).toBeVisible();
+      await expect(page.locator("main h1")).toHaveCSS("font-family", /raleway/i);
       if (path === "discover") await expect(page.locator(".issuer-spotlight-table tbody tr")).toHaveCount(6);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${path} at ${width}px`).toBe(true);
       await page.addScriptTag({ content: axe.source });
@@ -131,6 +133,7 @@ test("responsive composition, automated accessibility, reduced motion and naviga
         await page.mouse.move(0, 0);
       }
       if (process.env.STUDIO_CAPTURE === "true" && [390, 1440].includes(width)) {
+        await page.evaluate(() => window.scrollTo(0, 0));
         await page.locator("main img").evaluateAll(async (images) => Promise.all(images.map((image) => (image as HTMLImageElement).decode().catch(() => undefined))));
         await page.screenshot({ path: `artifacts/discover-scan/${path}-${width}.png`, fullPage: true });
         await page.screenshot({ path: `artifacts/discover-scan/${path}-${width}-viewport.png` });

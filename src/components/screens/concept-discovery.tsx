@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, RefreshCw, ScanLine, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, RefreshCw, ScanLine, Search, SlidersHorizontal, X } from "@/components/studio-icons";
 import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import type { DiscoveryQueryResult, IssuerListing } from "@/domain/issuer-assets";
 import { issuerSectors, type IssuerSector, type IssuerSpotlight, type SpotlightListing } from "@/domain/issuer-spotlight";
@@ -426,13 +426,14 @@ export function ConceptDiscoverScreen({ initialMarket, initialQuery, initialSect
       <header className="discovery-masthead">
         <div className="discovery-masthead-copy">
           <p className="studio-eyebrow"><span className="studio-marker" />Discover / A different starting point</p>
-          <h1>A world of companies.<br /><span>Already part of your world.</span></h1>
+          <h1>A world of companies.<br /><span>Already in your world.</span></h1>
           <p>Follow your curiosity. Find the companies behind the things you know.</p>
         </div>
         <DiscoveryScanLink />
       </header>
       <div className="discover-command-area discovery-search-area">
         <SearchCommand
+          icon={<Search size={20} aria-hidden="true" />}
           inputRef={searchRef}
           onChange={changeQuery}
           onClear={() => changeQuery("")}

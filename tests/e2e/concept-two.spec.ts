@@ -35,7 +35,7 @@ test("comparison keeps both concepts accessible and preserves search/filter cont
   await expect(comparison.getByRole("link", { name: /01 Concept 1/ })).toHaveAttribute("aria-current", "page");
   await comparison.getByRole("link", { name: /02 Concept 2/ }).click();
   await expect(page).toHaveURL(/concept=2/);
-  await expect(page.getByPlaceholder("Search a company or product")).toHaveValue("Apple");
+  await expect(page.getByRole("searchbox", { name: "Search a company or product" })).toHaveValue("Apple");
 });
 
 test("motion can be paused and reduced-motion preferences keep content visible", async ({ page }) => {

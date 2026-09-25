@@ -2,7 +2,7 @@
 
 Status: Concept 2 Home accepted; latest user brief authorizes a new Discover and Scan design pass
 Last updated: 2026-09-25
-Current refactor phase: Discover and Scan implemented and verified locally; ready for user visual review. See docs/DISCOVER_SCAN_REDESIGN.md and artifacts/discover-scan/README.md. Other screens retain the prior review state.
+Current refactor phase: Discover and Scan implemented and verified locally with a Raleway/Heroicons review variant. See docs/DISCOVER_SCAN_REDESIGN.md and artifacts/discover-scan/README.md for current and prior viewport captures. Other screens retain the prior review state.
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 
