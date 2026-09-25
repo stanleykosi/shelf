@@ -140,24 +140,24 @@
 .c2-product-caption { display:grid; gap:5px; padding-top:17px; }
 .c2-product-caption strong { font-size:17px; font-weight:500; }
 .c2-product-caption > span { color:#697563; font-size:13px; }
-.c2-image-note { margin:24px 0 0; font-size:12px; color:#72806b; }
 .c2-market-gallery { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:17px; }
 .c2-market-card { position:relative; display:flex; flex-direction:column; min-width:0; min-height:335px; overflow:hidden; padding:20px; border:1px solid #d2dfcc; border-radius:10px; color:#1e3526; background:radial-gradient(circle at 100% 0,#e2f1df 0,transparent 45%),linear-gradient(145deg,#fbfcf7,#e9f0e7); box-shadow:0 6px 18px #24442c0b; }
 .c2-market-card::before { position:absolute; inset:auto -25% 51px; height:1px; background:#b8cbbb; content:""; transform:rotate(-19deg); opacity:.45; }
 .c2-market-card-top { display:flex; align-items:center; gap:9px; color:#617665; font-size:11px; }
 .c2-market-card-top .issuer-logo { width:43px; height:43px; flex-basis:43px; border-color:#d0dfcd; border-radius:9px; }
-.c2-market-card-top > svg { margin-left:auto; color:#5b795e; }
 .c2-market-card-name { display:block; margin-top:23px; }
 .c2-market-card-name strong { display:block; min-height:40px; font-size:23px; line-height:1.13; font-weight:550; letter-spacing:-.05em; }
 .c2-market-card-name small { display:block; margin-top:6px; color:#59725d; font:12px ui-monospace,monospace; }
 .c2-market-card-price { display:block; margin-top:auto; padding-top:24px; }
-.c2-market-card-price small { display:block; margin-bottom:6px; color:#6a7c69; font-size:11px; }
+.c2-market-card-price > small { display:block; margin-bottom:6px; color:#6a7c69; font-size:11px; }
+.c2-market-card-price-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .c2-market-card-price strong { font-size:31px; line-height:1; font-weight:550; letter-spacing:-.045em; font-variant-numeric:tabular-nums; }
-.c2-market-card-change { display:flex; align-items:center; gap:4px; width:fit-content; margin-top:11px; padding:6px 8px; border-radius:5px; color:#48614c; background:#e0e9dc; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.c2-market-card-change { display:inline-flex; align-items:center; gap:3px; flex:none; width:fit-content; padding:6px 8px; border-radius:5px; color:#48614c; background:#e0e9dc; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
 .c2-market-card-change.is-up { color:#1d7047; background:#d8eddd; }
 .c2-market-card-change.is-down { color:#9b5143; background:#f6e7df; }
-.c2-market-card-change small { margin-left:3px; color:inherit; font-size:10px; font-weight:400; }
+.c2-market-card-change small { margin:0 0 0 3px; color:inherit; font-size:10px; font-weight:400; }
 .c2-market-card-foot { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:20px; padding-top:15px; border-top:1px solid #bfd0bc; color:#315b39; font-size:12px; font-weight:650; }
+.c2-market-partial { margin:16px 0 0; color:#6a7c69; font-size:12px; }
 .c2-market-empty { display:flex; justify-content:space-between; align-items:center; gap:15px; min-height:150px; padding:26px; border:1px solid #d6e0d0; border-radius:8px; background:#f8faf5; color:#526b56; font-size:14px; }
 .c2-market-empty a { display:flex; align-items:center; gap:7px; color:#285b38; font-size:13px; font-weight:600; }
 .c2-story { background:#19241d; color:#edf3e9; }
@@ -205,7 +205,6 @@
 .c2-method dl > div { display:flex; justify-content:space-between; align-items:center; gap:30px; padding:20px 0; border-bottom:1px solid #ccd4c4; }
 .c2-method dt { max-width:180px; color:#627059; font-size:14px; }
 .c2-method dd { margin:0; font-size:58px; line-height:1; letter-spacing:-3px; font-variant-numeric:tabular-nums; }
-.c2-notes { padding-top:10px; }
 .c2-notes header { display:flex; justify-content:space-between; align-items:center; gap:25px; padding-bottom:30px; }
 .c2-notes h2 { margin:0; font-size:30px; letter-spacing:-1px; }
 .c2-notes > a { display:grid; grid-template-columns:40px 1fr 100px 20px; gap:20px; align-items:center; min-height:85px; border-top:1px solid #ced4c7; }
@@ -358,7 +357,6 @@ html:has(.c2-home[data-motion=enabled]) { scroll-behavior:smooth; scroll-padding
   .c2-product { scroll-snap-align:start; }
   .c2-product .research-product-image { height:228px; }
   .c2-product-caption strong { font-size:17px; }
-  .c2-image-note { margin-top:15px; font-size:12px; line-height:1.6; }
   .c2-story-grid { grid-template-columns:1fr; gap:25px; }
   .c2-chapters { margin-top:28px; }
   .c2-chapters strong { font-size:17px; }
@@ -377,7 +375,6 @@ html:has(.c2-home[data-motion=enabled]) { scroll-behavior:smooth; scroll-padding
   .c2-method { grid-template-columns:1fr; gap:25px; padding-top:0; }
   .c2-method > div > p:not(:first-child) { font-size:15px; }
   .c2-method dd { font-size:47px; }
-  .c2-notes { padding-top:5px; }
   .c2-notes header { align-items:start; flex-direction:column; gap:12px; }
   .c2-notes h2 { font-size:30px; line-height:1.2; }
   .c2-notes > a { grid-template-columns:23px 1fr 18px; gap:12px; min-height:90px; }

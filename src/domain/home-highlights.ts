@@ -6,7 +6,7 @@ export type HomeHighlight = {
   symbol: string;
   logoUrl?: string;
   priceUsd: string;
-  change1hPct: number;
+  change24hPct: number;
   liquidityUsd: number;
   venue: string;
 };
@@ -35,9 +35,9 @@ export function selectHomeHighlights(listings: XStocksListing[], markets: PoolMa
       symbol: listing.symbol,
       logoUrl: listing.logoUrl,
       priceUsd: market.priceUsd,
-      change1hPct: market.change1hPct,
+      change24hPct: market.change24hPct,
       liquidityUsd: market.liquidityUsd,
       venue: market.venue,
     }];
-  }).toSorted((left, right) => right.change1hPct - left.change1hPct || right.liquidityUsd - left.liquidityUsd).slice(0, 4);
+  }).toSorted((left, right) => right.change24hPct - left.change24hPct || right.liquidityUsd - left.liquidityUsd).slice(0, 4);
 }

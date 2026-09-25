@@ -10,7 +10,7 @@ const spotlightListings = [
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/home/highlights", (route) => route.fulfill({
-    json: { data: { items: [{ name: "Apple", symbol: "AAPLx", priceUsd: "214.50", change1hPct: 1.25, liquidityUsd: 100_000, venue: "raydium" }], checkedAt: "2026-09-25T12:00:00.000Z", incomplete: false } },
+    json: { data: { items: [{ name: "Apple", symbol: "AAPLx", priceUsd: "214.50", change24hPct: 1.25, liquidityUsd: 100_000, venue: "raydium" }], checkedAt: "2026-09-25T12:00:00.000Z", incomplete: false } },
   }));
   await page.route("**/api/v1/issuer/directory", (route) => route.fulfill({
     json: { data: { featured: spotlightListings, listings: spotlightListings, unavailable: [], stale: [] } },
@@ -36,6 +36,25 @@ test("the canonical landing page leads into search without a design switcher", a
   await expect(page.getByRole("heading", { name: "Apple", exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: /View AAPLx issuer asset/ })).toHaveAttribute("href", "/assets/xstocks/AAPLx");
   await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+});
+
+test("company highlights show 24-hour change beside price without extra icons or market note", async ({ page }) => {
+  await page.goto("/");
+  const section = page.locator(".c2-familiar");
+  const priceRow = section.locator(".c2-market-card-price-row");
+  await expect(priceRow).toContainText("$214.50+1.25% 24h");
+  await expect(section.locator(".c2-market-card-top svg, .c2-market-card-change svg")).toHaveCount(0);
+  await expect(section).not.toContainText("The company selection is editorial");
+
+  for (const width of [390, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fitsOnOneLine = await priceRow.evaluate((row) => {
+      const price = row.querySelector("strong")!.getBoundingClientRect();
+      const change = row.querySelector(".c2-market-card-change")!.getBoundingClientRect();
+      return Math.abs(price.top - change.top) < 10 && row.scrollWidth <= row.clientWidth;
+    });
+    expect(fitsOnOneLine).toBe(true);
+  }
 });
 
 test("retired concept links cannot restore the old design", async ({ page }) => {

@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { siApple, siNvidia } from "simple-icons";
 import { ArrowDown, ArrowUpRight, Check, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
-import { ArrowDownRight, Minus } from "lucide-react";
 import { articles } from "@/data/catalog";
 import { IssuerLogo } from "@/components/issuer-logo";
 import type { DirectoryListing, IssuerDirectory } from "@/domain/issuer-spotlight";
@@ -225,24 +224,28 @@ export function ConceptTwoHome() {
       </section>
 
       <section className="c2-familiar c2-section" id="c2-familiar" data-reveal>
-        <header className="c2-section-heading"><div><p>Company discovery</p><h2>Follow the companies<br />moving right now.</h2></div><div><p>Four familiar xStocks companies, ordered by their one-hour Solana pool change.</p><Link href="/discover">Explore company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
+        <header className="c2-section-heading"><div><p>Company discovery</p><h2>Follow the companies<br />moving right now.</h2></div><div><p>Four familiar xStocks companies, ordered by their 24-hour Solana pool change.</p><Link href="/discover">Explore company directory <ArrowUpRight size={17} aria-hidden="true" /></Link></div></header>
         {highlights?.items.length ? (
           <div className="c2-market-gallery">{highlights.items.map((item) => {
-            const rising = item.change1hPct > 0;
-            const falling = item.change1hPct < 0;
+            const rising = item.change24hPct > 0;
+            const falling = item.change24hPct < 0;
             return <Link href={`/assets/xstocks/${encodeURIComponent(item.symbol)}` as Route} key={item.symbol} className="c2-market-card">
-              <span className="c2-market-card-top"><IssuerLogo imageUrl={item.logoUrl} name={item.name} source="xstocks" /><span>xStocks · Solana</span><ArrowUpRight size={19} aria-hidden="true" /></span>
+              <span className="c2-market-card-top"><IssuerLogo imageUrl={item.logoUrl} name={item.name} source="xstocks" /><span>xStocks · Solana</span></span>
               <span className="c2-market-card-name"><strong>{item.name}</strong><small>{item.symbol}</small></span>
-              <span className="c2-market-card-price"><small>Pool price · USD</small><strong>{formatMarketPrice(item.priceUsd)}</strong></span>
-              <span className={`c2-market-card-change${rising ? " is-up" : falling ? " is-down" : ""}`}>
-                {rising ? <ArrowUpRight size={17} aria-hidden="true" /> : falling ? <ArrowDownRight size={17} aria-hidden="true" /> : <Minus size={17} aria-hidden="true" />}
-                {rising ? "+" : ""}{item.change1hPct.toFixed(2)}% <small>past 1h</small>
+              <span className="c2-market-card-price">
+                <small>Pool price · USD</small>
+                <span className="c2-market-card-price-row">
+                  <strong>{formatMarketPrice(item.priceUsd)}</strong>
+                  <span className={`c2-market-card-change${rising ? " is-up" : falling ? " is-down" : ""}`}>
+                    {rising ? "+" : ""}{item.change24hPct.toFixed(2)}% <small>24h</small>
+                  </span>
+                </span>
               </span>
               <span className="c2-market-card-foot"><span>Research {item.symbol}</span><ArrowUpRight size={18} aria-hidden="true" /></span>
             </Link>;
           })}</div>
-        ) : <div className="c2-market-empty" role="status"><p>{highlightsUnavailable ? "Current market comparisons are unavailable right now." : highlights ? "No xStocks have a qualifying one-hour pool comparison right now." : "Checking current xStocks and Solana markets…"}</p><Link href="/discover">Browse current issuer listings <ArrowUpRight size={16} aria-hidden="true" /></Link></div>}
-        <p className="c2-image-note">{highlights ? `Checked ${new Date(highlights.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. ` : ""}The company selection is editorial. xStocks verifies each issuer and mint; DEX Screener supplies the most liquid qualifying Solana pool price and one-hour change. Pool prices are indicative, not executable quotes or investment recommendations.{highlights?.incomplete ? " Some market feeds were unavailable." : ""}</p>
+        ) : <div className="c2-market-empty" role="status"><p>{highlightsUnavailable ? "Current market comparisons are unavailable right now." : highlights ? "No xStocks have a qualifying 24-hour pool comparison right now." : "Checking current xStocks and Solana markets…"}</p><Link href="/discover">Browse current issuer listings <ArrowUpRight size={16} aria-hidden="true" /></Link></div>}
+        {highlights?.incomplete ? <p className="c2-market-partial" role="status">Some markets are temporarily unavailable.</p> : null}
       </section>
 
       <section className="c2-story" data-reveal ref={storyRef}>

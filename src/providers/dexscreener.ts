@@ -6,7 +6,7 @@ const poolSchema = z.object({
   pairAddress: z.string(),
   baseToken: z.object({ address: z.string() }),
   priceUsd: z.string().nullable().optional(),
-  priceChange: z.object({ h1: z.number().finite().optional() }).nullable().optional(),
+  priceChange: z.object({ h24: z.number().finite().optional() }).nullable().optional(),
   liquidity: z.object({ usd: z.number().finite().optional() }).nullable().optional(),
 });
 
@@ -15,7 +15,7 @@ export type PoolMarket = {
   pairAddress: string;
   venue: string;
   priceUsd: string;
-  change1hPct: number;
+  change24hPct: number;
   liquidityUsd: number;
 };
 
@@ -29,7 +29,7 @@ export function selectPoolMarkets(raw: unknown, requestedMints: ReadonlySet<stri
     const pool = parsed.data;
     const mint = pool.baseToken.address;
     const price = Number(pool.priceUsd);
-    const change = pool.priceChange?.h1;
+    const change = pool.priceChange?.h24;
     const liquidity = pool.liquidity?.usd;
     if (pool.chainId !== "solana" || !requestedMints.has(mint) ||
       !pool.pairAddress || !Number.isFinite(price) || price <= 0 ||
@@ -39,7 +39,7 @@ export function selectPoolMarkets(raw: unknown, requestedMints: ReadonlySet<stri
       pairAddress: pool.pairAddress,
       venue: pool.dexId,
       priceUsd: pool.priceUsd!,
-      change1hPct: change,
+      change24hPct: change,
       liquidityUsd: liquidity,
     };
     if (!bestByMint.has(mint) || bestByMint.get(mint)!.liquidityUsd < liquidity) bestByMint.set(mint, market);
