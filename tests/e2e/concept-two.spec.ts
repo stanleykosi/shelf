@@ -31,6 +31,17 @@ test("the canonical landing page leads into search without a design switcher", a
   await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
 });
 
+test("retired concept links cannot restore the old design", async ({ page }) => {
+  await page.goto("/?concept=1");
+  await expect(page.locator(".c2-home")).toBeVisible();
+  await expect(page.locator(".research-home")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+
+  await page.goto("/discover?concept=1");
+  await expect(page.locator(".discovery-studio")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Design comparison" })).toHaveCount(0);
+});
+
 test("motion can be paused and reduced-motion preferences keep content visible", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

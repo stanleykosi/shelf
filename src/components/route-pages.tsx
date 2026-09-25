@@ -2,6 +2,7 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Route } from "next";
 import { preload } from "react-dom";
 import { AssistantScreen, LearnScreen } from "@/components/screens/research-learning";
+import { IssuerAssistantScreen } from "@/components/screens/issuer-assistant";
 import { ShelfScreen } from "@/components/screens/research-saved";
 import { ShareScreen } from "@/components/screens/research-sharing";
 import { ResearchAdminScreen } from "@/components/screens/research-admin";
@@ -67,12 +68,23 @@ function withQuery(pathname: string, query: Query) {
   return params ? `${pathname}?${params}` : pathname;
 }
 
-export function HomePage() {
+export async function HomePage({ searchParams }: { searchParams: AsyncQuery }) {
+  const query = await searchParams;
+  if (first(query.concept) !== undefined) {
+    const canonicalQuery = { ...query };
+    delete canonicalQuery.concept;
+    permanentRedirect(withQuery("/", canonicalQuery) as Route);
+  }
   return <ConceptTwoHome />;
 }
 
 export async function DiscoverPage({ searchParams }: { searchParams: AsyncQuery }) {
   const query = await searchParams;
+  if (first(query.concept) !== undefined) {
+    const canonicalQuery = { ...query };
+    delete canonicalQuery.concept;
+    permanentRedirect(withQuery("/discover", canonicalQuery) as Route);
+  }
   if (first(query.source) === "issuer") {
     const currentQuery = { ...query };
     delete currentQuery.source;
@@ -154,8 +166,17 @@ export async function LearningArticlePage({ params }: { params: AsyncParams<{ sl
   return <LearnScreen slug={slug} />;
 }
 
-export function AssistantPage() {
-  return <AssistantScreen />;
+export async function AssistantPage({ searchParams }: { searchParams: AsyncQuery }) {
+  const query = await searchParams;
+  const provider = first(query.provider);
+  const symbol = first(query.symbol);
+  if (!provider && !symbol) return <AssistantScreen />;
+  if (
+    (provider !== "xstocks" && provider !== "prestocks") ||
+    !symbol ||
+    !/^[A-Za-z0-9.-]{1,32}$/.test(symbol)
+  ) notFound();
+  return <IssuerAssistantScreen key={`${provider}:${symbol}`} issuer={{ provider, symbol }} />;
 }
 
 export function SavedPage() {

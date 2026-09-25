@@ -34,13 +34,12 @@ test("production offers Magic sign-in while public research stays available to g
   }
 
   await page.goto("/sign-in");
-  await expect(
-    page.getByText("Use email or Google to access the same Magic-managed account"),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Continue your research." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
 
   await page.goto("/markets");
   await expect(page).toHaveURL(/\/discover$/);
-  await expect(page.getByRole("heading", { name: "Discover", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /A world of companies/ })).toBeVisible();
   await expect(page.getByText("AUTH_REQUIRED")).toHaveCount(0);
 
   if (!isLocal) {

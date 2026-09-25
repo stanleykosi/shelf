@@ -14,6 +14,9 @@ const listing = { provider: "xstocks", asset: {
 } };
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
+  });
   await page.route("**/api/v1/**", (route) => route.fulfill({ status: 401, json: { error: { code: "AUTH_REQUIRED" } } }));
   await page.route("**/api/v1/issuer/reviewed", (route) => route.fulfill({ json: { data: { byCompany: { "company-pepsico": [listing] }, unavailable: [], stale: [] } } }));
   await page.route("**/api/v1/issuer/asset/xstocks/PEPx", (route) => route.fulfill({ json: { data: { listing } } }));
@@ -32,7 +35,7 @@ test("connected research layouts stay readable and accessible across viewport si
     await page.setViewportSize({ width, height: 950 });
     for (const [name, path] of routes) {
       await page.goto(path);
-      await expect(page.locator(".journey-page h1")).toBeVisible();
+      await expect(page.locator("main h1")).toBeVisible();
       await expect(page.locator(".journey-state")).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} at ${width}`).toBe(true);
       if (width === 390 || width === 1440) {
@@ -52,10 +55,10 @@ test("issuer failures recover and source identity stays separate from purchase a
     return calls === 1 ? route.fulfill({ status: 503, json: { error: { code: "PROVIDER_UNAVAILABLE" } } }) : route.fulfill({ json: { data: { listing } } });
   });
   await page.goto("/assets/xstocks/PEPx");
-  await expect(page.getByRole("heading", { name: "Issuer information unavailable" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Issuer details unavailable" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("heading", { name: "PepsiCo", exact: true })).toBeVisible();
-  await page.getByText("Token identity", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Token identity and sources" })).toBeVisible();
   await expect(page.locator("code")).toHaveText("synthetic-ui-fixture");
   await page.getByRole("button", { name: "Save to watchlist" }).click();
   await expect(page.locator("[data-sonner-toast]")).toContainText("Sign in");
@@ -72,10 +75,10 @@ test("private issuer facts and unavailable instruments retain their distinct sta
     provider: "prestocks", asset: { ...listing.asset, name: "Example private company", symbol: "EXAMPLE", issuerUrl: "https://prestocks.com/", markPriceUsd: "10", tokenPriceUsd: "11", markValuationUsd: "1000000", impliedValuationUsd: "1100000", supplyUi: "100000", premiumLabel: "10% premium" },
   } } } }));
   await page.goto("/assets/prestocks/EXAMPLE");
-  await expect(page.getByRole("heading", { name: "Private market", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "PreStocks reference values" })).toBeVisible();
   await expect(page.getByText("10% premium", { exact: true })).toBeVisible();
   await expect(page.getByText(/Liquidity and exit are not guaranteed/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "Issuer information", exact: true })).toHaveAttribute("href", "https://prestocks.com/");
+  await expect(page.getByRole("link", { name: "View PreStocks information" })).toHaveAttribute("href", "https://prestocks.com/");
   await page.route("**/api/v1/issuer/asset/prestocks/EXAMPLE", (route) => route.fulfill({ json: { data: { listing: null } } }));
   await page.reload();
   await expect(page.getByRole("heading", { name: "Asset unavailable", exact: true })).toBeVisible();

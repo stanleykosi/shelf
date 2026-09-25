@@ -23,7 +23,7 @@ try {
   for (const width of [1440, 390, 1280, 430]) {
     const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 1000 } });
     page.on("pageerror", (error) => problems.push(error.message));
-    for (const [name, path] of [["home", "/"], ["discover", "/discover?concept=2"]]) {
+    for (const [name, path] of [["home", "/"], ["discover", "/discover"]]) {
       await page.goto(baseURL + path, { waitUntil: "networkidle" });
       await prepareImages(page);
       await page.waitForTimeout(1100);
