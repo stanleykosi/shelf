@@ -1,0 +1,11 @@
+# Asset detail direction
+
+The detail page borrows three useful patterns from current market pages:
+
+- [TradingView's ETHUSD page](https://www.tradingview.com/symbols/ETHUSD/?exchange=KRAKEN) puts identity, venue, a prominent chart, range comparisons, and deeper facts in one research path.
+- [Yahoo Finance's AAPL page](https://finance.yahoo.com/quote/AAPL/) keeps price context and the underlying company's facts close, while labeling the quote source and delay.
+- [CoinGecko's ETH page](https://www.coingecko.com/en/coins/ethereum/) places chart ranges, market statistics, source links, and an AI question entry near the asset overview.
+
+Shelf uses that hierarchy with its own green, restrained visual language. The left side carries the observed market chart and issuer facts. A persistent right panel prepares a purchase amount or opens the existing issuer-scoped assistant without leaving the detail page. The full chat route remains available for longer conversations. Purchase preparation still goes through the existing order review and wallet approval.
+
+The chart is based on an exact current xStocks mint. Shelf selects a qualifying Solana pool through DEX Screener, then requests that pool's USD OHLCV for the mint from [GeckoTerminal's public endpoint](https://api.geckoterminal.com/docs/index.html). [TradingView Lightweight Charts](https://tradingview.github.io/lightweight-charts/) renders observed candles and provides pan, zoom, and crosshair interaction. The public GeckoTerminal API has a limited rate budget, so requests and responses are cached. Pool history is indicative and distinct from the underlying stock and a Jupiter execution quote. If there is no verified history, the page says so. PreStocks' public feed offers current issuer reference values but no verified time series for a chart, so its page presents those values without a decorative graph.

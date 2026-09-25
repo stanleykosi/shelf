@@ -7,6 +7,7 @@ import "./research-workspace.css";
 import "./platform-composition.css";
 import "./discovery-studio.css";
 import "./research-journey.css";
+import "./issuer-detail.css";
 import "./feedback.css";
 import "./workspace-studio.css";
 import "./account-studio.css";

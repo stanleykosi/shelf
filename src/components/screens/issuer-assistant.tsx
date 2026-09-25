@@ -27,7 +27,10 @@ const chatErrorMessages: Record<string, string> = {
   NOT_FOUND: "This issuer listing is no longer available. Return to token details to check it.",
 };
 
-export function IssuerAssistantScreen({ issuer }: { issuer: IssuerChatReference }) {
+export function IssuerAssistantScreen({ issuer, compact = false }: {
+  issuer: IssuerChatReference;
+  compact?: boolean;
+}) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [listing, setListing] = useState<IssuerListing | null>(null);
@@ -161,10 +164,10 @@ export function IssuerAssistantScreen({ issuer }: { issuer: IssuerChatReference 
   const chatReady = contextStatus === "ready" && quotaReady;
 
   return (
-    <div className="issuer-assistant-studio">
-      <PageIntro eyebrow="AI assistant" title={asset ? `Chat about ${asset.name}` : issuer ? `Chat about ${issuer.symbol}` : "Ask about products, companies and stock tokens"}>
+    <div className={`issuer-assistant-studio${compact ? " is-compact" : ""}`}>
+      {!compact ? <PageIntro eyebrow="AI assistant" title={asset ? `Chat about ${asset.name}` : issuer ? `Chat about ${issuer.symbol}` : "Ask about products, companies and stock tokens"}>
         <p>Ask questions about the issuer details. AI can explain the source, but it may be wrong and cannot place orders or sign transactions.</p>
-      </PageIntro>
+      </PageIntro> : null}
       {issuer ? (
         <Card className="stack issuer-chat-context">
           {contextStatus === "loading" ? <p role="status">Loading current {sourceName} details…</p> : null}
@@ -186,17 +189,19 @@ export function IssuerAssistantScreen({ issuer }: { issuer: IssuerChatReference 
                   <h2>{asset.name} · {asset.symbol}</h2>
                 </div>
               </div>
-              <p>{asset.description || "The issuer has not supplied a description."}</p>
-              <p className="muted">Issuer feed checked {new Date(asset.observedAt).toLocaleString()}. The token mint and market details are rechecked for each answer.</p>
-              <div className="actions">
-                <Link href={`/assets/${issuer.provider}/${encodeURIComponent(asset.symbol)}` as Route}>View token details</Link>
-                <a href={sourceUrl} target="_blank" rel="noreferrer">Issuer source</a>
-              </div>
+              {!compact ? <>
+                <p>{asset.description || "The issuer has not supplied a description."}</p>
+                <p className="muted">Issuer feed checked {new Date(asset.observedAt).toLocaleString()}. The token mint and market details are rechecked for each answer.</p>
+                <div className="actions">
+                  <Link href={`/assets/${issuer.provider}/${encodeURIComponent(asset.symbol)}` as Route}>View token details</Link>
+                  <a href={sourceUrl} target="_blank" rel="noreferrer">Issuer source</a>
+                </div>
+              </> : <p className="muted">The exact issuer listing is loaded. AI cannot place orders or sign transactions.</p>}
             </>
           ) : null}
         </Card>
       ) : null}
-      <Card className="stack">
+      <Card className={`stack${compact ? " issuer-chat-inline" : ""}`}>
         <div className="assistant-conversation" role="log" aria-label="AI conversation" aria-live="polite">
           {messages.length ? messages.map((message) => (
             <div className={`assistant-message ${message.role}`} key={message.id}>
@@ -230,7 +235,7 @@ export function IssuerAssistantScreen({ issuer }: { issuer: IssuerChatReference 
             <textarea
               id="assistant-question"
               maxLength={2000}
-              rows={3}
+              rows={compact ? 2 : 3}
               value={question}
               disabled={pending || !chatReady}
               onChange={(event) => setQuestion(event.target.value)}
@@ -258,6 +263,7 @@ export function IssuerAssistantScreen({ issuer }: { issuer: IssuerChatReference 
         </form>
         <ErrorMessage message={error} />
       </Card>
+      {compact ? <Link className="issuer-chat-full-link" href={`/assets/${issuer.provider}/${encodeURIComponent(issuer.symbol)}/chat` as Route}>Open full conversation</Link> : null}
     </div>
   );
 }

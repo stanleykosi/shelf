@@ -1,0 +1,145 @@
+.issuer-market-page { color:#1a2820; }
+.issuer-market-page [hidden] { display:none !important; }
+.issuer-market-page :is(button,a,input,textarea):focus-visible { outline:2px solid #287e50; outline-offset:3px; }
+.issuer-market-breadcrumb { display:flex; align-items:center; gap:10px; margin:2px 0 30px; color:#687a6c; font-size:12px; }
+.issuer-market-breadcrumb a { color:#365d43; }
+.issuer-market-breadcrumb span:last-child { color:#243d2e; font-weight:650; }
+.issuer-asset-header { display:flex; align-items:center; justify-content:space-between; gap:28px; padding-bottom:25px; border-bottom:1px solid #cbd8c9; }
+.issuer-asset-identity { display:flex; align-items:center; gap:19px; min-width:0; }
+.issuer-asset-identity .issuer-logo { width:72px; height:72px; flex-basis:72px; border:1px solid #c8d6c5; border-radius:14px; background:#fffefa; }
+.issuer-asset-identity > div { min-width:0; }
+.issuer-asset-eyebrow,.issuer-section-kicker { margin:0 0 8px; color:#62826d; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+.research-workspace .issuer-asset-header h1 { margin:0; font-size:clamp(36px,4.4vw,58px); line-height:1.02; letter-spacing:-.055em; }
+.issuer-asset-subtitle { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:9px 0 0; color:#657568; font-size:13px; }
+.issuer-asset-subtitle strong { color:#30593b; font:700 13px ui-monospace,SFMono-Regular,monospace; }
+.issuer-asset-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:9px; }
+.issuer-market-page .issuer-asset-actions button { min-height:43px; padding:9px 15px; border:1px solid #254632; border-radius:6px; background:#254632; color:#f5fff6; white-space:nowrap; font-size:13px; }
+.issuer-market-page .issuer-asset-actions button.secondary { border-color:#c1d0c0; background:#fffefa; color:#2c5138; }
+.issuer-market-page .issuer-asset-actions button:disabled { opacity:.55; }
+.issuer-asset-summary { max-width:800px; margin:19px 0 4px; color:#34463a; font-size:16px; line-height:1.6; }
+.issuer-asset-updated { margin:12px 0 27px; color:#718075; font-size:12px; }
+.issuer-terminal-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(305px,350px); gap:24px; align-items:start; }
+.issuer-terminal-main { min-width:0; }
+.issuer-market-panel,.issuer-private-market { overflow:hidden; border:1px solid #264133; border-radius:12px; background:#14221b; color:#e8f4eb; box-shadow:0 18px 48px #12321c17; }
+.issuer-market-heading { display:flex; justify-content:space-between; gap:18px; align-items:start; padding:27px 29px 15px; }
+.issuer-market-kicker { margin:0 0 9px; color:#9bc4a8; font-size:11px; font-weight:650; letter-spacing:.12em; text-transform:uppercase; }
+.research-workspace .issuer-market-panel h2,.research-workspace .issuer-private-market h2 { margin:0 0 8px; color:#eff8f0; font-size:15px; line-height:1.2; letter-spacing:0; }
+.issuer-market-price-line { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.issuer-market-price-line > strong { font-size:clamp(32px,4vw,48px); font-weight:500; letter-spacing:-.06em; line-height:1.1; font-variant-numeric:tabular-nums; }
+.issuer-market-price-line > span { padding:6px 8px; border-radius:5px; color:#a8efc1; background:#274333; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.issuer-market-price-line > span.is-down { color:#f1aa9f; background:#4b302d; }
+.issuer-market-price-line small { font-size:10px; font-weight:400; }
+.issuer-market-unit { margin:10px 0 0; color:#a9bdae; font-size:11px; }
+.issuer-market-range { display:flex; flex-wrap:wrap; gap:3px; border:1px solid #35503f; border-radius:7px; padding:3px; }
+.issuer-market-page .issuer-market-range button { min-width:42px; min-height:33px; padding:5px 8px; border:0; border-radius:4px; background:transparent; color:#a8bbaa; font-size:12px; }
+.issuer-market-page .issuer-market-range button[aria-pressed=true] { background:#b6efd2; color:#183422; }
+.issuer-market-plot { min-height:360px; margin:0 11px; }
+.issuer-price-chart { width:100%; height:360px; }
+.issuer-market-placeholder { display:grid; align-content:center; justify-items:center; gap:9px; min-height:360px; padding:28px; border-top:1px solid #284438; color:#b8cbbd; text-align:center; font-size:14px; }
+.issuer-market-placeholder p { max-width:330px; margin:0; }
+.issuer-market-page .issuer-market-placeholder button { margin-top:10px; min-height:40px; padding:9px 15px; border:1px solid #7da98b; border-radius:5px; color:#ddf5e3; background:transparent; }
+.issuer-market-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin:0 28px; padding:20px 0; border-top:1px solid #2e4939; }
+.issuer-market-stats > div { min-width:0; padding:0 13px; border-left:1px solid #2e4939; }
+.issuer-market-stats > div:first-child { padding-left:0; border-left:0; }
+.issuer-market-stats span { display:block; margin-bottom:8px; color:#9bb6a1; font-size:10px; }
+.issuer-market-stats strong { display:block; overflow:hidden; text-overflow:ellipsis; color:#e8f4eb; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; text-transform:capitalize; }
+.issuer-market-source { margin:0; padding:13px 28px 16px; border-top:1px solid #2e4939; color:#a5bbaa; font-size:10px; line-height:1.55; }
+.issuer-market-source a { color:#b6efd2; text-decoration:underline; text-underline-offset:2px; }
+.issuer-private-market { padding:30px; }
+.issuer-private-market > strong { display:block; font-size:clamp(36px,4vw,50px); line-height:1.1; font-weight:500; letter-spacing:-.055em; }
+.issuer-private-market > p:not(.issuer-market-kicker) { color:#bbd0bf; font-size:13px; }
+.issuer-private-history { display:grid; align-content:center; justify-items:center; min-height:270px; margin-top:25px; padding:30px; border:1px dashed #55715c; border-radius:8px; text-align:center; }
+.issuer-private-history span { color:#e3f3e7; font-size:17px; }
+.issuer-private-history p { max-width:380px; color:#abc4b1; font-size:13px; }
+.issuer-section-nav { display:flex; gap:25px; margin:22px 0 0; padding:0 3px 14px; border-bottom:1px solid #cbd8c9; }
+.issuer-section-nav a { color:#58715d; font-size:13px; font-weight:600; }
+.issuer-section-nav a:hover { color:#1d5233; }
+.issuer-detail-section { scroll-margin-top:90px; }
+.research-workspace .issuer-market-page .issuer-detail-section .card { margin:0; padding:28px 0; border:0; border-bottom:1px solid #cbd8c9; background:transparent; box-shadow:none; }
+.research-workspace .issuer-market-page .issuer-detail-section h2 { margin:0; font-size:26px; letter-spacing:-.045em; }
+.issuer-detail-section .card > p:not(.issuer-section-kicker) { max-width:700px; }
+.issuer-detail-section .issuer-detail-metrics { grid-template-columns:repeat(auto-fit,minmax(min(165px,100%),1fr)); }
+.issuer-detail-section .issuer-detail-metric { background:#e8efe6; }
+.issuer-detail-section .issuer-detail-metric dd { font-weight:600; }
+.issuer-detail-section .issuer-detail-facts { max-width:710px; }
+.issuer-detail-section .issuer-detail-facts > div { padding:14px 0; }
+.issuer-detail-section .issuer-detail-mint code { padding:8px 0; overflow-wrap:anywhere; font-size:12px; }
+.issuer-detail-section .actions a { font-size:13px; }
+.issuer-action-panel { position:sticky; top:89px; align-self:start; max-height:calc(100dvh - 108px); overflow-y:auto; scroll-margin-top:90px; padding:20px; border:1px solid #cad8c9; border-radius:12px; background:#fffefa; box-shadow:0 15px 45px #1b3f2512; }
+.issuer-action-tabs { display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:3px; border-radius:7px; background:#e9efe7; }
+.issuer-market-page .issuer-action-tabs button { min-height:41px; border:0; border-radius:5px; background:transparent; color:#566d5b; font-size:13px; font-weight:600; }
+.issuer-market-page .issuer-action-tabs button[aria-pressed=true] { background:#fffefa; color:#214b32; box-shadow:0 2px 8px #183b2414; }
+.issuer-action-heading { margin:26px 2px 19px; }
+.issuer-action-heading p { margin:0 0 8px; color:#64816b; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.research-workspace .issuer-action-heading h2 { margin:0; font-size:27px; line-height:1.15; letter-spacing:-.045em; }
+.issuer-purchase-form { display:grid; gap:15px; }
+.issuer-purchase-copy,.issuer-purchase-instrument,.issuer-purchase-fineprint { margin:0; color:#617366; font-size:12px; line-height:1.55; }
+.issuer-purchase-instrument { padding:13px; border-radius:6px; background:#eef3ea; color:#405d46; }
+.issuer-purchase-input { display:flex; align-items:center; gap:5px; min-height:54px; padding:0 12px; border:1px solid #b5cbb8; border-radius:7px; background:#f9fbf7; }
+.issuer-purchase-input > span { color:#5a7662; font-size:20px; }
+.research-workspace .issuer-market-page .issuer-purchase-input input { width:100%; min-width:0; border:0; outline:0; background:transparent; font-size:26px; font-variant-numeric:tabular-nums; }
+.research-workspace .issuer-market-page .issuer-purchase-input:focus-within { border-color:#287e50; box-shadow:0 0 0 2px #287e5026; }
+.issuer-market-page .issuer-purchase-submit { width:100%; min-height:48px; border:1px solid #203e2d; border-radius:6px; background:#203e2d; color:#f7fff8; font-weight:650; }
+.issuer-market-page .issuer-purchase-submit:disabled { opacity:.52; }
+.issuer-purchase-signin { color:#2b6c41; font-size:13px; font-weight:650; }
+.issuer-action-foot { margin:20px 0 0; padding-top:17px; border-top:1px solid #e0e8dd; color:#728274; font-size:11px; line-height:1.55; }
+.issuer-market-page .issuer-assistant-studio.is-compact .card { padding:0; border:0; background:transparent; box-shadow:none; }
+.issuer-market-page .issuer-assistant-studio.is-compact .issuer-chat-context { padding-bottom:13px; border-bottom:1px solid #dde8dc; }
+.issuer-market-page .issuer-chat-heading .issuer-logo { width:37px; height:37px; flex-basis:37px; }
+.issuer-market-page .issuer-chat-heading h2 { margin:3px 0 0; font-size:16px; }
+.issuer-market-page .issuer-chat-context .badge { padding:0; background:transparent; color:#327a4a; font-size:10px; }
+.issuer-market-page .issuer-chat-context .muted { margin:9px 0 0; font-size:11px; }
+.issuer-market-page .issuer-chat-inline { gap:12px; padding-top:15px !important; }
+.issuer-market-page .issuer-chat-inline .assistant-conversation { max-height:280px; min-height:135px; padding:7px; border:1px solid #dce8dc; border-radius:7px; background:#f5f8f3; }
+.issuer-market-page .issuer-chat-inline .assistant-message { max-width:96%; padding:10px 11px; font-size:12px; }
+.issuer-market-page .issuer-chat-inline .assistant-suggestions { gap:6px; }
+.issuer-market-page .issuer-chat-inline .assistant-suggestions button { min-height:34px; padding:6px 8px; font-size:11px; text-align:left; }
+.issuer-market-page .issuer-chat-inline textarea { min-height:70px; resize:vertical; }
+.issuer-market-page .issuer-chat-inline .actions { gap:6px; }
+.issuer-market-page .issuer-chat-inline .actions button { min-height:35px; padding:7px 9px; font-size:11px; }
+.issuer-chat-full-link { display:inline-block; margin-top:14px; color:#286f44; font-size:12px; }
+.issuer-standalone-buy { max-width:650px; }
+.issuer-standalone-buy .issuer-purchase-form { max-width:410px; }
+@media (hover:hover) and (pointer:fine) {
+  .issuer-asset-actions button,.issuer-purchase-submit { transition:transform 150ms cubic-bezier(.25,.46,.45,.94); }
+  .issuer-asset-actions button:hover,.issuer-purchase-submit:hover:not(:disabled) { transform:translateY(-1px); }
+}
+@media (max-width:1050px) {
+  .issuer-terminal-layout { grid-template-columns:minmax(0,1fr) 305px; gap:16px; }
+  .issuer-market-heading { flex-direction:column; }
+}
+@media (max-width:820px) {
+  .issuer-asset-header { align-items:flex-start; flex-direction:column; }
+  .issuer-asset-actions { justify-content:flex-start; }
+  .issuer-terminal-layout { display:grid; grid-template-columns:minmax(0,1fr); }
+  .issuer-terminal-main { display:contents; }
+  .issuer-market-panel,.issuer-private-market { order:1; }
+  .issuer-action-panel { position:static; order:2; max-height:none; overflow:visible; }
+  .issuer-section-nav { order:3; margin-top:10px; }
+  .issuer-detail-section { order:4; }
+  .issuer-market-heading { flex-direction:row; }
+}
+@media (max-width:560px) {
+  .issuer-market-breadcrumb { margin-bottom:21px; }
+  .issuer-asset-identity { gap:12px; }
+  .issuer-asset-identity .issuer-logo { width:54px; height:54px; flex-basis:54px; }
+  .research-workspace .issuer-asset-header h1 { font-size:34px; }
+  .issuer-asset-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  .issuer-asset-actions button:first-child { grid-column:1/-1; }
+  .issuer-market-heading { flex-direction:column; padding:23px 20px 12px; }
+  .issuer-market-range { width:100%; justify-content:space-between; }
+  .issuer-market-page .issuer-market-range button { flex:1; }
+  .issuer-market-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 0; margin:0 20px; }
+  .issuer-market-stats > div:nth-child(3) { padding-left:0; border-left:0; }
+  .issuer-market-source { padding:13px 20px 16px; }
+  .issuer-market-plot,.issuer-price-chart { min-height:310px; height:310px; }
+  .issuer-market-placeholder { min-height:310px; }
+  .issuer-section-nav { gap:17px; }
+  .issuer-section-nav a { font-size:12px; }
+  .issuer-private-market { padding:23px; }
+  .issuer-private-history { min-height:220px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .issuer-asset-actions button,.issuer-purchase-submit { transition:none; }
+  .issuer-asset-actions button:hover,.issuer-purchase-submit:hover { transform:none; }
+}

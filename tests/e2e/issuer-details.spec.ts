@@ -40,6 +40,19 @@ const openAiListing = {
 };
 
 test("xStocks details explain the underlying, token identity and timestamped disclosures", async ({ page }) => {
+  const chartRanges: string[] = [];
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx/market?range=*", (route) => {
+    chartRanges.push(new URL(route.request().url()).searchParams.get("range") ?? "");
+    return route.fulfill({ json: { data: {
+      state: "available", range: chartRanges.at(-1), checkedAt: "2026-09-25T00:10:00.000Z",
+      priceUsd: "614.25", change24hPct: 2.4, liquidityUsd: 150_000,
+      venue: "raydium", poolAddress: "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
+      candles: [
+        { time: 1790294400, open: 600, high: 610, low: 595, close: 605, volume: 5000 },
+        { time: 1790308800, open: 605, high: 620, low: 602, close: 614, volume: 6000 },
+      ],
+    } } });
+  });
   await page.route("**/api/v1/issuer/asset/xstocks/METAx", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -70,8 +83,15 @@ test("xStocks details explain the underlying, token identity and timestamped dis
   }));
 
   await page.goto("/assets/xstocks/METAx");
+  await expect(page.getByRole("heading", { name: "Pool price" })).toBeVisible();
+  await expect(page.getByText("$614.25", { exact: true })).toBeVisible();
+  await expect(page.getByText("+2.40%", { exact: false })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Interactive USD candlestick chart/ })).toBeVisible();
+  await expect(page.locator(".issuer-price-chart canvas").first()).toBeVisible();
+  await page.getByRole("button", { name: "1W", exact: true }).click();
+  await expect.poll(() => chartRanges).toContain("1W");
   await expect(page.getByRole("heading", { name: "What this token represents" })).toBeVisible();
-  await expect(page.getByText("METAx", { exact: true })).toBeVisible();
+  await expect(page.locator(".issuer-asset-subtitle strong")).toHaveText("METAx");
   await expect(page.getByText("Nasdaq Stock Market")).toBeVisible();
   await expect(page.getByText("13,801")).toBeVisible();
   await expect(page.getByText("13,746.598")).toBeVisible();
@@ -80,7 +100,7 @@ test("xStocks details explain the underlying, token identity and timestamped dis
   await page.getByText("Security identifiers").click();
   await expect(page.getByText("CH1436219229")).toBeVisible();
   await expect(page.getByText("US30303M1027")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review a purchase" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review purchase" })).toBeVisible();
 
   await page.route("**/api/v1/issuer/asset/xstocks/METAx/disclosures", (route) => route.fulfill({
     status: 503,
@@ -88,9 +108,16 @@ test("xStocks details explain the underlying, token identity and timestamped dis
     headers: { "cache-control": "no-store" },
     body: JSON.stringify({ error: { code: "XSTOCKS_UNAVAILABLE" } }),
   }));
+  await page.route("**/api/v1/issuer/asset/xstocks/METAx/market?range=*", (route) => route.fulfill({
+    json: { data: { state: "available", range: "1D", checkedAt: "2026-09-25T00:10:00.000Z",
+      priceUsd: "614.25", change24hPct: 2.4, liquidityUsd: 150_000,
+      venue: "raydium", candles: [] } },
+  }));
   await page.reload();
   await expect(page.getByText("The issuer’s reserve snapshot is unavailable right now.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review a purchase" })).toBeVisible();
+  await expect(page.getByText("No observed price history is available for this pool and range.")).toBeVisible();
+  await expect(page.getByText("$614.25", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review purchase" })).toBeVisible();
 });
 
 test("PreStocks details distinguish reference values from a purchase quote", async ({ page }) => {
@@ -101,10 +128,12 @@ test("PreStocks details distinguish reference values from a purchase quote", asy
   }));
 
   await page.goto("/assets/prestocks/OPENAI");
+  await expect(page.getByText("Historical chart unavailable")).toBeVisible();
+  await expect(page.getByRole("img", { name: /Interactive USD candlestick chart/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "PreStocks reference values" })).toBeVisible();
-  await expect(page.getByText("$1,104.87")).toBeVisible();
-  await expect(page.getByText("$996.02")).toBeVisible();
-  await expect(page.getByText("10.93% premium")).toBeVisible();
+  await expect(page.locator("#issuer-facts").getByText("$1,104.87")).toBeVisible();
+  await expect(page.locator("#issuer-facts").getByText("$996.02")).toBeVisible();
+  await expect(page.locator("#issuer-facts").getByText("10.93% premium")).toBeVisible();
   await expect(page.getByText("$1.1T")).toBeVisible();
   await expect(page.getByText("$1T")).toBeVisible();
   await expect(page.getByText("1,901.87 tokens")).toBeVisible();

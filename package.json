@@ -39,6 +39,7 @@
     "decimal.js": "10.6.0",
     "drizzle-orm": "0.45.2",
     "encoding": "0.1.13",
+    "lightweight-charts": "5.2.1",
     "lucide-react": "1.47.0",
     "magic-sdk": "33.13.0",
     "motion": "13.4.4",

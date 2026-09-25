@@ -49,23 +49,28 @@ test("connected research layouts stay readable and accessible across viewport si
 });
 
 test("issuer failures recover and source identity stays separate from purchase approval", async ({ page }) => {
-  let calls = 0;
+  let available = false;
   await page.route("**/api/v1/issuer/asset/xstocks/PEPx", (route) => {
-    calls++;
-    return calls === 1 ? route.fulfill({ status: 503, json: { error: { code: "PROVIDER_UNAVAILABLE" } } }) : route.fulfill({ json: { data: { listing } } });
+    return available ? route.fulfill({ json: { data: { listing } } }) :
+      route.fulfill({ status: 503, json: { error: { code: "PROVIDER_UNAVAILABLE" } } });
   });
   await page.goto("/assets/xstocks/PEPx");
   await expect(page.getByRole("heading", { name: "Issuer details unavailable" })).toBeVisible();
+  available = true;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("heading", { name: "PepsiCo", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Token identity and sources" })).toBeVisible();
-  await expect(page.locator("code")).toHaveText("synthetic-ui-fixture");
+  await expect(page.locator("#issuer-sources code")).toHaveText("synthetic-ui-fixture");
   await page.getByRole("button", { name: "Save to watchlist" }).click();
   await expect(page.locator("[data-sonner-toast]")).toContainText("Sign in");
   await page.addScriptTag({ content: axe.source });
   const audit = await page.evaluate(async () => (window as Window & { axe: typeof import("axe-core") }).axe.run(document, { runOnly: ["wcag2a", "wcag2aa", "wcag21aa"] }));
   expect(audit.violations).toEqual([]);
-  await page.getByRole("link", { name: "Review a purchase" }).click();
+  await page.route("**/api/v1/orders", (route) => route.fulfill({
+    status: 401, json: { error: { code: "AUTH_REQUIRED" } },
+  }));
+  await page.getByRole("button", { name: "Review purchase" }).click();
+  await page.getByRole("link", { name: "Sign in to continue" }).click();
   await expect(page).toHaveURL(/\/sign-in\?/);
   await expect(page.getByRole("heading", { name: "Continue your research." })).toBeVisible();
 });
@@ -82,7 +87,7 @@ test("private issuer facts and unavailable instruments retain their distinct sta
   await page.route("**/api/v1/issuer/asset/prestocks/EXAMPLE", (route) => route.fulfill({ json: { data: { listing: null } } }));
   await page.reload();
   await expect(page.getByRole("heading", { name: "Asset unavailable", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review a purchase" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review purchase" })).toHaveCount(0);
 });
 
 test("result review and correction retain accessible keyboard control", async ({ page }, testInfo) => {

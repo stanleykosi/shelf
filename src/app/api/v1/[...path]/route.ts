@@ -72,6 +72,8 @@ import { LivePreStocksProvider } from "@/providers/prestocks";
 import type { PreStocksListing } from "@/providers/prestocks";
 import { LiveXStocksProvider } from "@/providers/xstocks";
 import { LiveDexScreenerProvider } from "@/providers/dexscreener";
+import { fetchPoolCandles, marketRanges, type MarketRange } from "@/providers/geckoterminal";
+import type { IssuerMarketView } from "@/domain/issuer-market";
 import { lookupBarcodeProduct } from "@/providers/product-identity";
 import { verifyCurrentIssuerInstrument, verifyLegacyOrderInstrument } from "@/providers/issuer-verification";
 import type { XStocksListing, XStocksMetadata } from "@/providers/xstocks";
@@ -1675,6 +1677,38 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/v1/[
   try {
     const { path } = await context.params;
     if (pathIs(path, "ai", "session")) return guestAiSessionResponse(request);
+    if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&
+      path[2] === "xstocks" && path[4] === "market") {
+      const requestedRange = request.nextUrl.searchParams.get("range") ?? "1D";
+      if (!marketRanges.includes(requestedRange as MarketRange)) throw new Error("INVALID_INPUT");
+      const range = requestedRange as MarketRange;
+      const { listing } = await exactIssuerAsset("xstocks", path[3]);
+      if (!listing || listing.provider !== "xstocks") throw new Error("NOT_FOUND");
+
+      const checkedAt = new Date().toISOString();
+      const pool = await dexMarkets.markets([listing.asset.mint])
+        .then(({ markets }) => markets[0])
+        .catch(() => undefined);
+      let candles: IssuerMarketView["candles"] = [];
+      if (pool) {
+        candles = await fetchPoolCandles(pool.pairAddress, listing.asset.mint, range)
+          .catch(() => []);
+      }
+      const marketView: IssuerMarketView = {
+        state: pool ? "available" : "unavailable",
+        range,
+        checkedAt,
+        priceUsd: pool?.priceUsd,
+        change24hPct: pool?.change24hPct,
+        liquidityUsd: pool?.liquidityUsd,
+        venue: pool?.venue,
+        poolAddress: pool?.pairAddress,
+        candles,
+      };
+      const response = success(marketView);
+      response.headers.set("Cache-Control", "public, max-age=30, s-maxage=180, stale-while-revalidate=300");
+      return response;
+    }
     if (path.length === 5 && path[0] === "issuer" && path[1] === "asset" &&
       path[2] === "xstocks" && path[4] === "disclosures") {
       const response = success(await xStocks.disclosures(path[3]));

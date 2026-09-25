@@ -11,10 +11,13 @@ contracts and fixtures all use the 24-hour field; pools missing it are excluded.
 A short status still appears if part of the market feed is unavailable.
 
 `npm run lint`, `npm run typecheck`, focused Vitest (2 tests), `git diff --check`,
-and a focused Chromium check of the company card at 390, 1280 and 1440 pixels passed.
-The broader landing search test reached its Discover-page assertion but did not find
-the expected Apple heading in the local dev session; that route is outside this card
-change. A production build is running. No deployment or live-money action occurred.
+and the production build passed. Two focused Chromium tests against an isolated local
+production server passed: the landing-to-Discover journey and the company-card UI at
+390, 1280 and 1440 pixels. The existing development server became unreliable during
+the build and left a market request pending; the isolated production run confirmed the
+feature and journey. The build logged optional Magic transport-module warnings and
+its known nonfatal Magic API initialization error in this restricted environment.
+No deployment or live-money action occurred.
 
 ## UI-product-design-refractor merge with origin/main — local
 
