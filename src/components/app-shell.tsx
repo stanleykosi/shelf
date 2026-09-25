@@ -7,11 +7,13 @@ import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass a
 import { HeaderSearch } from "@/components/header-search";
 import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
 import { activePrimarySection, type PrimarySection } from "@/lib/routes";
+import { Sparkles as StudioSparkles } from "@/components/studio-icons";
 
 const primaryNavigation: Array<{ href: string; label: string; section: PrimarySection }> = [
   { href: "/discover", label: "Discover", section: "discover" },
   { href: "/saved", label: "Saved", section: "saved" },
   { href: "/portfolio", label: "Portfolio", section: "portfolio" },
+  { href: "/assistant", label: "Assistant", section: "assistant" },
 ];
 
 const mobileNavigation = [
@@ -19,6 +21,7 @@ const mobileNavigation = [
   { href: "/scan", label: "Scan", section: "scan" as const },
   primaryNavigation[1],
   primaryNavigation[2],
+  primaryNavigation[3],
 ];
 
 const studioNavigationIcons = {
@@ -26,6 +29,7 @@ const studioNavigationIcons = {
   scan: StudioScan,
   saved: StudioBookmark,
   portfolio: StudioWallet,
+  assistant: StudioSparkles,
 };
 
 function ShelfMark() {

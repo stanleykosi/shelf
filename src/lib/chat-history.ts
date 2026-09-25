@@ -19,7 +19,7 @@ const MAX_MESSAGES = 40;
 const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 export function chatScopeKey(provider?: string, symbol?: string) {
-  return provider && symbol ? `asset:${provider}:${symbol.toUpperCase()}` : "general";
+  return provider && symbol ? `asset:${provider}:${symbol}` : "general";
 }
 
 export function chatHistoryKey(memberId?: string) {
@@ -43,7 +43,7 @@ function validThread(value: unknown, now: number): value is SavedChatThread {
   const thread = value as Record<string, unknown>;
   return typeof thread.id === "string" && thread.id.length <= 80 &&
     typeof thread.scopeKey === "string" &&
-    (thread.scopeKey === "general" || /^asset:(xstocks|prestocks):[A-Z0-9.-]{1,32}$/.test(thread.scopeKey)) &&
+    (thread.scopeKey === "general" || /^asset:(xstocks|prestocks):[A-Za-z0-9.-]{1,32}$/.test(thread.scopeKey)) &&
     typeof thread.title === "string" && thread.title.length <= 80 &&
     typeof thread.updatedAt === "number" && Number.isFinite(thread.updatedAt) &&
     thread.updatedAt <= now && thread.updatedAt >= now - MAX_AGE_MS &&
@@ -66,7 +66,7 @@ export function readChatThreads(storage: Storage, key: string, now = Date.now())
 
 export function saveChatThreads(storage: Storage, key: string, threads: SavedChatThread[]): boolean {
   try {
-    storage.setItem(key, JSON.stringify(threads
+    storage.setItem(key, JSON.stringify([...threads]
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .slice(0, MAX_THREADS)));
     return true;

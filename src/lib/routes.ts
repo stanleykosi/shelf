@@ -1,4 +1,4 @@
-export type PrimarySection = "discover" | "scan" | "saved" | "portfolio";
+export type PrimarySection = "discover" | "scan" | "saved" | "portfolio" | "assistant";
 
 type LegacyRedirect = {
   destination: string;
@@ -21,11 +21,13 @@ const safeQueryKeys = new Set([
   "to",
   "type",
   "view",
+  "thread",
 ]);
 
 const knownStaticPaths = new Set([
   "/",
   "/discover",
+  "/assistant",
   "/scan",
   "/scan/results",
   "/learn",
@@ -175,6 +177,7 @@ export function signInHref(returnTo: string) {
 }
 
 export function activePrimarySection(pathname: string): PrimarySection | null {
+  if (pathname === "/assistant" || (pathname.startsWith("/assets/") && pathname.endsWith("/chat"))) return "assistant";
   if (pathname === "/scan" || pathname.startsWith("/scan/")) return "scan";
   if (pathname === "/saved" || pathname.startsWith("/saved/")) return "saved";
   if (pathname === "/portfolio" || pathname.startsWith("/portfolio/")) return "portfolio";

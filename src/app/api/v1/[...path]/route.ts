@@ -42,6 +42,7 @@ import { productNameForApprovedUrl } from "@/lib/product-url";
 import { safeReturnTo } from "@/lib/routes";
 import { isValidGtin } from "@/domain/gtin";
 import { issuerChatFact, readChatHistory } from "@/domain/ai-chat";
+import { generalChatFacts } from "@/domain/general-chat";
 import type {
   AccountSummary,
   AuthenticationMethod,
@@ -1148,27 +1149,32 @@ async function answerResponse(request: NextRequest, body: Record<string, unknown
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > 2_000) throw new Error("INVALID_INPUT");
   const history = readChatHistory(body.history);
-  if (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer)) {
+  const general = body.scope === "general" && body.issuer === undefined;
+  if (!general && (!body.issuer || typeof body.issuer !== "object" || Array.isArray(body.issuer))) {
     throw new Error("INVALID_INPUT");
   }
+  if (body.scope !== undefined && !general) throw new Error("INVALID_INPUT");
   if (!ai) throw new Error("AI_PROVIDER_UNAVAILABLE");
-  const reference = body.issuer as Record<string, unknown>;
   const reservation = await reserveDiscoveryAiBudget(request, CHAT_REQUEST_RESERVE_MICROUSD);
-  let context: Awaited<ReturnType<typeof exactIssuerChatContext>>;
+  let context: Awaited<ReturnType<typeof exactIssuerChatContext>> | null = null;
   try {
-    context = await exactIssuerChatContext(reference.provider, reference.symbol);
+    if (!general) {
+      const reference = body.issuer as Record<string, unknown>;
+      context = await exactIssuerChatContext(reference.provider, reference.symbol);
+    }
   } catch (error) {
     await releaseDiscoveryAiBudget(reservation);
     throw error;
   }
 
-  const result = await ai.answer({ question, approvedFacts: [context.fact], history }, REQUIRED_AI_PRIVACY);
+  const approvedFacts = context ? [context.fact] : generalChatFacts();
+  const result = await ai.answer({ question, approvedFacts, history }, REQUIRED_AI_PRIVACY);
   await settleDiscoveryAiUsage(reservation, result.usageMicrousd);
   return {
     answer: result.answer,
     sourceIds: result.sourceIds,
     uncertainty: result.uncertainty,
-    issuer: context.listing,
+    issuer: context?.listing ?? null,
   };
 }
 

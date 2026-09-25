@@ -57,9 +57,8 @@ test("legacy, entity, access, and not-found routes return exact HTTP responses",
   }
 });
 
-test("retired research and general chat routes return 404", async ({ request }) => {
+test("retired research routes return 404", async ({ request }) => {
   for (const path of [
-    "/assistant",
     "/companies/company-pepsico",
     "/companies/pepsico",
     "/invest/suggest",

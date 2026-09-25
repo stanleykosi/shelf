@@ -86,21 +86,6 @@
 .issuer-market-page .issuer-purchase-submit:disabled { opacity:.52; }
 .issuer-purchase-signin { color:#2b6c41; font-size:13px; font-weight:650; }
 .issuer-action-foot { margin:20px 0 0; padding-top:17px; border-top:1px solid #e0e8dd; color:#526557; font-size:11px; line-height:1.55; }
-.issuer-market-page .issuer-assistant-studio.is-compact .card { padding:0; border:0; background:transparent; box-shadow:none; }
-.issuer-market-page .issuer-assistant-studio.is-compact .issuer-chat-context { padding-bottom:13px; border-bottom:1px solid #dde8dc; }
-.issuer-market-page .issuer-chat-heading .issuer-logo { width:37px; height:37px; flex-basis:37px; }
-.issuer-market-page .issuer-chat-heading h2 { margin:3px 0 0; font-size:16px; }
-.issuer-market-page .issuer-chat-context .badge { padding:0; background:transparent; color:#327a4a; font-size:10px; }
-.issuer-market-page .issuer-chat-context .muted { margin:9px 0 0; font-size:11px; }
-.issuer-market-page .issuer-chat-inline { gap:12px; padding-top:15px !important; }
-.issuer-market-page .issuer-chat-inline .assistant-conversation { max-height:280px; min-height:135px; padding:7px; border:1px solid #dce8dc; border-radius:7px; background:#f5f8f3; }
-.issuer-market-page .issuer-chat-inline .assistant-message { max-width:96%; padding:10px 11px; font-size:12px; }
-.issuer-market-page .issuer-chat-inline .assistant-suggestions { gap:6px; }
-.issuer-market-page .issuer-chat-inline .assistant-suggestions button { min-height:34px; padding:6px 8px; font-size:11px; text-align:left; }
-.issuer-market-page .issuer-chat-inline textarea { min-height:70px; resize:vertical; }
-.issuer-market-page .issuer-chat-inline .actions { gap:6px; }
-.issuer-market-page .issuer-chat-inline .actions button { min-height:35px; padding:7px 9px; font-size:11px; }
-.issuer-chat-full-link { display:inline-block; margin-top:14px; color:#286f44; font-size:12px; }
 .issuer-standalone-buy { max-width:650px; }
 .issuer-standalone-buy .issuer-purchase-form { max-width:410px; }
 @media (hover:hover) and (pointer:fine) {
