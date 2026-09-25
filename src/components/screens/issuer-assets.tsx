@@ -10,7 +10,7 @@ import type { Company } from "@/domain/types";
 import type { IssuerListing } from "@/domain/issuer-assets";
 import type { XStocksDisclosures, XStocksMetadata } from "@/providers/xstocks";
 import { apiRequest, authenticationIsRequired, postJson } from "@/lib/api-client";
-import { Card, EmptyState, ErrorMessage, Field, PageIntro } from "@/components/ui";
+import { Card, EmptyState, ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
 import { IssuerLogo } from "@/components/issuer-logo";
 import { LoadingStatus } from "@/components/loading-feedback";
 import { useNotification } from "@/components/notifications";

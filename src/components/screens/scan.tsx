@@ -188,7 +188,7 @@ function ScanWorkspace({ mode }: { mode: Method }) {
 
   return <div className="scan-page scan-intake platform-scan scan-studio">
     <div className="scan-studio-topline"><Link href="/discover"><ArrowLeft size={14} aria-hidden="true" />Back to Discover</Link><span><LockKeyhole size={13} aria-hidden="true" />Your curiosity. Your control.</span></div>
-    <header className="scan-page-heading"><div><p className="studio-eyebrow"><span className="studio-marker" />The discovery lens</p><h1>See the familiar.<br /><span>Discover what’s behind it.</span></h1></div><p>A product is just the beginning. <br />Let’s find its company.</p></header>
+    <header className="scan-page-heading"><div><p className="studio-eyebrow"><span className="studio-marker" />The discovery lens</p><h1>See the familiar.<br /><span>Discover what’s <br className="scan-mobile-title-break" />behind it.</span></h1></div><p>A product is just the beginning. <br />Let’s find its company.</p></header>
     <ol className="scan-journey" aria-label="Identification progress">
       {["Choose input", "Review & consent", "Identify"].map((step, index) => {
         const currentStep = busy ? 2 : image || mode === "barcode" || mode === "link" ? 1 : 0;
