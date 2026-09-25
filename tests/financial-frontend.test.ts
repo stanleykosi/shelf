@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useReducedMotionInDomTests } from "./dom-motion";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +15,7 @@ let root: Root;
 let host: HTMLDivElement;
 const order: Order = { id: "fixture-order", userId: "fixture-user", clientIntentId: "fixture-intent", type: "buy", status: "draft", version: 1, createdAt: "2026-09-24T00:00:00Z", legs: [{ id: "leg", position: 0, companyId: "company-pepsico", instrumentId: "instrument-pepx", side: "buy", inventoryScope: "tracked", requestedInputRaw: "10000000", status: "draft" }] };
 beforeEach(() => {
+  useReducedMotionInDomTests();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true, React });
   api.get.mockReset(); api.post.mockReset(); api.push.mockReset();
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);

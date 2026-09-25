@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { companyById, productById } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
+import { Bookmark, ArrowUpRight } from "@/components/studio-icons";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import {
   CtaLink,
@@ -13,7 +16,6 @@ import {
   ErrorMessage,
   Field,
   PageIntro,
-  ResultMessage,
 } from "@/components/ui";
 import {
   apiRequest,
@@ -55,7 +57,7 @@ export function ShelfScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const setMessage = useNotification();
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   const [proposed, setProposed] = useState<string[]>([]);
@@ -224,7 +226,7 @@ export function ShelfScreen() {
           removing research never sells a Holding.
         </p>
       </PageIntro>
-      {loading ? <p role="status">Loading your saved research…</p> : null}
+      {loading ? <LoadingStatus page>Loading your saved research…</LoadingStatus> : null}
       <ErrorMessage message={error} />
       {error ? (
         <button className="secondary" onClick={load} disabled={busy || loading}>
@@ -254,6 +256,10 @@ export function ShelfScreen() {
               </button>
             </section>
           ) : null}
+          <section className="saved-overview" aria-label="Research collection overview">
+            <div><Bookmark size={28} aria-hidden="true" /><div><strong>{collection.items.length + companies.length + guestIssuers.length} saved</strong><span>A collection of things that caught your attention.</span></div></div>
+            <Link className="button secondary" href="/saved/share">Share research <ArrowUpRight size={16} aria-hidden="true" /></Link>
+          </section>
           <nav className="research-tabs" aria-label="Saved research view">
             <Link
               href="/saved?view=products"
@@ -268,20 +274,7 @@ export function ShelfScreen() {
               Companies ({companies.length})
             </Link>
           </nav>
-          {message ? (
-            <ResultMessage>
-              {message}
-              {removed ? (
-                <button
-                  className="ghost"
-                  disabled={busy}
-                  onClick={() => action(undo)}
-                >
-                  Undo removal
-                </button>
-              ) : null}
-            </ResultMessage>
-          ) : null}
+          {removed ? <div className="saved-tools"><p className="muted">Removed from research. Your holdings are unchanged.</p><PendingButton className="ghost" pending={busy} pendingLabel="Restoring…" onClick={() => action(undo)}>Undo removal</PendingButton></div> : null}
           {view === "products" ? (
             <section className="research-section">
               <h2>{member ? collection.name : "Saved Products"}</h2>
@@ -292,11 +285,11 @@ export function ShelfScreen() {
                     parent {parentCount === 1 ? "company" : "companies"}.
                     Repeated Brands can lead to the same Company.
                   </p>
-                  <div className="research-rows">
+                  <div className="saved-product-grid">
                     {collection.items.map((product) => (
-                      <article className="research-row" key={product.id}>
+                      <article className="research-row saved-product-card" key={product.id}>
                         <div className="research-identity">
-                          <ProductArtwork product={product} sizes="80px" />
+                          <ProductArtwork product={product} sizes="(max-width: 819px) 45vw, 30vw" />
                           <div>
                             <h3>
                               <Link href={`/products/${product.slug}`}>

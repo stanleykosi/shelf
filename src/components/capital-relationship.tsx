@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "@/components/studio-icons";
 import { ArrowRight as StudioArrowRight, ArrowUpRight as StudioArrowUpRight } from "@/components/studio-icons";
 import { brands, companyById, sources } from "@/data/catalog";
 import type { Product } from "@/domain/types";

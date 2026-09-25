@@ -7,7 +7,9 @@ import { products, companies, brands } from "@/data/catalog";
 import type { CatalogReport } from "@/domain/store";
 import type { Order } from "@/domain/types";
 import { apiRequest, freshApiRequest, postAdminJson } from "@/lib/api-client";
-import { ErrorMessage, Field, PageIntro, ResultMessage } from "@/components/ui";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
+import { ErrorMessage, Field, PageIntro } from "@/components/ui";
 
 type Area = "overview" | "catalog" | "access" | "operations" | "audit";
 type Health = {
@@ -47,7 +49,7 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const setMessage = useNotification();
   const [pending, setPending] = useState(false);
   const [reason, setReason] = useState("");
   const [email, setEmail] = useState("");
@@ -111,7 +113,7 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
     if (pending || !reason.trim() || !confirmed) return;
     setPending(true);
     setError(null);
-    setMessage(null);
+    setMessage("");
     try {
       const response = await postAdminJson<{ id?: string }>(path, {
         ...body,
@@ -137,7 +139,7 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
     if (!orderId || exporting) return;
     setExporting(true);
     setError(null);
-    setMessage(null);
+    setMessage("");
     try {
       const diagnostic = await freshApiRequest<{
         orderId: string;
@@ -235,8 +237,9 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
           ))}
         </nav>
         <div className="stack">
-          {loading ? <p role="status">Loading owner workspace…</p> : null}
+          {loading ? <LoadingStatus page>Loading owner workspace…</LoadingStatus> : null}
           <ErrorMessage message={error} />
+          {pending ? <LoadingStatus>Completing the owner action…</LoadingStatus> : null}
           {error ? (
             <button
               className="secondary"
@@ -249,7 +252,7 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
               Retry workspace
             </button>
           ) : null}
-          {message ? <ResultMessage>{message}</ResultMessage> : null}
+
           {!loading && health ? (
             <>
               {area === "overview" ? (
@@ -583,7 +586,7 @@ export function ResearchAdminScreen({ area }: { area: Area }) {
                     <Field label="Diagnostic order ID" htmlFor="admin-diagnostic-order">
                       <input id="admin-diagnostic-order" value={diagnosticOrderId} maxLength={200} autoComplete="off" onChange={(event) => setDiagnosticOrderId(event.target.value)} />
                     </Field>
-                    <div className="actions"><button className="secondary" data-cta="C109" disabled={exporting || !diagnosticOrderId.trim()} onClick={downloadDiagnostic}>{exporting ? "Preparing diagnostic…" : "Export redacted diagnostic"}</button></div>
+                    <div className="actions"><PendingButton pending={exporting} pendingLabel="Preparing diagnostic…" className="secondary" data-cta="C109" disabled={exporting || !diagnosticOrderId.trim()} onClick={downloadDiagnostic}>Export redacted diagnostic</PendingButton></div>
                   </section>
                 </>
               ) : null}

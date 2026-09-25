@@ -55,7 +55,7 @@ const routes = [
 ] as const;
 
 for (const width of [390, 430, 768, 1280, 1440]) {
-  test(`Concept 2 workspaces at ${width}px`, async ({
+  test(`Studio workspaces at ${width}px`, async ({
     page,
     context,
     baseURL,
@@ -101,7 +101,9 @@ for (const width of [390, 430, 768, 1280, 1440]) {
       await expect(page.locator("main")).not.toContainText(
         "Checking account access…"
       );
-      await page.waitForTimeout(150);
+      await page.locator("main").evaluate(async (element) => {
+        await Promise.all(element.getAnimations({ subtree: true }).filter((animation) => animation.effect?.getTiming().iterations !== Infinity).map((animation) => animation.finished.catch(() => {})));
+      });
       await expect(page.locator('main [role="status"]').filter({ hasText: /^(Loading|Checking)/ })).toHaveCount(0);
       expect(
         await page.evaluate(
@@ -109,6 +111,11 @@ for (const width of [390, 430, 768, 1280, 1440]) {
         ),
         `${path} has horizontal overflow at ${width}`
       ).toBe(true);
+      if (name === "saved") {
+        const covers = page.locator(".saved-product-card .research-product-image");
+        await expect(covers).toHaveCount(2);
+        for (const cover of await covers.all()) expect((await cover.boundingBox())!.height).toBeGreaterThanOrEqual(140);
+      }
       const unlabeled = await page
         .locator("main button:visible")
         .evaluateAll(
@@ -125,11 +132,11 @@ for (const width of [390, 430, 768, 1280, 1440]) {
         await page.locator("main img").evaluateAll((images) => images.forEach((image) => { (image as HTMLImageElement).loading = "eager"; }));
         await page.waitForFunction(() => Array.from(document.querySelectorAll<HTMLImageElement>("main img")).every((image) => image.complete), null, { timeout: 30_000 });
         await page.screenshot({
-          path: `artifacts/frontend-refactor/${name}-${width}.png`,
+          path: `artifacts/workspace-studio/${name}-${width}.png`,
           fullPage: true,
         });
         if (width === 390 && ["product", "company", "saved", "portfolio", "send", "order-review", "admin-operations"].includes(name)) {
-          await page.screenshot({ path: `artifacts/frontend-refactor/${name}-390-viewport.png` });
+          await page.screenshot({ path: `artifacts/workspace-studio/${name}-390-viewport.png` });
         }
       }
       if (width < 820) {
@@ -149,7 +156,7 @@ for (const width of [390, 430, 768, 1280, 1440]) {
             ).toBeLessThanOrEqual(nav.y + 1);
         }
         if (width === 390 && ["product", "company", "saved", "portfolio", "send", "order-review", "admin-operations"].includes(name)) {
-          await page.screenshot({ path: `artifacts/frontend-refactor/${name}-390-bottom.png` });
+          await page.screenshot({ path: `artifacts/workspace-studio/${name}-390-bottom.png` });
         }
       }
     }
@@ -200,12 +207,14 @@ test("remaining workspaces pass automated WCAG checks", async ({ page, context, 
   test.skip(testInfo.project.name !== "chromium", "Explicit desktop and mobile coverage below");
   await context.addCookies([{ name: "shelf_session", value: token, url: baseURL! }]);
   await page.route("**/api/v1/issuer/reviewed", (route) => route.fulfill({ json: { data: { byCompany: {}, stale: [], unavailable: ["xStocks", "PreStocks"] } } }));
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const findings: unknown[] = [];
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [, path] of routes) {
       await page.goto(path);
-      await page.waitForTimeout(200);
+      await expect(page.locator("main h1")).toBeVisible();
+      await expect(page.locator("main .loading-feedback")).toHaveCount(0);
       await page.addScriptTag({ content: axe.source });
       const result = await page.evaluate(async () => {
         const engine = (window as Window & { axe: typeof import("axe-core") }).axe;
@@ -229,7 +238,7 @@ test("public entries and honest empty states have review screenshots", async ({ 
       await expect(page.locator("main h1")).toBeVisible();
       if (name === "saved-empty") await expect(page.getByRole("heading", { name: "No saved Products" })).toBeVisible();
       if (name === "share-expired") await expect(page.locator("main").getByRole("alert")).toContainText("unavailable");
-      await page.screenshot({ path: `artifacts/frontend-refactor/${name}-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `artifacts/workspace-studio/${name}-${width}.png`, fullPage: true });
     }
   }
 });

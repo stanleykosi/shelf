@@ -14,6 +14,8 @@ import { apiRequest, authenticationIsRequired } from "@/lib/api-client";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { ResearchJourney, JourneyHeading } from "@/components/research-journey";
 import { ArrowUpRight, ShieldCheck } from "@/components/studio-icons";
+import { PendingButton, LoadingStatus } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
 import { WorkspaceFrame } from "@/components/platform-composition";
 import {
   CtaLink,
@@ -164,7 +166,7 @@ export function AssistantScreen() {
   const [answer, setAnswer] = useState<ResearchAnswer | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
+  const setStatus = useNotification();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(true);
   const request = useRef<AbortController | null>(null);
@@ -203,7 +205,7 @@ export function AssistantScreen() {
     setBusy(true);
     setError(null);
     setAnswer(null);
-    setStatus("Preparing your response…");
+
     try {
       await apiRequest("consents", {
         method: "POST",
@@ -262,7 +264,7 @@ export function AssistantScreen() {
           </section> : <div className="assistant-start">
             <h2>{busy ? "Following your question." : <>An everyday question.<br /><span>A clearer perspective.</span></>}</h2>
             <p>{busy ? "Preparing a response. Verify its sources before relying on it." : "Explore the relationship between a product, the company behind it and a separate investment instrument."}</p>
-            {!busy ? <div className="assistant-prompts"><span>Start a line of research</span>{["How are brands and companies connected?", "How is an instrument different from a share?"].map((prompt) => <button className="ghost" key={prompt} onClick={() => { setQuestion(prompt); document.getElementById("assistant-question")?.focus(); }}>{prompt} <span aria-hidden="true">↗</span></button>)}</div> : null}
+            {!busy ? <div className="assistant-prompts"><span>Start a line of research</span>{["How are brands and companies connected?", "How is an instrument different from a share?"].map((prompt) => <button className="ghost" key={prompt} onClick={() => { setQuestion(prompt); document.getElementById("assistant-question")?.focus(); }}>{prompt} <ArrowUpRight size={16} aria-hidden="true" /></button>)}</div> : null}
           </div>}
           <p className="assistant-limitation">Responses can be incorrect. Verify the sources.<br />The Assistant cannot place orders or sign transactions.</p>
         </div>
@@ -272,10 +274,10 @@ export function AssistantScreen() {
           {context ? <div className="assistant-source-context"><span>Research context</span><strong>{context}</strong></div> : null}
           {answer?.sourceIds?.length ? <ul>{answer.sourceIds.map((id) => {
             const article = articles.find((item) => `article:${item.slug}` === id);
-            return <li key={id}>{article ? <Link href={`/learn/${article.slug}`}>{article.title} ↗</Link> : <span>{id} · Check this reference independently.</span>}</li>;
+            return <li key={id}>{article ? <Link href={`/learn/${article.slug}`}>{article.title} <ArrowUpRight size={14} aria-hidden="true" /></Link> : <span>{id} · Check this reference independently.</span>}</li>;
           })}</ul> : null}
           <p className="platform-label">Reviewed explainers</p>
-          {articles.slice(0, 3).map((article) => <Link className="assistant-source" href={`/learn/${article.slug}`} key={article.slug}><span>Learn</span><strong>{article.title}</strong><span aria-hidden="true">↗</span></Link>)}
+          {articles.slice(0, 3).map((article) => <Link className="assistant-source" href={`/learn/${article.slug}`} key={article.slug}><span>Learn</span><strong>{article.title}</strong><ArrowUpRight size={16} aria-hidden="true" /></Link>)}
           <details><summary>Allocation questions</summary><p>Allocation is a separate, editable planning step. It does not submit an order.</p><CtaLink id="C38" href="/invest/basket?source=ai" secondary>Open allocation planning</CtaLink></details>
           </details>
         </aside>
@@ -327,13 +329,13 @@ export function AssistantScreen() {
           </label>
           </div>
           <div className="actions">
-            <button
+            <PendingButton pending={busy} pendingLabel="Preparing response…"
               data-cta="C35"
               disabled={!signedIn || !consent || !question.trim() || busy}
               onClick={ask}
             >
-              {busy ? "Preparing response…" : "Send question"}
-            </button>
+              Send question
+            </PendingButton>
             {busy ? (
               <button
                 className="secondary"
@@ -371,9 +373,9 @@ export function AssistantScreen() {
             </p>
           ) : null}
           {signedIn === null && !error ? (
-            <p role="status">Checking account access…</p>
+            <LoadingStatus>Checking account access…</LoadingStatus>
           ) : null}
-          <p role="status">{status}</p>
+          {busy ? <LoadingStatus>Preparing your response…</LoadingStatus> : null}
           <ErrorMessage message={error} />
         </section>
     </WorkspaceFrame>

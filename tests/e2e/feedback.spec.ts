@@ -111,3 +111,26 @@ test("button labels remain readable without morph motion when reduced motion is 
   release();
   await expect(page.getByRole("button", { name: "Remove product from Saved", exact: true })).toBeEnabled();
 });
+
+test("navigation shows progress without shifting the link while its route is pending", async ({ page }, testInfo) => {
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => { release = resolve; });
+  await page.route((url) => url.pathname === "/saved", async (route) => {
+    await waiting;
+    await route.continue();
+  });
+  await page.goto("/assistant");
+  const navigation = page.getByRole("navigation", { name: testInfo.project.name === "mobile" ? "Mobile navigation" : "Primary navigation" });
+  const link = navigation.locator('a[href="/saved"]');
+  const initialWidth = (await link.boundingBox())!.width;
+  try {
+    await link.click();
+    await expect(link.getByRole("status", { name: "Loading page" })).toBeVisible();
+    expect((await link.boundingBox())!.width).toBeCloseTo(initialWidth, 0);
+  } finally {
+    release();
+  }
+  await expect(page).toHaveURL(/\/saved$/);
+  await expect(page.getByRole("heading", { name: "Saved research", exact: true })).toBeVisible();
+  await expect(link.getByRole("status")).toHaveCount(0);
+});

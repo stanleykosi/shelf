@@ -18,6 +18,8 @@ import {
   PageIntro,
   ResultMessage,
 } from "@/components/ui";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
+import { useNotification } from "@/components/notifications";
 import { ProductArtwork } from "@/components/discovery-patterns";
 import {
   companyResearchPath,
@@ -43,7 +45,7 @@ export function ShareScreen({ token }: { token?: string }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const setMessage = useNotification();
   const [authRequired, setAuthRequired] = useState(false);
   const [checkedAt] = useState(() => Date.now());
 
@@ -164,7 +166,7 @@ export function ShareScreen({ token }: { token?: string }) {
         </p>
       </PageIntro>
       {loading ? (
-        <p role="status">Loading {token ? "shared" : "saved"} research…</p>
+        <LoadingStatus page>{`Loading ${token ? "shared" : "saved"} research…`}</LoadingStatus>
       ) : null}
       <ErrorMessage message={error} />
       {error ? (
@@ -293,15 +295,15 @@ export function ShareScreen({ token }: { token?: string }) {
             ) : null}
             <div className="actions">
               {token ? (
-                <button
+                <PendingButton pending={busy} pendingLabel="Saving research…"
                   data-cta="C94"
                   disabled={busy || !selectedCount}
                   onClick={() => action(saveSelected)}
                 >
                   Save selected research
-                </button>
+                </PendingButton>
               ) : (
-                <button
+                <PendingButton pending={busy} pendingLabel="Creating snapshot…"
                   data-cta="C90"
                   disabled={busy || !selectedCount || !acknowledged}
                   onClick={() =>
@@ -327,12 +329,8 @@ export function ShareScreen({ token }: { token?: string }) {
                     })
                   }
                 >
-                  {busy
-                    ? "Creating snapshot…"
-                    : created
-                    ? "Create new snapshot"
-                    : "Create private link"}
-                </button>
+                  {created ? "Create new snapshot" : "Create private link"}
+                </PendingButton>
               )}
               <CtaLink id="share-saved" href="/saved" secondary>
                 View Saved
@@ -374,7 +372,7 @@ export function ShareScreen({ token }: { token?: string }) {
                 </button>
               </ResultMessage>
             ) : null}
-            {message ? <ResultMessage>{message}</ResultMessage> : null}
+
           </section>
           {!token && shares.length ? (
             <section className="research-section">

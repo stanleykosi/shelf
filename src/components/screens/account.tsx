@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useNotification } from "@/components/notifications";
+import { ShieldCheck, ArrowUpRight } from "@/components/studio-icons";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -67,8 +70,11 @@ export function SignInScreen({
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [signInMethod, setSignInMethod] = useState<"email" | "google">("email");
 
   async function signIn(method: "email" | "google") {
+    if (loading) return;
+    setSignInMethod(method);
     setLoading(true);
     setError(null);
     try {
@@ -109,14 +115,12 @@ export function SignInScreen({
             onChange={(event) => setEmail(event.target.value)}
           />
         </Field>
-        <button
+        <PendingButton pending={loading && signInMethod === "email"} pendingLabel="Connecting…"
           data-cta="C43"
           disabled={loading || !email.includes("@")}
           type="submit"
-        >
-          {loading ? "Connecting…" : "Continue with email"}
-        </button>
-        <button
+        >Continue with email</PendingButton>
+        <PendingButton pending={loading && signInMethod === "google"} pendingLabel="Connecting…"
           className="secondary"
           type="button"
           data-cta="C44"
@@ -124,7 +128,7 @@ export function SignInScreen({
           onClick={() => signIn("google")}
         >
           Continue with Google
-        </button>
+        </PendingButton>
         <CtaLink id="C45" href="/" secondary>
           Continue as guest
         </CtaLink>
@@ -132,7 +136,7 @@ export function SignInScreen({
           Get sign-in help
         </SupportAction>
         <ErrorMessage message={error} />
-      </form><aside className="research-section"><h2>One account. Private research.</h2><p>Your saved research is separate from investments. Signing in does not place an order or enable financial access.</p><p className="muted">Magic manages email and Google authentication and your linked Solana wallet. Shelf does not hold your signing keys.</p></aside></div>
+      </form><aside className="research-section"><div className="sign-in-emblem"><ShieldCheck size={32} aria-hidden="true" /></div><p className="eyebrow">Built around your privacy</p><h2>One account. Private research.</h2><p>Your saved research is separate from investments. Signing in does not place an order or enable financial access.</p><p className="muted">Magic manages email and Google authentication and your linked Solana wallet. Shelf does not hold your signing keys.</p></aside></div>
     </>
   );
 }
@@ -177,7 +181,7 @@ export function MagicCallbackScreen() {
             </Link>
           </>
         ) : (
-          <ResultMessage>Verifying your account…</ResultMessage>
+          <LoadingStatus>Verifying your account…</LoadingStatus>
         )}
       </Card>
     </>
@@ -248,9 +252,7 @@ export function WelcomeScreen() {
       </section><section className="research-section stack"><h2>Keep your discoveries</h2>
         <p>{guestIds.length ? `${guestIds.length} reviewed Products saved in this browser session.` : "No temporary discoveries to merge."}</p>
         {guestIds.length ? <ul>{guestIds.map((id) => <li key={id}>{productById(id)?.name}</li>)}</ul> : null}
-        <button className="secondary" data-cta="C48" disabled={!guestIds.length || merging || merged} onClick={mergeGuestShelf}>
-          {merging ? "Saving discoveries…" : merged ? "Discoveries saved" : "Save my discoveries"}
-        </button>
+        <PendingButton pending={merging} pendingLabel="Saving discoveries…" className="secondary" data-cta="C48" disabled={!guestIds.length || merging || merged} onClick={mergeGuestShelf}>{merged ? "Discoveries saved" : "Save my discoveries"}</PendingButton>
         <CtaLink id="C49" href="/" secondary>
           Skip for now
         </CtaLink>
@@ -325,9 +327,9 @@ export function EligibilityScreen() {
           />{" "}
           I confirm I am an adult.
         </label>
-        <button data-cta="C50" disabled={!country || !adult || checking} onClick={checkEligibility}>
-          {checking ? "Checking availability…" : "Check availability"}
-        </button>
+        <PendingButton pending={checking} pendingLabel="Checking availability…" data-cta="C50" disabled={!country || !adult || checking} onClick={checkEligibility}>
+          Check availability
+        </PendingButton>
         <ErrorMessage message={error} />
         {result ? (
           <ResultMessage>
@@ -345,6 +347,7 @@ export function EligibilityScreen() {
 }
 
 export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
+  const notify = useNotification();
   const [message, setMessage] = useState("");
   const [refreshPending, setRefreshPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -389,11 +392,9 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
     if (!wallet?.address) return;
     try {
       await navigator.clipboard.writeText(address);
-      setRefreshPending(false);
-      setMessage("Magic wallet address copied.");
+      notify("Magic wallet address copied.", "success");
     } catch {
-      setRefreshPending(false);
-      setMessage("Clipboard permission was blocked. Select and copy the address manually.");
+      notify("Clipboard permission was blocked. Select and copy the address manually.", "error");
     }
   }
 
@@ -457,7 +458,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
       <div className="research-split">
         <Card>
           <h2>USDC balance</h2>
-          {wallet ? <dl className="facts"><div><dt>Tracked balance</dt><dd>{formatRaw(wallet.cashRaw)} USDC</dd></div><div><dt>Reserved</dt><dd>{formatRaw(wallet.reservedRaw)} USDC</dd></div><div><dt>Spending status</dt><dd>{wallet.reconciliationRequiredAssets.length ? "Reconciliation required" : "Financial execution disabled"}</dd></div></dl> : <p role="status">{error ? "Balance unavailable. No amount is assumed." : "Loading wallet balance…"}</p>}
+          {wallet ? <dl className="facts"><div><dt>Tracked balance</dt><dd>{formatRaw(wallet.cashRaw)} USDC</dd></div><div><dt>Reserved</dt><dd>{formatRaw(wallet.reservedRaw)} USDC</dd></div><div><dt>Spending status</dt><dd>{wallet.reconciliationRequiredAssets.length ? "Reconciliation required" : "Financial execution disabled"}</dd></div></dl> : error ? <p role="status">Balance unavailable. No amount is assumed.</p> : <LoadingStatus>Loading wallet balance…</LoadingStatus>}
           <p className="muted">Tracked balances are not a live spending authorization. Deposits remain disabled.</p>
         </Card>
         <Card>
@@ -475,9 +476,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
         <CtaLink id="C52" href="/account/wallet/send" secondary>
           Send USDC
         </CtaLink>
-        <button className="secondary" data-cta="C53" disabled={refreshing || !wallet} onClick={refreshBalance}>
-          {refreshing ? "Refreshing…" : "Refresh balance"}
-        </button>
+        <PendingButton pending={refreshing} pendingLabel="Refreshing…" className="secondary" data-cta="C53" disabled={refreshing || !wallet} onClick={refreshBalance}>Refresh balance</PendingButton>
       </div>
       <section className="research-section"><h2>Assets received outside Shelf</h2><p>These assets were not bought through Shelf and are separate from Portfolio holdings.</p>
         {wallet?.externalInventory ? wallet.externalInventory.length ? <div className="research-rows">{wallet.externalInventory.map((holding) => <div className="research-row" key={holding.instrumentId}><div><h3>{holding.symbol}</h3><p>{formatRaw(holding.externalRaw, holding.decimals)} units · external balance</p><p className="hint">Instrument: {holding.instrumentId}</p></div><CtaLink id={`external-${holding.instrumentId}`} href={`/account/wallet/send?asset=${encodeURIComponent(holding.instrumentId)}&scope=external`} secondary>Review sending {holding.symbol}</CtaLink></div>)}</div> : <p className="muted">No supported external assets in the latest wallet summary.</p> : <p className="muted">External inventory unavailable. No balance is assumed.</p>}
@@ -501,7 +500,7 @@ export function WalletScreen({ deposit = false }: { deposit?: boolean }) {
 export function SettingsScreen({ supportContact }: { supportContact?: string }) {
   const router = useRouter();
   const [section, setSection] = useState<"Profile" | "Privacy" | "Security" | "Sessions">("Profile");
-  const [message, setMessage] = useState("");
+  const setMessage = useNotification();
   const [error, setError] = useState<string | null>(null);
   const [checkingSignature, setCheckingSignature] = useState(false);
   const [signingChallenge, setSigningChallenge] = useState<WalletSigningChallenge>();
@@ -642,17 +641,17 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
       <header className="settings-masthead"><h1>Account</h1><p>Your identity. Your controls.</p></header>
       <div className="settings-body">
       <nav className="settings-navigation" aria-label="Account categories">
-        {(["Profile", "Privacy", "Security", "Sessions"] as const).map((item) => <button key={item} aria-pressed={section === item} disabled={pendingAction || checkingSignature || Boolean(signingChallenge)} onClick={() => setSection(item)}>{item}<span aria-hidden="true">↗</span></button>)}
-        <Link href="/account/wallet">Wallet <span aria-hidden="true">↗</span></Link>
+        {(["Profile", "Privacy", "Security", "Sessions"] as const).map((item) => <button key={item} aria-pressed={section === item} disabled={pendingAction || checkingSignature || Boolean(signingChallenge)} onClick={() => setSection(item)}>{item}<ArrowUpRight size={16} aria-hidden="true" /></button>)}
+        <Link href="/account/wallet">Wallet <ArrowUpRight size={16} aria-hidden="true" /></Link>
       </nav>
       <div className="settings-content">
       <div hidden={section !== "Profile"}>
         <Card>
           <p className="platform-label">Your Shelf identity</p>
           <h2>Profile</h2>
-          <p>
-            {account ? `Magic identity · ${account.email ?? "Email unavailable"}` : error ? "Account details unavailable" : "Loading account details…"}
-          </p>
+          {account ? <p>Magic identity · {account.email ?? "Email unavailable"}</p>
+            : error ? <p>Account details unavailable</p>
+            : <LoadingStatus>Loading account details…</LoadingStatus>}
           {account?.walletAddress ? <div className="settings-wallet-identity"><span>Linked Solana wallet</span><p className="breakable-code">{account.walletAddress}</p></div> : null}
           <CtaLink id="account-wallet" href="/account/wallet" secondary>Manage Wallet</CtaLink>
           {account?.ownerBindingId ? (
@@ -712,9 +711,7 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
                   will not be broadcast, and cannot move funds.
                 </p>
                 <div className="actions">
-                  <button disabled={checkingSignature} onClick={approveWalletSignatureCheck}>
-                    {checkingSignature ? "Signing…" : "Approve and sign"}
-                  </button>
+                  <PendingButton pending={checkingSignature} pendingLabel="Signing…" disabled={checkingSignature} onClick={approveWalletSignatureCheck}>Approve and sign</PendingButton>
                   <button
                     className="secondary"
                     disabled={checkingSignature}
@@ -725,9 +722,7 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
                 </div>
               </div>
             ) : (
-              <button disabled={checkingSignature} onClick={prepareWalletSignatureCheck}>
-                {checkingSignature ? "Preparing…" : "Check wallet signing"}
-              </button>
+              <PendingButton pending={checkingSignature} pendingLabel="Preparing…" disabled={checkingSignature} onClick={prepareWalletSignatureCheck}>Check wallet signing</PendingButton>
             )}
           </Card>
         ) : <p>Wallet signing checks require your linked Magic identity. {account ? "This account does not have an available signing check." : "Account details are still loading."}</p>}
@@ -743,8 +738,8 @@ export function SettingsScreen({ supportContact }: { supportContact?: string }) 
           Get support
         </SupportAction>
       </div></section>
-      {pendingAction ? <p role="status">Completing account action…</p> : null}
-      {message ? <ResultMessage>{message}</ResultMessage> : null}
+      {pendingAction ? <LoadingStatus>Completing account action…</LoadingStatus> : null}
+
       <ErrorMessage message={error} />
       <footer className="settings-footer"><span>Shelf data is private by default.</span><p>Standard Solana activity remains public. Your provider-managed wallet is independent of your Shelf account.</p></footer>
       </div>

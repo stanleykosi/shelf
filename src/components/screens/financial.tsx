@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowUpRight, WalletCards } from "@/components/studio-icons";
+import { LoadingStatus, PendingButton } from "@/components/loading-feedback";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { companyById, companyBySlug } from "@/data/catalog";
@@ -85,7 +87,7 @@ export function InvestmentScreen({ companySlug }: { companySlug: string }) {
         </Field>
         <p>Review shows a fresh quote, fees and minimum output. You decide whether to approve.</p>
         <div className="actions">
-          <button data-cta="C57" disabled={busy || !instrument.capabilities.buy} onClick={review}>{busy ? "Preparing review…" : "Review investment"}</button>
+          <PendingButton pending={busy} pendingLabel="Preparing review…" data-cta="C57" disabled={busy || !instrument.capabilities.buy} onClick={review}>Review investment</PendingButton>
           <CtaLink id="C58" href="/account/wallet/deposit" secondary>Deposit USDC</CtaLink>
         </div>
         {!instrument.capabilities.buy ? <p role="status">Purchases are currently unavailable for this instrument.</p> : null}
@@ -233,7 +235,7 @@ export function BasketScreen({ market }: { market?: string }) {
             </button>
           ))}
         </div>
-        {loading ? <p role="status">Loading saved company instruments…</p> : null}
+        {loading ? <LoadingStatus>Loading saved company instruments…</LoadingStatus> : null}
         {!loading && !eligibleCompanies.length ? <CtaLink id="basket-discover" href="/discover" secondary>
           Find an issuer asset
         </CtaLink> : null}
@@ -284,10 +286,8 @@ export function BasketScreen({ market }: { market?: string }) {
           <button className="secondary" data-cta="C59" onClick={splitEqually}>
             Split equally
           </button>
-          <button data-cta="C61" disabled={busy || !allocations.some((item) => item.selected) ||
-            allocations.filter((item) => item.selected).length > 5} onClick={createBasket}>
-            {busy ? "Preparing review…" : "Review basket"}
-          </button>
+          <PendingButton pending={busy} pendingLabel="Preparing review…" data-cta="C61" disabled={busy || !allocations.some((item) => item.selected) ||
+            allocations.filter((item) => item.selected).length > 5} onClick={createBasket}>Review basket</PendingButton>
           <button className="secondary" data-cta="C62"
             disabled={!allocations.some((item) => item.selected) ||
               allocations.filter((item) => item.selected).length > 5}
@@ -342,7 +342,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
         </p>
       </PageIntro>
       <Card className="stack">
-        {holding ? <><h2>{holding.symbol}</h2><p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · tracked holding</p><p>Available: {formatRaw(BigInt(holding.rawAmount) - BigInt(holding.reservedRaw), holding.decimals)} units. Reserved units cannot be sold.</p></> : <p role="status">{error ? "Holding could not be loaded." : "Loading your holding…"}</p>}
+        {holding ? <><h2>{holding.symbol}</h2><p>{companyById(holding.companyId)?.name ?? "Issuer instrument"} · tracked holding</p><p>Available: {formatRaw(BigInt(holding.rawAmount) - BigInt(holding.reservedRaw), holding.decimals)} units. Reserved units cannot be sold.</p></> : error ? <p role="status">Holding could not be loaded.</p> : <LoadingStatus>Loading your holding…</LoadingStatus>}
         <Field label="Displayed token quantity" htmlFor="sell-quantity">
           <input
             id="sell-quantity"
@@ -355,9 +355,7 @@ export function SellScreen({ instrumentId }: { instrumentId: string }) {
           <button className="secondary" data-cta="C80" disabled={!holding || busy} onClick={() => createSale(true)}>
             Sell all
           </button>
-          <button data-cta="C81" disabled={!holding || busy} onClick={() => createSale(false)}>
-            {busy ? "Preparing review…" : "Review sale"}
-          </button>
+          <PendingButton pending={busy} pendingLabel="Preparing review…" data-cta="C81" disabled={!holding || busy} onClick={() => createSale(false)}>Review sale</PendingButton>
         </div>
         <ErrorMessage message={error} />
         <CtaLink id="sell-cancel" href={`/portfolio/${instrumentId}`} secondary>Return to holding</CtaLink>
@@ -466,9 +464,7 @@ export function TransferScreen() {
           <button className="secondary" data-cta="C82" disabled={!recipient.trim() || !amount || busy} onClick={() => setReviewing(true)}>
             Review transfer
           </button>
-          <button data-cta="C83" disabled={!reviewing || busy} onClick={approveTransfer}>
-            {busy ? "Preparing review…" : "Continue to order review"}
-          </button>
+          <PendingButton pending={busy} pendingLabel="Preparing review…" data-cta="C83" disabled={!reviewing || busy} onClick={approveTransfer}>Continue to order review</PendingButton>
           <button className="ghost" data-cta="C84" onClick={() => setReviewing(false)}>
             Edit recipient
           </button>
@@ -618,7 +614,7 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
 
   if (!order && error) return <Recovery title="Order unavailable" error={error} />;
   if (!order)
-    return <EmptyState title="Loading order">The private order is being retrieved.</EmptyState>;
+    return <LoadingStatus page>Retrieving the private order…</LoadingStatus>;
   const actionId = order.type === "sell" ? "C64" : "C63";
   const activeLeg = order.legs.find((leg) => leg.status !== "finalized") ?? order.legs[0];
   const activeCompany = issuerCompany ??
@@ -689,23 +685,17 @@ export function OrderReviewScreen({ orderId }: { orderId: string }) {
         )}
         <div className="actions">
           {!quote || expired ? (
-            <button data-cta="C67" disabled={quoting} onClick={loadQuote}>
-              {quoting ? "Checking quote…" : "Get fresh quote"}
-            </button>
+            <PendingButton pending={quoting} pendingLabel="Checking quote…" data-cta="C67" disabled={quoting} onClick={loadQuote}>Get fresh quote</PendingButton>
           ) : (
-            <button
+            <PendingButton pending={approving} pendingLabel="Waiting for wallet…"
               data-cta={actionId}
               disabled={!quote.executionAvailable || approving || expired}
               onClick={approveOrder}
-            >
-              {approving
-                ? "Waiting for wallet…"
-                : order.type === "sell"
+            >{order.type === "sell"
                   ? "Approve sale"
                   : order.type === "transfer"
                     ? "Approve transfer"
-                    : "Approve purchase"}
-            </button>
+                    : "Approve purchase"}</PendingButton>
           )}
           <button className="secondary" data-cta="C65" onClick={() => history.back()}>
             Edit amount
@@ -750,9 +740,7 @@ export function OrderStatusScreen({ orderId }: { orderId: string }) {
   if (!order && error) return <Recovery title="Order status unavailable" error={error} />;
   if (!order)
     return (
-      <EmptyState title="Checking transaction outcome">
-        Shelf is loading the persisted order.
-      </EmptyState>
+      <LoadingStatus page>Checking the persisted transaction outcome…</LoadingStatus>
     );
   const nextLeg = order.legs.find((leg) => leg.status !== "finalized" && leg.status !== "cancelled");
   const canReviewNext = nextLeg && ["draft", "quoted"].includes(nextLeg.status);
@@ -840,16 +828,16 @@ export function PortfolioScreen() {
     }).catch((reason) => setError(messageFrom(reason))).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <EmptyState title="Loading your portfolio">Retrieving Shelf-origin holdings and available cash.</EmptyState>;
+  if (loading) return <LoadingStatus page>Retrieving your holdings and wallet cash…</LoadingStatus>;
   if (error) return <Recovery title="Portfolio unavailable" error={error} />;
 
   return (
     <div className="platform-canvas portfolio-canvas">
       <header className="portfolio-masthead">
         <div><p className="platform-label">Shelf-origin portfolio</p><h1>Your Shelf investments</h1><p>Only finalized acquisitions made through Shelf.</p></div>
-        <div className="portfolio-cash"><span>Wallet cash · separate from holdings</span><p><strong>{formatRaw(cashRaw)}</strong> USDC</p><CtaLink id="portfolio-wallet" href="/account/wallet" secondary>Manage cash in Wallet</CtaLink></div>
+        <div className="portfolio-cash"><span><WalletCards size={17} aria-hidden="true" /> Wallet cash · separate from holdings</span><p><strong>{formatRaw(cashRaw)}</strong> USDC</p><CtaLink id="portfolio-wallet" href="/account/wallet" secondary>Manage cash in Wallet</CtaLink></div>
       </header>
-      <nav className="portfolio-navigation" aria-label="Portfolio views"><span aria-current="page">Holdings <span>{holdings.length}</span></span><Link data-cta="C74" href="/portfolio/activity">View history ↗</Link></nav>
+      <nav className="portfolio-navigation" aria-label="Portfolio views"><span aria-current="page">Holdings <span>{holdings.length}</span></span><Link data-cta="C74" href="/portfolio/activity">View history <ArrowUpRight size={16} aria-hidden="true" /></Link></nav>
       <section className="portfolio-positions" aria-label="Your holdings">
         {holdings.length ? (
           <div>
@@ -865,7 +853,7 @@ export function PortfolioScreen() {
                 </span>
                 <h2>{holding.symbol}</h2>
                 <p>{companyById(holding.companyId)?.name ?? "Issuer instrument"}</p></div>
-                <div className="portfolio-position-facts"><p className="portfolio-quantity"><strong>{formatRaw(holding.rawAmount, holding.decimals)}</strong><span>displayed units</span></p><p className="portfolio-cost"><span>Acquisition cost</span><strong>{formatRaw(holding.totalCostUsdcRaw)} USDC</strong></p><Link className="button" data-cta="C73" href={`/portfolio/${holding.instrumentId}`}>View holding ↗</Link></div>
+                <div className="portfolio-position-facts"><p className="portfolio-quantity"><strong>{formatRaw(holding.rawAmount, holding.decimals)}</strong><span>displayed units</span></p><p className="portfolio-cost"><span>Acquisition cost</span><strong>{formatRaw(holding.totalCostUsdcRaw)} USDC</strong></p><Link className="button" data-cta="C73" href={`/portfolio/${holding.instrumentId}`}>View holding <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
               </article>
             ))}
           </div>
@@ -883,7 +871,7 @@ export function PortfolioScreen() {
           </EmptyState>
         )}
       </section>
-      <footer className="portfolio-context"><p>Current market valuation is unavailable; acquisition cost is not today’s value.</p><p>Externally received assets stay in <Link href="/account/wallet">Wallet ↗</Link>, not this Portfolio.</p></footer>
+      <footer className="portfolio-context"><p>Current market valuation is unavailable; acquisition cost is not today’s value.</p><p>Externally received assets stay in <Link href="/account/wallet">Wallet <ArrowUpRight size={14} aria-hidden="true" /></Link>, not this Portfolio.</p></footer>
     </div>
   );
 }
@@ -911,7 +899,7 @@ export function HoldingScreen({ instrumentId }: { instrumentId: string }) {
     );
   if (!holding)
     return (
-      <EmptyState title="Loading holding">Shelf is retrieving the current tracked position.</EmptyState>
+      <LoadingStatus page>Retrieving the current tracked position…</LoadingStatus>
     );
   return (
     <>
@@ -1035,15 +1023,15 @@ export function HistoryScreen() {
       </div>
       <ErrorMessage message={error} />
       <div className="actions">
-        <button data-cta="C86" disabled={exporting || loading} onClick={() => download("csv")}>
+        <PendingButton pending={exporting} pendingLabel="Preparing export…" data-cta="C86" disabled={exporting || loading} onClick={() => download("csv")}>
           Download CSV
-        </button>
+        </PendingButton>
         <button className="secondary" data-cta="C87" disabled={exporting || loading} onClick={() => download("json")}>
           Download JSON
         </button>
       </div>
       <section className="section">
-        {loading ? <p role="status">Loading activity…</p> : error && !records.length ? <Recovery title="Activity unavailable" error={error} /> : visible.length ? (
+        {loading ? <LoadingStatus>Loading activity…</LoadingStatus> : error && !records.length ? <Recovery title="Activity unavailable" error={error} /> : visible.length ? (
           <div className="table-wrap">
             <table className="research-table">
               <caption>{visible.length} activity records · exact raw amounts</caption>
@@ -1100,9 +1088,7 @@ export function RecordScreen({
   if (error) return <Recovery title="Activity record unavailable" error={error} href="/portfolio/activity" />;
   if (!record)
     return (
-      <EmptyState title="Loading record">
-        Shelf is retrieving the immutable activity facts.
-      </EmptyState>
+      <LoadingStatus page>Retrieving the recorded activity facts…</LoadingStatus>
     );
   return (
     <>

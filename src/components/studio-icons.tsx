@@ -1,6 +1,12 @@
 import type { ComponentType, SVGProps } from "react";
 import {
   AdjustmentsHorizontalIcon,
+  PauseIcon,
+  PlayIcon,
+  SparklesIcon,
+  ShareIcon,
+  DocumentDuplicateIcon,
+  ClockIcon,
   ArrowDownIcon,
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -63,3 +69,10 @@ export const Bookmark = sizedIcon(BookmarkIcon);
 export const Compass = sizedIcon(GlobeAltIcon);
 export const WalletCards = sizedIcon(WalletIcon);
 export const CircleUserRound = sizedIcon(UserCircleIcon);
+
+export const Pause = sizedIcon(PauseIcon);
+export const Play = sizedIcon(PlayIcon);
+export const Sparkles = sizedIcon(SparklesIcon);
+export const Share = sizedIcon(ShareIcon);
+export const Copy = sizedIcon(DocumentDuplicateIcon);
+export const Clock = sizedIcon(ClockIcon);

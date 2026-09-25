@@ -1,9 +1,9 @@
 # Shelf Product Design & Experience Guide
 
-Status: Discover/Scan design extended to their connected research journey
+Status: Discover/Scan studio design extended across the application
 Last updated: 2026-09-25
-Current refactor phase: Raleway/Heroicons Discover and Scan styling extends to scan results/correction, Product, Brand, Company, issuer detail/purchase entry and contextual learning. See docs/DISCOVERY_JOURNEY_REDESIGN.md and artifacts/discovery-journey/README.md for validation and captures. Saved, Assistant and subsequent financial workspaces retain their existing treatment.
-Latest refinement: Product pages omit the relationship explorer and retain expandable source evidence. Discover/Scan action feedback uses graphite-and-mint Sonner toasts and Torph text morphs for shared button/loading states; see docs/FEEDBACK_REFINEMENT.md.
+Current refactor phase: Raleway/Heroicons, paper/graphite/mint surfaces, Torph action/loading text and themed Sonner notifications extend through Saved, sharing, Assistant, Account, onboarding, Wallet, Portfolio, transaction reviews and owner workspaces. Home retains its accepted composition with the same font/icon family. See docs/WORKSPACE_STUDIO_REDESIGN.md for scope and validation.
+Latest refinement: Product pages omit the relationship explorer and retain expandable source evidence. Persistent financial outcomes, consent and review requirements remain in context; transient confirmations use toasts.
 Source-of-truth status: authoritative for the frontend/product-experience refactor, subordinate to approved financial, privacy, security, and provider contracts in `docs/product/`
 Scope: product experience, information architecture, routes, journeys, page responsibilities, interaction behavior, and visual direction. This is not a design system.
 

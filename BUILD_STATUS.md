@@ -2,6 +2,36 @@
 
 Updated: 2026-09-25
 
+## Remaining workspaces — implemented and verified locally
+
+The user authorized extending the accepted Discover/Scan design to the remaining pages.
+Added route-scoped Raleway/Heroicons paper/graphite/mint styling and context navigation, visual
+Saved collections, calmer Portfolio rows and wallet summary, Account controls, Assistant,
+sharing, onboarding, financial forms and owner workspaces. Shared Torph loading feedback and
+transient confirmations now cover these flows. Financial outcomes, share URLs and review gates
+persist. Home retains its composition with the shared type and icon family.
+
+Checklist: `docs/WORKSPACE_STUDIO_REDESIGN.md`. Main files: `src/app/workspace-studio.css`,
+`src/components/workspace-navigation.tsx` and the affected screens. Captures and visual review:
+`artifacts/workspace-studio/README.md`. The isolated QA database on port 55439 uses synthetic
+records; no real accounts or money were used.
+
+Lint, strict TypeScript, production build and all 120 unit tests pass. Browser API shims let
+jsdom test existing guards with reduced motion. The broad browser run passed 33 tests, skipped
+seven redundant matrices, and found two redirect-status failures caused by the existing global
+streaming loader. Removing that boundary and using Link pending indicators restores exact
+redirect/404 responses while retaining page-level loaders. Both desktop/mobile route contract
+rechecks pass. The final targeted run passed 25 tests with three intentional skips and no
+failures, covering navigation progress, feedback, Home, Account, Assistant, HTTP contracts and
+the full accessibility sweep. Responsive verification covers 27 routes at five widths (135 route views), with
+54 automated WCAG audits and reviewed desktop/mobile captures. Saved image sizing and Assistant
+prompt contrast were corrected during review. Existing optional Magic native-module build
+warnings remain nonfatal.
+
+The final preview is `http://127.0.0.1:3102` with paid provider credentials and money flags disabled.
+No paid inference, external deployment, provider activation or real-money action was performed.
+Exact next task: user review of the remaining workspace design and screenshot gallery.
+
 ## Connected Discover and Scan pages — implemented and verified locally
 
 The latest request extends the accepted Discover/Scan treatment to scan results and correction,

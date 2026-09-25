@@ -8,6 +8,7 @@ import "./platform-composition.css";
 import "./discovery-studio.css";
 import "./research-journey.css";
 import "./feedback.css";
+import "./workspace-studio.css";
 import { Notifications } from "@/components/notifications";
 import { AppShell } from "@/components/app-shell";
 import { hasAuthenticatedSession } from "@/lib/authentication";

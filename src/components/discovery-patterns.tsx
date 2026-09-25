@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useState } from "react";
-import { ArrowRight, Check, Search } from "lucide-react";
+import { ArrowRight, Check, Search } from "@/components/studio-icons";
 import { companyById, products, sources } from "@/data/catalog";
 import type { Company, Product } from "@/domain/types";
 import { useReviewedIssuerLinks } from "@/components/use-reviewed-issuer-links";

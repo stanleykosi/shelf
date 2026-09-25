@@ -17,7 +17,8 @@ notifications, button loading and general loading feedback.
   `LoadingStatus` uses the same text treatment and a small CSS spinner; status announcements
   are separate from the decorative morph so letter-level changes do not reach screen readers.
 - Search/refresh, research saves/reports, issuer saving/purchase review, scan image preparation,
-  camera permission and recognition have progress feedback. Root `loading.tsx` covers navigation.
+  camera permission and recognition have progress feedback. Navigation links use pending indicators;
+  route guards run before streaming so redirects and missing routes retain their HTTP status.
 - Scanner controls appear after their client handlers attach so early file selections are not lost.
 - Reduced motion replaces rotating spinners with a static dotted indicator and retained status text.
 - Toasts use graphite surfaces, paper text, mint Heroicons, Raleway, subtle borders and a

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUpRight, Check, ChevronRight, Pause, Play, ScanLine, Search } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check, ChevronRight, Pause, Play, ScanLine, Search } from "@/components/studio-icons";
 import { articles, companies, companyById, productById, products } from "@/data/catalog";
 import { ProductArtwork, ResearchTable } from "@/components/discovery-patterns";
 import { CapitalRelationship } from "@/components/capital-relationship";

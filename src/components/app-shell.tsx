@@ -3,8 +3,10 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bookmark, CircleUserRound, Compass, ScanLine, Search, WalletCards } from "lucide-react";
+import { Bookmark, CircleUserRound, Compass, ScanLine, Search, WalletCards } from "@/components/studio-icons";
 import { Bookmark as StudioBookmark, CircleUserRound as StudioAccount, Compass as StudioCompass, ScanLine as StudioScan, Search as StudioSearch, WalletCards as StudioWallet } from "@/components/studio-icons";
+import { NavigationProgress } from "@/components/loading-feedback";
+import { WorkspaceNavigation, WorkspaceFooter } from "@/components/workspace-navigation";
 import { activePrimarySection, type PrimarySection } from "@/lib/routes";
 
 const primaryNavigation: Array<{ href: string; label: string; section: PrimarySection; icon: typeof Compass }> = [
@@ -37,7 +39,7 @@ export function AppHeader({ activeSection, environment, signedIn, conceptTwo = f
       <div className="app-header-inner">
         <Link className="shelf-wordmark" href={conceptTwo ? "/?concept=2" : "/"} aria-label="Shelf home"><ShelfMark /><span>Shelf</span></Link>
         <nav className="app-primary-nav" aria-label="Primary navigation">
-          {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}>{label}</Link>)}
+          {primaryNavigation.map(({ href, label, section }) => <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}>{label}<NavigationProgress /></Link>)}
         </nav>
         <div className="app-header-actions">
           <Link className="header-scan" href="/scan">{studioPage ? <StudioScan size={16} aria-hidden="true" /> : <ScanLine size={16} aria-hidden="true" />}<span>Scan</span></Link>
@@ -55,7 +57,7 @@ export function MobileNavigation({ activeSection, conceptTwo = false, studioPage
     <nav className="mobile-navigation" aria-label="Mobile navigation">
       {mobileNavigation.map(({ href, label, section, icon: Icon }) => {
         const NavigationIcon = studioPage ? studioNavigationIcons[section] : Icon;
-        return <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}><NavigationIcon size={19} aria-hidden="true" /><span>{label}</span></Link>;
+        return <Link aria-current={activeSection === section ? "page" : undefined} className={activeSection === section ? "active" : ""} href={(conceptTwo && section === "discover" ? href + "?concept=2" : href) as Route} key={href}><NavigationIcon size={19} aria-hidden="true" /><span>{label}</span><NavigationProgress /></Link>;
       })}
     </nav>
   );
@@ -70,7 +72,8 @@ export function AppShell({ children, signedIn, environment }: { children: React.
   const activeSection = activePrimarySection(pathname);
   const researchJourney = pathname === "/scan/results" || pathname === "/learn" ||
     ["/products/", "/brands/", "/companies/", "/assets/", "/learn/"].some((prefix) => pathname.startsWith(prefix));
-  const studioPage = pathname === "/discover" || pathname === "/scan" || researchJourney;
+  const workspacePage = !comparisonPage && pathname !== "/scan" && !researchJourney;
+  const studioPage = true;
   function comparisonHref(concept: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (concept === "2") params.set("concept", "2");
@@ -78,7 +81,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
     return (pathname + (params.size ? "?" + params.toString() : "")) as Route;
   }
   return (
-    <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "") + (researchJourney ? " journey-shell" : "")}>
+    <div className={"application-shell" + (conceptTwo ? " concept-two-shell" : "") + (researchJourney ? " journey-shell" : "") + (workspacePage ? " workspace-shell" : "")}>
       {comparisonPage && searchParams.has("concept") ? <nav className="concept-comparison" aria-label="Design comparison">
         <span>Design study</span>
         {/* A full navigation isolates the historical studies from pending Discover URL updates. */}
@@ -86,7 +89,7 @@ export function AppShell({ children, signedIn, environment }: { children: React.
         <a href={comparisonHref("2")} aria-current={conceptTwo ? "page" : undefined}>02 <span>Concept 2</span></a>
       </nav> : null}
       <AppHeader activeSection={activeSection} environment={environment} signedIn={signedIn} conceptTwo={conceptTwo} studioPage={studioPage} />
-      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")}>{children}</main>
+      <main className={"application-main" + (researchWorkspace ? " research-workspace" : "")} data-workspace={workspacePage ? pathname.split("/")[1] : undefined}>{workspacePage ? <WorkspaceNavigation pathname={pathname} /> : null}{children}{workspacePage ? <WorkspaceFooter /> : null}</main>
       <MobileNavigation activeSection={activeSection} conceptTwo={conceptTwo} studioPage={studioPage} />
     </div>
   );
