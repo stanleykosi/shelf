@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shelf — identity study</title>
+<style>
+@font-face {
+  font-family:Raleway;
+  src:url('./raleway.ttf') format('truetype');
+  font-weight:100 900;
+  font-display:swap
+}
+*{box-sizing:border-box}html,body{margin:0}body{font-family:Raleway,Arial,sans-serif;color:#111715}svg{display:block}h1,h2,p{margin:0} body {
+  background:#f5f5ef
+}
+a {
+  color:inherit;
+  text-underline-offset:4px
+}
+a:focus-visible {
+  outline:3px solid #287e50;
+  outline-offset:5px
+}
+header,main,footer {
+  max-width:1400px;
+  margin:auto;
+  padding:40px 60px
+}
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid #d5dcd2
+}
+header img {
+  width:114px
+}
+header span,.label {
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em
+}
+.intro {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:40px;
+  margin:10px 0 38px
+}
+.intro h1 {
+  font-size:54px;
+  line-height:1.06;
+  letter-spacing:-2.5px;
+  font-weight:500
+}
+.intro p {
+  max-width:405px;
+  font-size:15px;
+  line-height:1.7;
+  color:#496150
+}
+.grid {
+  display:grid;
+  grid-template-columns:1.65fr 1fr;
+  gap:16px
+}
+.panel {
+  min-height:285px;
+  padding:30px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  overflow:hidden
+}
+.dark {
+  background:#111715;
+  color:#f5f5ef
+}
+.mint {
+  background:#b6efd2
+}
+.forest {
+  background:#254b39;
+  color:#f5f5ef
+}
+.paper {
+  background:#e7ebdf
+}
+.lockup {
+  width:70%;
+  align-self:center;
+  margin:35px 0
+}
+.symbol {
+  width:140px;
+  align-self:center
+}
+.caption {
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  font-size:11px;
+  color:inherit
+}
+.caption a {
+  text-decoration-thickness:1px
+}
+.samples {
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:30px;
+  margin:auto
+}
+.sample {
+  text-align:center;
+  font-size:10px
+}
+.sample img {
+  display:block;
+  margin:0 auto 14px
+}
+.palette {
+  display:flex;
+  gap:3px;
+  height:85px;
+  margin:30px 0
+}
+.swatch {
+  flex:1;
+  display:flex;
+  align-items:end;
+  padding:12px;
+  font:10px Arial,sans-serif
+}
+.share {
+  padding:0;
+  min-height:0;
+  background:#111715
+}
+.share img {
+  width:100%;
+  height:auto;
+  display:block
+}
+.thumbnails {
+  display:grid;
+  grid-template-columns:1.65fr 1fr;
+  gap:16px;
+  margin-top:16px
+}
+.thumbnails .panel {
+  min-height:0
+}
+.type-title {
+  font-size:38px;
+  line-height:1.14;
+  font-weight:500;
+  letter-spacing:-1.5px;
+  margin:30px 0
+}
+.type-copy {
+  font-size:13px;
+  line-height:1.65;
+  max-width:330px
+}
+footer {
+  padding-top:15px;
+  font-size:12px;
+  color:#496150;
+  line-height:1.8
+}
+.assets {
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+  margin-top:18px
+}
+.note {
+  margin-top:14px
+}
+ @media(max-width:1100px)  {
+   header,main,footer  {
+   padding:24px 
+}
+ .intro  {
+   display:block 
+}
+ .intro h1  {
+   font-size:40px;
+   margin-bottom:20px 
+}
+ .grid,.thumbnails  {
+   grid-template-columns:1fr 
+}
+ .panel  {
+   min-height:250px 
+}
+ .lockup  {
+   width:80% 
+}
+ .intro p  {
+   font-size:14px 
+}
+ .palette  {
+   height:auto;
+   display:grid;
+   grid-template-columns:repeat(3,minmax(0,1fr))
+}
+ .swatch  {
+   min-height:54px;
+   padding:8px;
+   font-size:9px 
+}
+ .samples  {
+   gap:16px;
+   flex-wrap:wrap
+}
+ 
+}
+
+</style>
+</head>
+<body>
+<header>
+<img src="shelf-logo-dark.svg" alt="Shelf">
+<span>Identity study · 01</span>
+</header>
+<main>
+<section class="intro">
+<h1>A place for<br>your discoveries.</h1>
+<p>An S built from open shelves. A simple home for familiar products, the companies behind them, and the things you want to understand.</p>
+</section>
+<div class="grid">
+<section class="panel dark">
+<span class="label">01 / Primary signature</span>
+<img class="lockup" src="shelf-logo-light.svg" alt="Shelf logo in mint and paper">
+<div class="caption">
+<span>Space to see the connection.</span>
+<a href="shelf-logo-light.svg" download>Download SVG</a>
+</div>
+</section>
+<section class="panel mint">
+<span class="label">02 / The shelf monogram</span>
+<img class="symbol" src="shelf-symbol-dark.svg" alt="An S made of three shelves">
+<div class="caption">
+<span>One shape. Every scale.</span>
+<a href="shelf-symbol-dark.svg" download>Download SVG</a>
+</div>
+</section>
+<section class="panel paper">
+<span class="label">03 / Palette & typography</span>
+<p class="type-title">Familiar products.<br>A wider perspective.</p>
+<div class="palette"><div class="swatch" style="background:#111715;color:#f5f5ef">#111715</div><div class="swatch" style="background:#b6efd2;color:#111715">#B6EFD2</div><div class="swatch" style="background:#f5f5ef;color:#111715">#F5F5EF</div><div class="swatch" style="background:#254b39;color:#f5f5ef">#254B39</div><div class="swatch" style="background:#b6c7bb;color:#111715">#B6C7BB</div></div>
+<div class="caption">
+<span>Raleway / Regular · Medium · Semibold</span>
+<a href="shelf-logo-dark.svg" download>Dark logo</a>
+</div>
+</section>
+<section class="panel forest">
+<span class="label">04 / Built for small spaces</span>
+<div class="samples"><div class="sample">
+<img src="shelf-app-icon.svg" alt="Shelf at 16 pixels" width="16" height="16">16px</div><div class="sample">
+<img src="shelf-app-icon.svg" alt="Shelf at 32 pixels" width="32" height="32">32px</div><div class="sample">
+<img src="shelf-app-icon.svg" alt="Shelf at 48 pixels" width="48" height="48">48px</div><div class="sample">
+<img src="shelf-app-icon.svg" alt="Shelf at 96 pixels" width="96" height="96">96px</div></div>
+<div class="caption">
+<a href="favicon.ico" download>Favicon</a>
+<a href="apple-touch-icon.png" download>Apple icon</a>
+<a href="avatar-512.png" download>Avatar</a>
+</div>
+</section>
+</div>
+<div class="thumbnails">
+<section class="share">
+<a href="share-1200x630.png" download aria-label="Download Shelf link preview">
+<img src="share-1200x630.png" alt="Shelf. The things you know. The companies behind them.">
+</a>
+</section>
+<section class="panel mint">
+<span class="label">05 / The story we tell</span>
+<p class="type-title">Start with<br>what you know.</p>
+<p class="type-copy">Curious, clear and considered. Familiar products invite discovery. The person stays in control of the next step.</p>
+<div class="caption">
+<span>Recognition → understanding → choice</span>
+</div>
+</section>
+</div>
+</main>
+<footer>
+<strong>First direction for review.</strong> Vector logos have outlined lettering. Every icon and image uses the same source geometry.<div class="assets">
+<a href="share-1200x630.png" download>Link preview · 1200 × 630</a>
+<a href="thumbnail-1920x1080.png" download>Video thumbnail · 1920 × 1080</a>
+<a href="social-1080x1080.png" download>Square post · 1080 × 1080</a>
+<a href="shelf-logo-dark.png" download>Transparent logo PNG</a>
+<a href="shelf-logo-white.svg" download>White logo</a>
+<a href="shelf-logo-black.svg" download>Black logo</a>
+</div>
+<p class="note">Mint highlights the identity. Paper makes room for the content. Dark green anchors the whole system.</p>
+</footer>
+</body>
+</html>
